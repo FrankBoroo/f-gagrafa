@@ -12,7 +12,7 @@ export default async function AdminOverviewPage() {
     supabase.from("payments").select("amount").gte("paid_at", new Date(new Date().setDate(1)).toISOString()),
   ]);
 
-  const revenueThisMonth = (monthPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
+  const revenueThisMonth = (monthPayments ?? []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
   const cards = [
     { label: "Check-ins today", value: checkIns ?? 0 },
