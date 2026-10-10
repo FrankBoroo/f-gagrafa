@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +10,8 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { calculateNights } from "@/lib/types";
 import type { Unit } from "@/lib/types";
-import { createBookingAndInitializePayment, previewPromoCode } from "@/app/booking/actions";
+import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
+import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
 
 const guestSchema = z.object({
   guest_name: z.string().min(2, "Enter your full name"),
@@ -20,13 +22,31 @@ const guestSchema = z.object({
 
 type GuestForm = z.infer<typeof guestSchema>;
 
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";
+
+function addDays(date: string, days: number) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function parseGuests(raw: string | null) {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 2;
+}
+
 export function BookingFlow({ units }: { units: Unit[] }) {
   const params = useSearchParams();
   const [step, setStep] = useState(1);
-  const [unitId, setUnitId] = useState(units.find((u) => u.slug === params.get("unit"))?.id ?? "");
+  const initialUnitId = units.find((u) => u.slug === params.get("unit"))?.id ?? "";
+  const [unitId, setUnitId] = useState(initialUnitId);
   const [checkIn, setCheckIn] = useState(params.get("checkIn") ?? "");
   const [checkOut, setCheckOut] = useState(params.get("checkOut") ?? "");
-  const [guests, setGuests] = useState(Number(params.get("guests") ?? 2));
+  const [guests, setGuests] = useState(parseGuests(params.get("guests")));
+  const [today, setToday] = useState("");
+  const [availability, setAvailability] = useState<Record<string, boolean> | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   const [renderedAt] = useState(() => Date.now());
@@ -37,6 +57,84 @@ export function BookingFlow({ units }: { units: Unit[] }) {
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
   const subtotal = unit ? nights * unit.base_price_per_night : 0;
   const total = promoStatus.applied ? Math.max(subtotal - promoStatus.applied.discountAmount, 0) : subtotal;
+  const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability) : null;
+  const canContinue =
+    Boolean(unit) && nights > 0 && guests >= 1 && !checking && selectedBlockReason === null;
+
+  // `min` for the date inputs. Set after mount so server and client markup match.
+  useEffect(() => {
+    setToday(new Date().toISOString().slice(0, 10));
+  }, []);
+
+  // Arriving from a residence page: bring the pre-selected card into view.
+  const cameWithUnit = useRef(Boolean(initialUnitId));
+  useEffect(() => {
+    if (!cameWithUnit.current) return;
+    requestAnimationFrame(() =>
+      document.getElementById(`unit-${initialUnitId}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+    );
+  }, [initialUnitId]);
+
+  // Whenever the dates change, ask which residences are free for them.
+  useEffect(() => {
+    setAvailability(null);
+    setAvailabilityError(null);
+    if (!checkIn || !checkOut || calculateNights(checkIn, checkOut) <= 0) {
+      setChecking(false);
+      return;
+    }
+    let cancelled = false; // ignore answers that arrive after the dates changed again
+    setChecking(true);
+    checkUnitsAvailability(checkIn, checkOut)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) setAvailability(res.availability);
+        else setAvailabilityError(res.error);
+        setChecking(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Don't block the guest: the payment step re-checks availability anyway.
+        setAvailabilityError("Couldn't check availability just now — we'll confirm it at payment.");
+        setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkIn, checkOut]);
+
+  // Drop a selection that stopped being valid (taken dates, or too many guests).
+  useEffect(() => {
+    if (!unit) return;
+    const reason = getUnitBlockReason(unit, guests, availability);
+    if (reason) {
+      setUnitId("");
+      toast.info(`${unit.name} was deselected: ${reason.toLowerCase()}.`);
+    }
+  }, [unit, guests, availability]);
+
+  // A promo discount was calculated for one subtotal — never carry it to another.
+  useEffect(() => {
+    setPromoStatus({ checking: false });
+  }, [unitId, checkIn, checkOut]);
+
+  function handleCheckInChange(value: string) {
+    setCheckIn(value);
+    if (value && checkOut && checkOut <= value) setCheckOut("");
+  }
+
+  const availableCount = availability ? units.filter((u) => availability[u.id] !== false).length : 0;
+  let statusText = "Pick your dates to see availability and totals.";
+  if (checking) statusText = "Checking availability…";
+  else if (availabilityError) statusText = availabilityError;
+  else if (availability) statusText = `${availableCount} of ${units.length} available for your dates`;
+
+  const selectionSummary =
+    unit && nights > 0
+      ? `${unit.name} · ${nights} night${nights === 1 ? "" : "s"} · ${formatCurrency(subtotal)}`
+      : unit
+        ? `${unit.name} selected — now choose your dates`
+        : "Choose your dates and a residence to continue";
 
   async function applyPromoCode() {
     if (!promoCode.trim()) return;
@@ -91,46 +189,77 @@ export function BookingFlow({ units }: { units: Unit[] }) {
       <Steps step={step} />
 
       {step === 1 && (
-        <div className="mt-10 space-y-6">
-          <div>
-            <label className="text-sm text-navy/60">Residence</label>
-            <select
-              value={unitId}
-              onChange={(e) => setUnitId(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
-            >
-              <option value="">Select a residence</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>{u.name} — {formatCurrency(u.base_price_per_night)}/night</option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="mt-10">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="text-sm text-navy/60">Check-in</label>
-              <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+              <label className="text-sm text-navy/60" htmlFor="check-in">Check-in</label>
+              <input
+                id="check-in"
+                type="date"
+                min={today || undefined}
+                value={checkIn}
+                onChange={(e) => handleCheckInChange(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+              />
             </div>
             <div>
-              <label className="text-sm text-navy/60">Check-out</label>
-              <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+              <label className="text-sm text-navy/60" htmlFor="check-out">Check-out</label>
+              <input
+                id="check-out"
+                type="date"
+                min={checkIn ? addDays(checkIn, 1) : today || undefined}
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-navy/60" htmlFor="guests">Guests</label>
+              <input
+                id="guests"
+                type="number"
+                min={1}
+                step={1}
+                value={guests}
+                onChange={(e) => setGuests(Number(e.target.value))}
+                className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+              />
             </div>
           </div>
-          <div>
-            <label className="text-sm text-navy/60">Guests</label>
-            <input type="number" min={1} value={guests} onChange={(e) => setGuests(Number(e.target.value))} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+
+          <div className="mt-10">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-xl">Choose your residence</h2>
+              <p
+                className={`text-sm ${availabilityError ? "text-amber-700" : "text-navy/50"}`}
+                aria-live="polite"
+              >
+                {statusText}
+              </p>
+            </div>
+            <div className="mt-5">
+              <UnitPicker
+                units={units}
+                selectedId={unitId}
+                onSelect={setUnitId}
+                guests={guests}
+                nights={nights}
+                availability={availability}
+              />
+            </div>
           </div>
-          <button
-            className="btn-primary w-full"
-            disabled={!unitId || !checkIn || !checkOut || nights <= 0}
-            onClick={() => setStep(2)}
-          >
-            Continue
-          </button>
+
+          <div className="mt-8 flex flex-col gap-3 border-t border-navy/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-navy/70">{selectionSummary}</p>
+            <button className="btn-primary w-full sm:w-auto sm:px-12" disabled={!canContinue} onClick={() => setStep(2)}>
+              Continue
+            </button>
+          </div>
         </div>
       )}
 
       {step === 2 && (
-        <form className="mt-10 space-y-6" onSubmit={handleSubmit(() => setStep(3))}>
+        <form className="mt-10 max-w-2xl space-y-6" onSubmit={handleSubmit(() => setStep(3))}>
           {/* Honeypot — hidden from real guests via CSS, not `hidden`, so simple bots still fill it */}
           <div className="absolute left-[-9999px]" aria-hidden="true">
             <label htmlFor="booking_company_website">Company website</label>
@@ -170,10 +299,23 @@ export function BookingFlow({ units }: { units: Unit[] }) {
       )}
 
       {step === 3 && unit && (
-        <div className="mt-10">
+        <div className="mt-10 max-w-2xl">
           <div className="card p-6">
-            <h3 className="text-lg">{unit.name}</h3>
-            <p className="mt-1 text-sm text-navy/60">{checkIn} → {checkOut} · {nights} nights · {guests} guests</p>
+            <div className="flex gap-4">
+              <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-sand">
+                <Image
+                  src={unit.images?.[0] ?? FALLBACK_IMAGE}
+                  alt={unit.name}
+                  fill
+                  sizes="112px"
+                  className="object-cover"
+                />
+              </div>
+              <div>
+                <h3 className="text-lg">{unit.name}</h3>
+                <p className="mt-1 text-sm text-navy/60">{checkIn} → {checkOut} · {nights} nights · {guests} guests</p>
+              </div>
+            </div>
 
             <div className="mt-5 flex gap-2">
               <input

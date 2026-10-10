@@ -14,7 +14,7 @@ export default async function BookingPage() {
     .order("sort_order");
 
   return (
-    <div className="container-gagrafa max-w-3xl py-24">
+    <div className="container-gagrafa max-w-4xl py-24">
       <p className="text-xs uppercase tracking-[0.3em] text-champagne">Reserve</p>
       <h1 className="mt-3 text-4xl">Book Your Stay</h1>
       <Suspense>

@@ -12,6 +12,56 @@ export async function previewPromoCode(code: string, subtotal: number) {
   return checkPromoCode(code, subtotal);
 }
 
+type AvailabilityResult =
+  | { ok: true; availability: Record<string, boolean> }
+  | { ok: false; error: string };
+
+// Powers the residence picker: tells the guest, before they pick, which units
+// are free for their dates. Read-only and advisory — the real, authoritative
+// check still runs again inside createBookingAndInitializePayment, so a unit
+// that gets booked between this call and payment is still caught there.
+export async function checkUnitsAvailability(
+  checkIn: string,
+  checkOut: string
+): Promise<AvailabilityResult> {
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRe.test(checkIn) || !dateRe.test(checkOut)) {
+    return { ok: false, error: "Choose valid dates" };
+  }
+
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return { ok: false, error: "Choose valid dates" };
+  }
+  if (end <= start) return { ok: false, error: "Check-out must be after check-in" };
+  if (checkIn < new Date().toISOString().slice(0, 10)) {
+    return { ok: false, error: "Check-in can't be in the past" };
+  }
+  const nights = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+  if (nights > 365) {
+    return { ok: false, error: "Online bookings are limited to 365 nights — contact us for longer stays" };
+  }
+
+  const supabase = createServiceClient();
+  const { data: units } = await supabase.from("units").select("id").eq("is_active", true);
+
+  const entries = await Promise.all(
+    (units ?? []).map(async (u: { id: string }) => {
+      const { data, error } = await supabase.rpc("is_unit_available", {
+        p_unit_id: u.id,
+        p_check_in: checkIn,
+        p_check_out: checkOut,
+      });
+      // Fail open: if the lookup itself errors, don't wrongly grey a unit out.
+      // The payment-time check is the one that actually decides.
+      return [u.id, error ? true : Boolean(data)] as [string, boolean];
+    })
+  );
+
+  return { ok: true, availability: Object.fromEntries(entries) };
+}
+
 interface ActionResult {
   ok: boolean;
   error?: string;
@@ -37,6 +87,10 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid booking details" };
   }
   const data = parsed.data;
+
+  if (data.check_in < new Date().toISOString().slice(0, 10)) {
+    return { ok: false, error: "Check-in can't be in the past" };
+  }
 
   const supabase = createServiceClient();
 
