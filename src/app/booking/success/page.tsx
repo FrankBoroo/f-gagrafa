@@ -43,9 +43,22 @@ export default async function BookingSuccessPage({
       <StatusScreen
         icon={<XCircle className="text-red-500" size={48} />}
         title="Payment not completed"
-        body={`Your reservation (${result.booking.booking_code}) is saved as pending, but the payment ${result.reason}. You can try paying again from the Guest Portal.`}
-        ctaHref={`/portal/${result.booking.booking_code}`}
-        ctaLabel="View my reservation"
+        body="Your payment wasn't completed, so you haven't been charged. We hold your dates for about 30 minutes, then release them. You're welcome to start a new booking whenever you're ready."
+        ctaHref="/booking"
+        ctaLabel="Start a new booking"
+      />
+    );
+  }
+
+  if (result.outcome === "needs_review") {
+    return (
+      <StatusScreen
+        icon={<HelpCircle className="text-champagne" size={48} />}
+        title="Payment received — we need to confirm your dates"
+        body="Your payment went through, but your dates were released while it was processing and have since been booked. Our team has been alerted and will contact you shortly with other dates or a full refund. Please keep your booking code."
+        code={result.booking.booking_code}
+        ctaHref="/contact"
+        ctaLabel="Contact us"
       />
     );
   }

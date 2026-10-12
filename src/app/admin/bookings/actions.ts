@@ -7,8 +7,10 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { bookingStatusSchema, guestDetailsSchema } from "@/lib/validations";
 import { generateBookingCode } from "@/lib/types";
 import { logAudit } from "@/lib/audit";
+import { isStaff, UNAUTHORIZED } from "@/lib/auth";
 
 export async function updateBookingStatus(bookingId: string, status: string) {
+  if (!(await isStaff())) return UNAUTHORIZED;
   const parsed = bookingStatusSchema.safeParse(status);
   if (!parsed.success) return { ok: false, error: "Invalid status" };
 
@@ -18,7 +20,13 @@ export async function updateBookingStatus(bookingId: string, status: string) {
     .update({ status: parsed.data })
     .eq("id", bookingId);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // 23P01 = the database's double-booking guard: these dates were taken since.
+    if (error.code === "23P01") {
+      return { ok: false, error: "Those dates are now booked by someone else, so this booking can't be restored." };
+    }
+    return { ok: false, error: error.message };
+  }
 
   await logAudit("booking.status_changed", "booking", bookingId, { status: parsed.data });
   revalidatePath("/admin/bookings");
@@ -41,6 +49,7 @@ const manualBookingSchema = guestDetailsSchema.extend({
 export type ManualBookingInput = z.infer<typeof manualBookingSchema>;
 
 export async function createManualBooking(input: ManualBookingInput) {
+  if (!(await isStaff())) return UNAUTHORIZED;
   const parsed = manualBookingSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid booking details" };
@@ -56,6 +65,9 @@ export async function createManualBooking(input: ManualBookingInput) {
     .single();
 
   if (!unit) return { ok: false, error: "Residence not found" };
+
+  // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
+  await supabase.rpc("expire_stale_pending_bookings");
 
   const { data: available } = await supabase.rpc("is_unit_available", {
     p_unit_id: data.unit_id,
@@ -93,6 +105,9 @@ export async function createManualBooking(input: ManualBookingInput) {
     .single();
 
   if (error || !booking) {
+    if (error?.code === "23P01") {
+      return { ok: false, error: "Those dates were just booked by someone else." };
+    }
     return { ok: false, error: error?.message ?? "Could not create booking" };
   }
 

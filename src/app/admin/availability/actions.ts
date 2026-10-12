@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
+import { isStaff, UNAUTHORIZED } from "@/lib/auth";
 
 const blockSchema = z.object({
   unit_id: z.string().uuid(),
@@ -16,6 +17,7 @@ const blockSchema = z.object({
 });
 
 export async function addBlockedDate(input: z.infer<typeof blockSchema>) {
+  if (!(await isStaff())) return UNAUTHORIZED;
   const parsed = blockSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid dates" };
@@ -44,6 +46,7 @@ export async function addBlockedDate(input: z.infer<typeof blockSchema>) {
 }
 
 export async function removeBlockedDate(id: string) {
+  if (!(await isStaff())) return UNAUTHORIZED;
   const supabase = createServiceClient();
   const { error } = await supabase.from("blocked_dates").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };

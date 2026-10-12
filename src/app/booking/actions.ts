@@ -108,6 +108,9 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: "Too many booking attempts from this email recently — please try again shortly, or contact us for help." };
   }
 
+  // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
+  await supabase.rpc("expire_stale_pending_bookings");
+
   const { data: available } = await supabase.rpc("is_unit_available", {
     p_unit_id: data.unit_id,
     p_check_in: data.check_in,
@@ -163,6 +166,10 @@ export async function createBookingAndInitializePayment(
     .single();
 
   if (error || !booking) {
+    // 23P01 = the database's double-booking guard: another guest took these dates a moment ago.
+    if (error?.code === "23P01") {
+      return { ok: false, error: "Sorry — those dates were just taken by another guest. Please choose different dates." };
+    }
     return { ok: false, error: error?.message ?? "Could not create booking" };
   }
 
@@ -189,12 +196,13 @@ export async function createBookingAndInitializePayment(
 
     return { ok: true, authorization_url: transaction.authorization_url, booking_code: bookingCode };
   } catch (err: any) {
-    // Booking exists but payment couldn't be started — leave it pending so
-    // the guest (or an admin) can retry rather than losing the reservation.
-    return {
-      ok: false,
-      error: err.message ?? "Could not start payment. Your reservation was saved as pending — please try again.",
-      booking_code: bookingCode,
-    };
+    // Nothing was charged and there is nothing to pay, so release the dates right
+    // away; otherwise the guest's own retry would be blocked by this dead hold.
+    console.error("Paystack initialization failed:", err);
+    await supabase
+      .from("bookings")
+      .update({ status: "cancelled", admin_notes: "Auto-cancelled: payment could not be started" })
+      .eq("id", booking.id);
+    return { ok: false, error: "We couldn't start the payment. Please try again in a moment." };
   }
 }

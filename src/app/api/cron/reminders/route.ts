@@ -14,12 +14,20 @@ function dateKey(d: Date) {
 // Post-stay: sends the day after check-out, once, ever (tracked by
 // review_request_sent_at so re-running the job is always safe).
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Fail closed: without a secret this endpoint would be open to anyone.
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 500 });
+  }
+  if (req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabase = createServiceClient();
+
+  // Sweep unpaid checkouts that were abandoned. Booking attempts also release these
+  // on demand; this just keeps the table tidy.
+  const { data: expiredCount } = await supabase.rpc("expire_stale_pending_bookings");
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -32,6 +40,7 @@ export async function GET(req: NextRequest) {
     .select("*, units(name)")
     .eq("check_in", dateKey(tomorrow))
     .eq("payment_status", "paid")
+    .neq("status", "cancelled")
     .is("reminder_sent_at", null);
 
   for (const booking of arriving ?? []) {
@@ -45,6 +54,7 @@ export async function GET(req: NextRequest) {
     .select("*")
     .eq("check_out", dateKey(yesterday))
     .eq("payment_status", "paid")
+    .neq("status", "cancelled")
     .is("review_request_sent_at", null);
 
   for (const booking of departed ?? []) {
@@ -55,5 +65,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     preArrivalSent: arriving?.length ?? 0,
     postStaySent: departed?.length ?? 0,
+    expiredPending: expiredCount ?? 0,
   });
 }
