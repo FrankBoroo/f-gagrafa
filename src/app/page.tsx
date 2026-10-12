@@ -37,7 +37,7 @@ export default async function HomePage() {
       <section className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy">
         <Image
           src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c"
-          alt="The Gagrafa residence"
+          alt="My Apartment"
           fill
           priority
           className="object-cover opacity-60"
@@ -49,7 +49,7 @@ export default async function HomePage() {
             Live Luxuriously,<br />Stay Serenely.
           </h1>
           <p className="mt-6 max-w-md text-ivory/70">
-            Serviced residences on Community 20 — where quiet design and attentive
+            Serviced residences on Community 20, where quiet design and attentive
             service meet, for a night or a season.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
@@ -68,7 +68,7 @@ export default async function HomePage() {
             A residence built for the way you actually live.
           </h2>
           <p className="self-center text-navy/70">
-            The Gagrafa sits quietly on Community 20 in Spintex — close enough to
+            My Apartment sits quietly on Community 20 in Spintex, close enough to
             Accra's business districts to be convenient, far enough to feel calm.
             Each residence is furnished with the same care as a well-kept home:
             considered materials, dependable utilities, and service that
