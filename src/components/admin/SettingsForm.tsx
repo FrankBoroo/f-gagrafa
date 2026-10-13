@@ -13,6 +13,12 @@ interface Settings {
   address: string | null;
   admin_notification_email: string | null;
   whatsapp_number: string | null;
+  reception_hours?: string | null;
+  wifi_network?: string | null;
+  wifi_password?: string | null;
+  entry_instructions?: string | null;
+  house_rules?: string | null;
+  emergency_contact?: string | null;
 }
 
 export function SettingsForm({ settings }: { settings: Settings }) {
@@ -24,6 +30,12 @@ export function SettingsForm({ settings }: { settings: Settings }) {
     address: settings.address ?? "",
     admin_notification_email: settings.admin_notification_email ?? "",
     whatsapp_number: settings.whatsapp_number ?? "",
+    reception_hours: settings.reception_hours ?? "",
+    wifi_network: settings.wifi_network ?? "",
+    wifi_password: settings.wifi_password ?? "",
+    entry_instructions: settings.entry_instructions ?? "",
+    house_rules: settings.house_rules ?? "",
+    emergency_contact: settings.emergency_contact ?? "",
   });
   const [isPending, startTransition] = useTransition();
 
@@ -54,6 +66,45 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           <Field label="Contact phone" value={form.contact_phone} onChange={(v) => update("contact_phone", v)} />
           <Field label="Contact email" type="email" value={form.contact_email} onChange={(v) => update("contact_email", v)} />
         </div>
+        <Field
+          label="Reception hours"
+          value={form.reception_hours}
+          onChange={(v) => update("reception_hours", v)}
+          hint="Shown on the Contact page. Phone and email only appear on the site once you fill them in."
+        />
+      </div>
+
+      <div className="card space-y-4 p-6">
+        <h2 className="text-lg">Guest information</h2>
+        <p className="text-sm text-navy/50">
+          Shown in the Guest Portal. Wi-Fi and entry details are only revealed to a verified guest
+          with a paid, active stay — never on the public site. Each residence's door code is set on
+          its own page under Units.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Wi-Fi network" value={form.wifi_network} onChange={(v) => update("wifi_network", v)} />
+          <Field label="Wi-Fi password" value={form.wifi_password} onChange={(v) => update("wifi_password", v)} />
+        </div>
+        <Field
+          label="Check-in & entry instructions"
+          multiline
+          value={form.entry_instructions}
+          onChange={(v) => update("entry_instructions", v)}
+          hint="e.g. gate code, where to collect keys, parking directions."
+        />
+        <Field
+          label="House rules"
+          multiline
+          value={form.house_rules}
+          onChange={(v) => update("house_rules", v)}
+        />
+        <Field
+          label="Emergency contacts"
+          multiline
+          value={form.emergency_contact}
+          onChange={(v) => update("emergency_contact", v)}
+          hint="e.g. Front desk: +233 … (24/7)."
+        />
       </div>
 
       <div className="card space-y-4 p-6">
@@ -84,7 +135,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 }
 
 function Field({
-  label, value, onChange, type = "text", required, hint,
+  label, value, onChange, type = "text", required, hint, multiline,
 }: {
   label: string;
   value: string;
@@ -92,17 +143,27 @@ function Field({
   type?: string;
   required?: boolean;
   hint?: string;
+  multiline?: boolean;
 }) {
   return (
     <div>
       <label className="text-sm text-navy/60">{label}</label>
-      <input
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
-      />
+      {multiline ? (
+        <textarea
+          rows={4}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+        />
+      ) : (
+        <input
+          type={type}
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+        />
+      )}
       {hint && <p className="mt-1 text-xs text-navy/40">{hint}</p>}
     </div>
   );

@@ -35,7 +35,13 @@ export function ServiceRequestCard({ request }: { request: any }) {
     <div className="card p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="capitalize">{request.type}</p>
+          <p className="capitalize">
+            {request.description?.startsWith("CANCELLATION REQUEST") ? (
+              <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs normal-case text-red-700">Cancellation request</span>
+            ) : (
+              request.type
+            )}
+          </p>
           <p className="mt-1 text-xs text-navy/50">
             {request.bookings?.guest_name} · {request.bookings?.booking_code}
           </p>
@@ -44,7 +50,14 @@ export function ServiceRequestCard({ request }: { request: any }) {
           {status.replace("_", " ")}
         </span>
       </div>
-      {request.description && <p className="mt-3 text-sm text-navy/70">{request.description}</p>}
+      {request.description && (
+        <p className="mt-3 text-sm text-navy/70">{request.description.replace(/^CANCELLATION REQUEST:?\s*/, "") || "No reason given."}</p>
+      )}
+      {request.description?.startsWith("CANCELLATION REQUEST") && (
+        <p className="mt-2 text-xs text-navy/50">
+          Open the booking in Bookings and use Cancel / refund to process this, then mark it complete here.
+        </p>
+      )}
       {actions.length > 0 && (
         <div className="mt-4 flex gap-2 border-t border-navy/10 pt-4">
           {actions.map((a) => (

@@ -5,7 +5,7 @@ export const metadata = { title: "Guest Portal — The Gagrafa" };
 export default async function PortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string }>;
+  searchParams: Promise<{ code?: string; verify?: string }>;
 }) {
   const params = await searchParams;
   return (
@@ -16,7 +16,7 @@ export default async function PortalPage({
         Enter your booking code and the email or phone used to book, to view your
         stay details, check-in instructions, and services.
       </p>
-      <PortalLookup defaultCode={params.code} />
+      <PortalLookup defaultCode={params.code} needsVerification={params.verify === "1"} />
     </div>
   );
 }

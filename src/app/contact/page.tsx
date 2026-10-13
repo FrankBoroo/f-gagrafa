@@ -1,16 +1,18 @@
 import { ContactForm } from "@/components/site/ContactForm";
 import { MapEmbed } from "@/components/site/MapEmbed";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export const metadata = { title: "Contact — The Gagrafa" };
 
-const details = [
-  { label: "Address", value: "Spintex, Community 20, Accra, Ghana" },
-  { label: "Phone", value: "+233 XX XXX XXXX" },
-  { label: "Email", value: "reservations@thegagrafa.com" },
-  { label: "Reception hours", value: "24/7 — someone is always at the desk" },
-];
+export default async function ContactPage() {
+  const settings = await getPublicSettings();
+  const details = [
+    { label: "Address", value: settings.address },
+    { label: "Phone", value: settings.contact_phone },
+    { label: "Email", value: settings.contact_email },
+    { label: "Reception hours", value: settings.reception_hours },
+  ].filter((d) => d.value);
 
-export default function ContactPage() {
   return (
     <div className="container-gagrafa py-24">
       <p className="text-xs uppercase tracking-[0.3em] text-champagne">Get in touch</p>

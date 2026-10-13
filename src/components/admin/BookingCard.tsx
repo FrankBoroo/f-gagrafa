@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { updateBookingStatus } from "@/app/admin/bookings/actions";
+import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
 
 const statusColor: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -21,9 +22,22 @@ const paymentColor: Record<string, string> = {
   refunded: "text-navy/50",
 };
 
-export function BookingCard({ booking }: { booking: any }) {
+export function BookingCard({ booking, isAdmin }: { booking: any; isAdmin: boolean }) {
   const [status, setStatus] = useState(booking.status);
   const [isPending, startTransition] = useTransition();
+  const [dialog, setDialog] = useState<null | "dates" | "pay" | "cancel">(null);
+
+  const netPaid = Number(booking.net_paid ?? 0);
+  const outstanding = Math.max(Number(booking.total_amount) - netPaid, 0);
+  const refunded = Number(booking.refunded_amount ?? 0);
+  const closed = status === "cancelled" || status === "no_show";
+  const active = !closed && status !== "checked_out";
+  const awaitingPayment = status === "pending" && booking.payment_status === "unpaid";
+  const canEditDates = active && !awaitingPayment;
+  const canRecordPayment = !closed && outstanding > 0.005;
+  const canCancel = active;
+  const canRefund = closed && netPaid > 0.005;
+  const liveBooking = { ...booking, status };
 
   function act(next: string) {
     startTransition(async () => {
@@ -41,9 +55,6 @@ export function BookingCard({ booking }: { booking: any }) {
   if (status === "pending") actions.push({ label: "Confirm", next: "confirmed", style: "btn-primary" });
   if (status === "confirmed") actions.push({ label: "Check In", next: "checked_in", style: "btn-primary" });
   if (status === "checked_in") actions.push({ label: "Check Out", next: "checked_out", style: "btn-primary" });
-  if (!["cancelled", "checked_out", "no_show"].includes(status)) {
-    actions.push({ label: "Cancel", next: "cancelled", style: "btn-secondary" });
-  }
 
   return (
     <div className="card p-5">
@@ -70,6 +81,12 @@ export function BookingCard({ booking }: { booking: any }) {
           <span className={`ml-2 capitalize ${paymentColor[booking.payment_status]}`}>
             {booking.payment_status}
           </span>
+          {refunded > 0 && (
+            <span className="ml-2 text-xs text-navy/50">· refunded {formatCurrency(refunded, booking.currency)}</span>
+          )}
+          {canRecordPayment && !awaitingPayment && (
+            <span className="ml-2 text-xs text-amber-700">· {formatCurrency(outstanding, booking.currency)} due</span>
+          )}
         </div>
         <div className="flex gap-2">
           {actions.map((a) => (
@@ -85,11 +102,42 @@ export function BookingCard({ booking }: { booking: any }) {
         </div>
       </div>
 
+      {(canEditDates || canRecordPayment || canCancel || canRefund) && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {canEditDates && (
+            <button type="button" className="text-champagne-dark underline underline-offset-2" onClick={() => setDialog("dates")}>
+              Change dates
+            </button>
+          )}
+          {canRecordPayment && (
+            <button type="button" className="text-champagne-dark underline underline-offset-2" onClick={() => setDialog("pay")}>
+              Record payment
+            </button>
+          )}
+          {canCancel && (
+            <button type="button" className="text-red-700 underline underline-offset-2" onClick={() => setDialog("cancel")}>
+              Cancel / refund
+            </button>
+          )}
+          {canRefund && (
+            <button type="button" className="text-red-700 underline underline-offset-2" onClick={() => setDialog("cancel")}>
+              Refund
+            </button>
+          )}
+        </div>
+      )}
+
       {booking.special_requests && (
         <p className="mt-4 rounded-lg bg-sand px-4 py-3 text-sm text-navy/70">
           <span className="text-xs uppercase tracking-widest text-navy/40">Special requests </span>
           {booking.special_requests}
         </p>
+      )}
+
+      {dialog === "dates" && <EditDatesDialog booking={liveBooking} open onClose={() => setDialog(null)} />}
+      {dialog === "pay" && <RecordPaymentDialog booking={liveBooking} open onClose={() => setDialog(null)} />}
+      {dialog === "cancel" && (
+        <CancelRefundDialog booking={liveBooking} isAdmin={isAdmin} open onClose={() => setDialog(null)} />
       )}
     </div>
   );

@@ -11,6 +11,7 @@ const methodLabel: Record<string, string> = {
 
 const statusColor: Record<string, string> = {
   success: "bg-emerald-100 text-emerald-700",
+  refunded: "bg-violet-100 text-violet-700",
   pending: "bg-amber-100 text-amber-700",
   failed: "bg-red-100 text-red-700",
 };
@@ -42,8 +43,8 @@ export default async function AdminPaymentsPage({
   const { data: payments } = await query.limit(200);
 
   const totalCollected = (payments ?? [])
-    .filter((p) => p.status === "success")
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+    .filter((p: any) => p.status === "success" || p.status === "refunded")
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
   return (
     <div>
@@ -51,7 +52,7 @@ export default async function AdminPaymentsPage({
         <h1 className="text-3xl">Payments</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-navy/50">
-            {payments?.length ?? 0} transactions · {formatCurrency(totalCollected)} collected
+            {payments?.length ?? 0} transactions · {formatCurrency(totalCollected)} net collected
           </span>
           <a href="/api/admin/export/payments" className="btn-secondary px-5 py-2.5 text-sm">Export CSV</a>
         </div>

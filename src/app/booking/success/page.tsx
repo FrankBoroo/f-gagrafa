@@ -69,7 +69,7 @@ export default async function BookingSuccessPage({
       title="Booking Confirmed"
       body="Thank you — a confirmation has been sent to your email. Keep your booking code handy to access your Guest Portal."
       code={result.booking.booking_code}
-      ctaHref={`/portal/${result.booking.booking_code}`}
+      ctaHref={`/portal?code=${result.booking.booking_code}`}
       ctaLabel="Go to Guest Portal"
     />
   );

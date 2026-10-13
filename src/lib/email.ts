@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
+import { portalMagicLink } from "@/lib/portal-session";
 
 // Every send here is best-effort: guarded by RESEND_API_KEY, wrapped in
 // try/catch, and never thrown back to the caller. A missing or bad key
@@ -62,7 +63,7 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
         <strong>Check-out:</strong> ${booking.check_out}<br/>
         <strong>Total paid:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}
       </p>
-      <p>Visit your Guest Portal any time with your booking code for check-in details, Wi-Fi, and to request services.</p>
+      <p><a href="${portalMagicLink(booking.booking_code)}">Open your Guest Portal</a> for check-in details, Wi-Fi, and to request services. You can also sign in any time with your booking code and the email or phone you booked with.</p>
       <p>— The Gagrafa</p>
     `,
   });
@@ -106,6 +107,86 @@ export async function sendAdminPaymentConflictAlert(booking: any, unitName: stri
   });
 }
 
+const METHOD_LABEL: Record<string, string> = {
+  paystack: "your original payment method (via Paystack)",
+  momo: "Mobile Money",
+  cash: "cash",
+  bank: "bank transfer",
+};
+
+export async function sendBookingCancelledEmail(
+  booking: any,
+  unitName: string,
+  refund: { amount: number; method: string } | null
+) {
+  const refundLine = refund && refund.amount > 0
+    ? `<p>A refund of <strong>${booking.currency} ${refund.amount.toLocaleString()}</strong> has been issued to ${METHOD_LABEL[refund.method] ?? refund.method}.${
+        refund.method === "paystack" ? " It can take 5–10 business days to appear on your statement." : ""
+      }</p>`
+    : "<p>No refund applies to this cancellation under our cancellation policy.</p>";
+
+  await send({
+    to: booking.guest_email,
+    subject: `Your booking ${booking.booking_code} has been cancelled`,
+    html: `
+      <p>Hi ${booking.guest_name},</p>
+      <p>Your booking <strong>${booking.booking_code}</strong> for ${unitName} (${booking.check_in} → ${booking.check_out}) has been cancelled.</p>
+      ${refundLine}
+      <p>If you have any questions, just reply to this email.</p>
+      <p>— The Gagrafa</p>
+    `,
+  });
+}
+
+export async function sendBookingChangedEmail(booking: any, unitName: string) {
+  await send({
+    to: booking.guest_email,
+    subject: `Your booking ${booking.booking_code} has been updated`,
+    html: `
+      <p>Hi ${booking.guest_name},</p>
+      <p>The dates for your stay at <strong>${unitName}</strong> have been updated:</p>
+      <p>
+        <strong>Check-in:</strong> ${booking.check_in}<br/>
+        <strong>Check-out:</strong> ${booking.check_out}<br/>
+        <strong>Total:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}
+      </p>
+      <p><a href="${portalMagicLink(booking.booking_code)}">View your booking</a>. If this isn't what you agreed with us, just reply to this email.</p>
+      <p>— The Gagrafa</p>
+    `,
+  });
+}
+
+export async function sendCancellationRequestAlert(booking: any, reason: string) {
+  await send({
+    to: await adminAddress(),
+    subject: `Cancellation request: ${booking.booking_code}`,
+    html: `
+      <p>A guest has asked to cancel their booking.</p>
+      <p>
+        <strong>Code:</strong> ${booking.booking_code}<br/>
+        <strong>Guest:</strong> ${booking.guest_name}<br/>
+        <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
+        <strong>Reason:</strong> ${reason || "—"}
+      </p>
+      <p>Review it under Admin → Service Requests, then cancel (and refund if due) from Bookings.</p>
+    `,
+  });
+}
+
+export async function sendStaffInviteEmail(email: string, name: string, role: string, link: string) {
+  await send({
+    to: email,
+    subject: "You've been invited to The Gagrafa admin",
+    html: `
+      <p>Hi ${name || "there"},</p>
+      <p>You've been invited to join The Gagrafa team as <strong>${role}</strong>.</p>
+      <p><a href="${link}">Accept the invitation and set your password</a></p>
+      <p>This link works once and expires soon. If it has expired, ask an admin to send you a new one.</p>
+      <p>— The Gagrafa</p>
+    `,
+  });
+}
+
 export async function sendPreArrivalReminder(booking: any, unitName: string) {
   await send({
     to: booking.guest_email,
@@ -114,7 +195,7 @@ export async function sendPreArrivalReminder(booking: any, unitName: string) {
       <p>Hi ${booking.guest_name},</p>
       <p>Your stay at <strong>${unitName}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
       <p>Check-in is from 2:00 PM. Your digital access code and Wi-Fi details will be ready in your Guest Portal:</p>
-      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL || ""}/portal/${booking.booking_code}">View your stay details</a></p>
+      <p><a href="${portalMagicLink(booking.booking_code)}">View your stay details</a></p>
       <p>— The Gagrafa</p>
     `,
   });
@@ -127,7 +208,7 @@ export async function sendPostStayReviewRequest(booking: any) {
     html: `
       <p>Hi ${booking.guest_name},</p>
       <p>Thank you for staying with us. We'd love to hear how it went — it takes less than a minute.</p>
-      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL || ""}/portal/${booking.booking_code}">Leave a review</a></p>
+      <p><a href="${portalMagicLink(booking.booking_code)}">Leave a review</a></p>
       <p>— The Gagrafa</p>
     `,
   });

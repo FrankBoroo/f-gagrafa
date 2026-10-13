@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, CalendarDays, Building2, Users,
   ClipboardList, CreditCard, Star, Settings, CalendarOff,
-  BarChart3, Tag, ScrollText, LayoutGrid, Menu, X,
+  BarChart3, Tag, ScrollText, LayoutGrid, Menu, X, UserPlus,
 } from "lucide-react";
 import { SignOutButton } from "@/components/admin/SignOutButton";
 
@@ -23,6 +23,7 @@ const nav = [
   { href: "/admin/promo-codes", label: "Promo Codes", icon: Tag, adminOnly: true },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, adminOnly: true },
   { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { href: "/admin/team", label: "Team", icon: UserPlus, adminOnly: true },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, adminOnly: true },
 ];
 

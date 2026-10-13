@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/auth";
 import { BookingFilters } from "@/components/admin/BookingFilters";
 import { BookingCard } from "@/components/admin/BookingCard";
 
@@ -13,7 +14,7 @@ export default async function AdminBookingsPage({
 
   let query = supabase
     .from("bookings")
-    .select("*, units(name)")
+    .select("*, units(name, base_price_per_night), payments(amount, status, method, paystack_reference)")
     .order("created_at", { ascending: false });
 
   if (params.status) query = query.eq("status", params.status);
@@ -25,7 +26,16 @@ export default async function AdminBookingsPage({
     );
   }
 
-  const { data: bookings } = await query.limit(100);
+  const { data: rawBookings } = await query.limit(100);
+  const admin = await isAdmin();
+
+  // Net money received per booking: successful payments minus refund rows (stored negative).
+  const bookings = (rawBookings ?? []).map((b: any) => ({
+    ...b,
+    net_paid: (b.payments ?? [])
+      .filter((p: any) => p.status === "success" || p.status === "refunded")
+      .reduce((sum: number, p: any) => sum + Number(p.amount), 0),
+  }));
 
   return (
     <div>
@@ -43,8 +53,13 @@ export default async function AdminBookingsPage({
       </div>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        {bookings?.map((b) => (
-          <BookingCard key={b.id} booking={b} />
+        {bookings.map((b: any) => (
+          // The key includes the fields that change after an action, so the card re-mounts fresh.
+          <BookingCard
+            key={`${b.id}-${b.status}-${b.payment_status}-${b.check_in}-${b.check_out}-${b.total_amount}-${b.net_paid}`}
+            booking={b}
+            isAdmin={admin}
+          />
         ))}
       </div>
 

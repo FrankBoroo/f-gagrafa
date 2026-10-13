@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Pencil, Check, X } from "lucide-react";
@@ -122,6 +123,10 @@ export function UnitEditCard({ unit }: { unit: Unit }) {
           <p>{unit.size_sqm ? `${unit.size_sqm} m²` : "—"}</p>
         </div>
       </div>
+
+      <Link href={`/admin/units/${unit.id}`} className="mt-4 inline-block text-xs text-champagne-dark underline underline-offset-2">
+        Photos, amenities &amp; door code →
+      </Link>
 
       <div className="mt-4 flex items-center justify-between border-t border-navy/10 pt-4">
         <label className="flex items-center gap-2 text-sm text-navy/70">

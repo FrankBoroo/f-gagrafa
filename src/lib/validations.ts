@@ -40,6 +40,57 @@ export const unitUpdateSchema = z.object({
 });
 export type UnitUpdateInput = z.infer<typeof unitUpdateSchema>;
 
+// Everything about a residence except its photos and slug (the slug is generated on
+// creation and then kept stable so links and search results never break).
+export const unitDetailsSchema = z.object({
+  name: z.string().trim().min(2, "Name is required").max(100),
+  type: z.enum(["studio", "1bed_standard", "1bed_executive", "2bed", "penthouse"]),
+  short_description: z.string().trim().max(300),
+  description: z.string().trim().max(3000),
+  base_price_per_night: z.coerce.number().positive("Price must be greater than 0"),
+  max_guests: z.coerce.number().int().min(1, "At least 1 guest").max(30),
+  bedrooms: z.coerce.number().int().min(0).max(20),
+  bathrooms: z.coerce.number().min(0).max(20),
+  size_sqm: z.number().min(0).max(5000).nullable(),
+  amenities: z.array(z.string().trim().min(1).max(60)).max(40),
+  access_code: z.string().trim().max(50),
+  is_active: z.boolean(),
+});
+export type UnitDetailsInput = z.infer<typeof unitDetailsSchema>;
+
+export const inviteTeamMemberSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  fullName: z.string().trim().max(100),
+  role: z.enum(["admin", "staff"]),
+});
+export type InviteTeamMemberInput = z.infer<typeof inviteTeamMemberSchema>;
+
+export const cancelRefundSchema = z.object({
+  bookingId: z.string().uuid(),
+  refundMethod: z.enum(["none", "paystack", "cash", "bank", "momo"]),
+  refundAmount: z.coerce.number().min(0),
+  reason: z.string().trim().max(500),
+});
+export type CancelRefundInput = z.infer<typeof cancelRefundSchema>;
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose valid dates");
+export const bookingDatesSchema = z
+  .object({
+    bookingId: z.string().uuid(),
+    check_in: isoDate,
+    check_out: isoDate,
+    total_amount: z.coerce.number().min(0, "Total can't be negative"),
+  })
+  .refine((d) => d.check_out > d.check_in, { message: "Check-out must be after check-in", path: ["check_out"] });
+export type BookingDatesInput = z.infer<typeof bookingDatesSchema>;
+
+export const recordPaymentSchema = z.object({
+  bookingId: z.string().uuid(),
+  amount: z.coerce.number().positive("Enter an amount above 0"),
+  method: z.enum(["cash", "bank", "momo"]),
+});
+export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+
 export const bookingStatusSchema = z.enum([
   "pending", "confirmed", "checked_in", "checked_out", "cancelled", "no_show",
 ]);

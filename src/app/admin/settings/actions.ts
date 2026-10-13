@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
@@ -15,6 +15,12 @@ const settingsSchema = z.object({
   address: z.string().max(300).optional(),
   admin_notification_email: z.string().email().optional().or(z.literal("")),
   whatsapp_number: z.string().max(40).optional(),
+  reception_hours: z.string().max(120).optional(),
+  wifi_network: z.string().max(100).optional(),
+  wifi_password: z.string().max(100).optional(),
+  entry_instructions: z.string().max(1500).optional(),
+  house_rules: z.string().max(1500).optional(),
+  emergency_contact: z.string().max(300).optional(),
 });
 
 export async function updatePropertySettings(input: z.infer<typeof settingsSchema>) {
@@ -32,9 +38,18 @@ export async function updatePropertySettings(input: z.infer<typeof settingsSchem
     .update({ ...fields, updated_at: new Date().toISOString() })
     .eq("id", id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // 42703 / PGRST204 = a column is missing: the newest migration hasn't been run yet.
+    if (error.code === "42703" || error.code === "PGRST204") {
+      return { ok: false, error: "The database is missing the new settings columns. Run supabase/migration-portal-and-ops.sql in the Supabase SQL Editor, then try again." };
+    }
+    return { ok: false, error: error.message };
+  }
 
-  await logAudit("settings.updated", "property_settings", id, fields);
-  revalidatePath("/admin/settings");
+  // Never write the Wi-Fi password into the audit log.
+  const { wifi_password: _omit, ...auditFields } = fields;
+  await logAudit("settings.updated", "property_settings", id, auditFields);
+  revalidateTag("settings");
+  revalidatePath("/", "layout");
   return { ok: true };
 }

@@ -24,7 +24,10 @@ export function ServiceRequestForm({ bookingId }: { bookingId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ booking_id: bookingId, type, description }),
       });
-      if (!res.ok) throw new Error("Could not send request");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Could not send request");
+      }
       setSent(true);
       setDescription("");
     } catch (err: any) {

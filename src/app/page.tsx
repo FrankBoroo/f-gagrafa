@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { UnitCard } from "@/components/site/UnitCard";
 import { MapEmbed } from "@/components/site/MapEmbed";
+import { getPublicSettings } from "@/lib/site-settings";
 import type { Unit } from "@/lib/types";
 
 const amenities = [
@@ -16,6 +17,7 @@ const amenities = [
 
 export default async function HomePage() {
   const supabase = await createClient();
+  const settings = await getPublicSettings();
   const { data: units } = await supabase
     .from("units")
     .select("*")
@@ -130,8 +132,12 @@ export default async function HomePage() {
         <div className="grid gap-12 md:grid-cols-2">
           <div>
             <h2 className="text-3xl md:text-4xl">Find us</h2>
-            <p className="mt-4 text-navy/70">Spintex, Community 20, Accra, Ghana</p>
-            <p className="mt-2 text-navy/70">reservations@thegagrafa.com · +233 XX XXX XXXX</p>
+            <p className="mt-4 text-navy/70">{settings.address}</p>
+            {(settings.contact_email || settings.contact_phone) && (
+              <p className="mt-2 text-navy/70">
+                {[settings.contact_email, settings.contact_phone].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
           <div className="h-[280px] overflow-hidden rounded-xl border border-navy/10">
             <MapEmbed />

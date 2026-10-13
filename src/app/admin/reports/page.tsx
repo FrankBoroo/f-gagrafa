@@ -26,7 +26,7 @@ export default async function AdminReportsPage() {
   const startKey = dateKey(start);
 
   const [{ data: payments }, { data: bookings }, { count: activeUnitCount }] = await Promise.all([
-    supabase.from("payments").select("amount, paid_at").eq("status", "success").gte("paid_at", start.toISOString()),
+    supabase.from("payments").select("amount, paid_at").in("status", ["success", "refunded"]).gte("paid_at", start.toISOString()),
     supabase.from("bookings").select("unit_id, check_in, check_out, status").not("status", "in", "(cancelled,no_show)").gte("check_out", startKey),
     supabase.from("units").select("id", { count: "exact", head: true }).eq("is_active", true),
   ]);
@@ -75,7 +75,7 @@ export default async function AdminReportsPage() {
       <p className="mt-2 text-sm text-navy/50">Last {days} days.</p>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-3">
-        <StatCard label="Revenue collected" value={formatCurrency(totalRevenue)} />
+        <StatCard label="Revenue (net of refunds)" value={formatCurrency(totalRevenue)} />
         <StatCard label="Average occupancy" value={`${avgOccupancy}%`} />
         <StatCard label="Active bookings" value={String(totalBookingsInRange)} />
       </div>

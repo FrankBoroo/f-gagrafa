@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { UnitEditCard } from "@/components/admin/UnitEditCard";
 import type { Unit } from "@/lib/types";
@@ -10,10 +11,14 @@ export default async function AdminUnitsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl">Units</h1>
-        <span className="text-sm text-navy/50">{units?.length ?? 0} residences</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-navy/50">{units?.length ?? 0} residences</span>
+          <Link href="/admin/units/new" className="btn-primary px-5 py-2.5 text-sm">+ New residence</Link>
+        </div>
       </div>
       <p className="mt-2 max-w-2xl text-sm text-navy/50">
-        Edit price, capacity, and description inline. Deactivating a unit hides it from the
+        Quick-edit price, capacity, and description here; open a residence for photos, amenities
+        and its door code. Deactivating a unit hides it from the
         public site and booking flow immediately, without deleting anything.
       </p>
 

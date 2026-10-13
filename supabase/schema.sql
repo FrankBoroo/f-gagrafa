@@ -355,3 +355,108 @@ alter table audit_log enable row level security;
 drop policy if exists "audit_log: admin read" on audit_log;
 create policy "audit_log: admin read" on audit_log for select using (auth_role() = 'admin');
 -- Writes go through the service-role client only (src/lib/audit.ts) — no insert policy needed for anon/authenticated.
+
+-- =========================================================
+-- ADDITIONS 2: booking safety (stale-hold expiry + double-booking guard)
+-- Existing databases: use supabase/migration-booking-safety.sql instead,
+-- following its step-by-step instructions.
+-- =========================================================
+-- PART 1 — functions (run this first, all at once)
+-- ---------------------------------------------------------
+
+-- An unpaid checkout stops blocking dates after 30 minutes.
+create or replace function is_unit_available(
+  p_unit_id uuid, p_check_in date, p_check_out date, p_exclude_booking_id uuid default null
+) returns boolean language sql stable as $$
+  select not exists (
+    select 1 from bookings
+    where unit_id = p_unit_id
+      and status not in ('cancelled', 'no_show')
+      and not (status = 'pending' and payment_status = 'unpaid' and created_at < now() - interval '30 minutes')
+      and (p_exclude_booking_id is null or id <> p_exclude_booking_id)
+      and daterange(check_in, check_out) && daterange(p_check_in, p_check_out)
+  ) and not exists (
+    select 1 from blocked_dates
+    where unit_id = p_unit_id
+      and daterange(start_date, end_date) && daterange(p_check_in, p_check_out)
+  );
+$$;
+
+-- Actually cancels those stale holds (called by the booking flow and the daily cron job).
+create or replace function expire_stale_pending_bookings() returns int
+language plpgsql security definer set search_path = public as $$
+declare v_count int;
+begin
+  update bookings
+     set status = 'cancelled',
+         admin_notes = trim(both E'\n' from coalesce(admin_notes, '') || E'\nAuto-cancelled: unpaid checkout expired after 30 minutes')
+   where status = 'pending'
+     and payment_status = 'unpaid'
+     and created_at < now() - interval '30 minutes';
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+-- These two run with elevated rights, so the public API must not be able to call them
+-- (otherwise anyone could burn promo-code uses). Only the server's service key can.
+revoke all on function expire_stale_pending_bookings() from public, anon, authenticated;
+grant execute on function expire_stale_pending_bookings() to service_role;
+
+do $$ begin
+  revoke all on function increment_promo_usage(text) from public, anon, authenticated;
+  grant execute on function increment_promo_usage(text) to service_role;
+exception when undefined_function then null;  -- promo codes migration not run yet; fine
+end $$;
+
+
+-- ---------------------------------------------------------
+-- PART 2 — the database-level double-booking guard
+-- ---------------------------------------------------------
+
+
+-- (Existing databases: see the overlap check in migration-booking-safety.sql before this step.)
+create extension if not exists btree_gist;
+
+alter table bookings drop constraint if exists bookings_no_overlap;
+alter table bookings add constraint bookings_no_overlap
+  exclude using gist (
+    unit_id with =,
+    daterange(check_in, check_out) with &&
+  ) where (status <> 'cancelled' and status <> 'no_show');
+
+-- =========================================================
+-- ADDITIONS 3: portal verification, guest info settings, door codes, refunds
+-- (Existing databases: run supabase/migration-portal-and-ops.sql instead.)
+-- =========================================================
+create table if not exists portal_access_attempts (
+  id uuid primary key default gen_random_uuid(),
+  booking_code text not null,
+  succeeded boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_portal_attempts_code on portal_access_attempts (booking_code, created_at);
+alter table portal_access_attempts enable row level security;
+
+-- Settings: guest-facing details shown in the guest portal and on the Contact page.
+alter table property_settings add column if not exists wifi_network text;
+alter table property_settings add column if not exists wifi_password text;
+alter table property_settings add column if not exists entry_instructions text;
+alter table property_settings add column if not exists house_rules text;
+alter table property_settings add column if not exists emergency_contact text;
+alter table property_settings add column if not exists reception_hours text;
+
+-- Per-residence door codes. Deliberately NOT a column on `units`: the public site reads
+-- units with the public key, so anything stored there would be visible to everyone.
+-- RLS on with no policies = only the server's service key can read or write it.
+create table if not exists unit_access_codes (
+  unit_id uuid primary key references units(id) on delete cascade,
+  access_code text not null,
+  updated_at timestamptz not null default now()
+);
+alter table unit_access_codes enable row level security;
+
+-- Cancellations & refunds
+alter table bookings add column if not exists cancelled_at timestamptz;
+alter table bookings add column if not exists cancellation_reason text;
+alter table bookings add column if not exists refunded_amount numeric(10,2) not null default 0;

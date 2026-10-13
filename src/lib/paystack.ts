@@ -100,3 +100,36 @@ export async function verifyPaystackTransaction(
 
   return json.data;
 }
+
+interface PaystackRefundResponse {
+  status: boolean;
+  message: string;
+  data?: { id?: number; status?: string; amount?: number; currency?: string };
+}
+
+// Refunds (part or all) of a transaction we took through Paystack. Paystack processes
+// refunds asynchronously, so a successful call means "accepted", not "money has landed".
+export async function refundPaystackTransaction({
+  reference, amountInMajorUnits, note,
+}: {
+  reference: string;
+  amountInMajorUnits: number;
+  note?: string;
+}): Promise<NonNullable<PaystackRefundResponse["data"]>> {
+  const res = await fetch(`${PAYSTACK_BASE_URL}/refund`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${requireSecretKey()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      transaction: reference,
+      amount: Math.round(amountInMajorUnits * 100), // smallest currency unit
+      customer_note: note || undefined,
+      merchant_note: note || undefined,
+    }),
+  });
+
+  const json = (await res.json()) as PaystackRefundResponse;
+  if (!res.ok || !json.status) {
+    throw new Error(json.message || "Paystack could not process the refund");
+  }
+  return json.data ?? {};
+}

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { getPublicSettings } from "@/lib/site-settings";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const settings = await getPublicSettings();
   return (
     <footer className="border-t border-navy/10 bg-navy text-ivory">
       <div className="container-gagrafa grid gap-10 py-16 md:grid-cols-4">
@@ -27,8 +29,9 @@ export function SiteFooter() {
         </div>
         <div>
           <p className="text-xs uppercase tracking-widest text-champagne">Visit</p>
-          <p className="mt-3 text-sm text-ivory/70">Spintex, Community 20<br />Accra, Ghana</p>
-          <p className="mt-2 text-sm text-ivory/70">reservations@thegagrafa.com</p>
+          <p className="mt-3 text-sm text-ivory/70">{settings.address}</p>
+          {settings.contact_email && <p className="mt-2 text-sm text-ivory/70">{settings.contact_email}</p>}
+          {settings.contact_phone && <p className="mt-1 text-sm text-ivory/70">{settings.contact_phone}</p>}
         </div>
       </div>
       <div className="border-t border-ivory/10 py-6 text-center text-xs text-ivory/40">
