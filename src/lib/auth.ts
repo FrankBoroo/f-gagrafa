@@ -37,3 +37,6 @@ export async function isStaff(): Promise<boolean> {
   const profile = await getCurrentProfile();
   return profile?.role === "admin" || profile?.role === "staff";
 }
+
+// Returned by server actions when the caller isn't signed in as staff or admin.
+export const UNAUTHORIZED = { ok: false as const, error: "You don't have permission to do that." };

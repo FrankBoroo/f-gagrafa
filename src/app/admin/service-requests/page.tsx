@@ -12,7 +12,7 @@ export default async function AdminServiceRequestsPage() {
     <div>
       <h1 className="text-3xl">Service Requests</h1>
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {requests?.map((r: any) => <ServiceRequestCard key={r.id} request={r} />)}
+        {requests?.map((r) => <ServiceRequestCard key={r.id} request={r} />)}
       </div>
       {!requests?.length && <p className="mt-14 text-center text-navy/40">No service requests yet.</p>}
     </div>

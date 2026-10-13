@@ -87,6 +87,25 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
   });
 }
 
+export async function sendAdminPaymentConflictAlert(booking: any, unitName: string, reason: string) {
+  await send({
+    to: await adminAddress(),
+    replyTo: booking.guest_email,
+    subject: `ACTION NEEDED: paid booking ${booking.booking_code} needs attention`,
+    html: `
+      <p><strong>A guest has paid, but the booking could not be confirmed automatically.</strong></p>
+      <p>${reason}</p>
+      <p>
+        <strong>Code:</strong> ${booking.booking_code}<br/>
+        <strong>Guest:</strong> ${booking.guest_name} (${booking.guest_email}, ${booking.guest_phone ?? "no phone"})<br/>
+        <strong>Residence:</strong> ${unitName}<br/>
+        <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}
+      </p>
+      <p>Please contact the guest to offer other dates or a full refund.</p>
+    `,
+  });
+}
+
 export async function sendPreArrivalReminder(booking: any, unitName: string) {
   await send({
     to: booking.guest_email,

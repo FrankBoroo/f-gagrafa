@@ -42,8 +42,8 @@ export default async function AdminPaymentsPage({
   const { data: payments } = await query.limit(200);
 
   const totalCollected = (payments ?? [])
-    .filter((p: any) => p.status === "success")
-    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+    .filter((p) => p.status === "success")
+    .reduce((sum, p) => sum + Number(p.amount), 0);
 
   return (
     <div>

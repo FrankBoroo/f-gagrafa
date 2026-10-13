@@ -71,7 +71,7 @@ export default async function UnitDetailPage({
           <div className="mt-10">
             <h2 className="text-2xl">Amenities</h2>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {unit.amenities?.map((a: string) => (
+              {unit.amenities?.map((a) => (
                 <div key={a} className="rounded-lg border border-navy/10 px-4 py-3 text-sm text-navy/70">
                   {a}
                 </div>

@@ -1,37 +1,30 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
-import { unitUpdateSchema, type UnitUpdateInput } from "@/lib/validations";
 import { logAudit } from "@/lib/audit";
 import { isStaff, UNAUTHORIZED } from "@/lib/auth";
 
-export async function updateUnit(input: UnitUpdateInput) {
+const statusSchema = z.enum(["pending", "in_progress", "completed", "cancelled"]);
+
+export async function updateServiceRequestStatus(id: string, status: string) {
   if (!(await isStaff())) return UNAUTHORIZED;
-  const parsed = unitUpdateSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid unit details" };
-  }
-  const { id, ...fields } = parsed.data;
+  const parsed = statusSchema.safeParse(status);
+  if (!parsed.success) return { ok: false, error: "Invalid status" };
 
   const supabase = createServiceClient();
-  const { error } = await supabase.from("units").update(fields).eq("id", id);
+  const { error } = await supabase
+    .from("service_requests")
+    .update({
+      status: parsed.data,
+      resolved_at: parsed.data === "completed" ? new Date().toISOString() : null,
+    })
+    .eq("id", id);
+
   if (error) return { ok: false, error: error.message };
 
-  await logAudit("unit.updated", "unit", id, fields);
-  revalidatePath("/admin/units");
-  revalidatePath("/units");
-  return { ok: true };
-}
-
-export async function toggleUnitActive(id: string, isActive: boolean) {
-  if (!(await isStaff())) return UNAUTHORIZED;
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("units").update({ is_active: isActive }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
-
-  await logAudit("unit.active_toggled", "unit", id, { is_active: isActive });
-  revalidatePath("/admin/units");
-  revalidatePath("/units");
+  await logAudit("service_request.status_changed", "service_request", id, { status: parsed.data });
+  revalidatePath("/admin/service-requests");
   return { ok: true };
 }

@@ -43,7 +43,7 @@ export default async function AdminBookingsPage({
       </div>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        {bookings?.map((b: any) => (
+        {bookings?.map((b) => (
           <BookingCard key={b.id} booking={b} />
         ))}
       </div>

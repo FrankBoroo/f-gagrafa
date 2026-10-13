@@ -1,12 +1,13 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyPaystackTransaction } from "@/lib/paystack";
-import { sendBookingConfirmationEmail } from "@/lib/email";
+import { sendBookingConfirmationEmail, sendAdminPaymentConflictAlert } from "@/lib/email";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
 
 export type PaymentConfirmationResult =
   | { outcome: "paid"; booking: any }
   | { outcome: "failed"; booking: any | null; reason: string }
+  | { outcome: "needs_review"; booking: any }
   | { outcome: "not_found" };
 
 // Shared by the booking-success page (user redirected back from Paystack) and
@@ -26,9 +27,13 @@ export async function confirmPaymentByReference(
 
   if (!booking) return { outcome: "not_found" };
 
-  // Already confirmed (e.g. webhook beat us to it) — nothing more to do.
+  // Already handled (e.g. the webhook beat us to it) — nothing more to do. A booking
+  // that is paid but cancelled is the "paid after the hold expired and the dates
+  // were re-let" case, which needs a person to resolve it.
   if (booking.payment_status === "paid") {
-    return { outcome: "paid", booking };
+    return booking.status === "cancelled"
+      ? { outcome: "needs_review", booking }
+      : { outcome: "paid", booking };
   }
 
   const verification = await verifyPaystackTransaction(reference);
@@ -55,12 +60,34 @@ export async function confirmPaymentByReference(
     });
   }
 
-  const { data: updatedBooking } = await supabase
+  const { data: updatedBooking, error: updateError } = await supabase
     .from("bookings")
     .update({ status: "confirmed", payment_status: "paid" })
     .eq("id", booking.id)
     .select("*, units(name)")
     .single();
+
+  if (updateError) {
+    // Money was taken but the booking couldn't be confirmed. Most likely the unpaid
+    // hold expired and the dates were booked by someone else meanwhile (23P01, the
+    // database's double-booking guard). The payment row is already recorded; flag
+    // the booking and tell the admin so a person can offer new dates or a refund.
+    const reason =
+      updateError.code === "23P01"
+        ? "PAID AFTER HOLD EXPIRED — the dates were re-booked. Contact the guest: offer new dates or refund in full."
+        : `PAID BUT NOT CONFIRMED — automatic confirmation failed (${updateError.message}). Check this booking.`;
+    await supabase
+      .from("bookings")
+      .update({
+        payment_status: "paid",
+        admin_notes: [booking.admin_notes, reason].filter(Boolean).join("\n"),
+      })
+      .eq("id", booking.id);
+    if (!existingPayment) {
+      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", reason);
+    }
+    return { outcome: "needs_review", booking };
+  }
 
   // Only fire notifications the first time this booking is confirmed —
   // `existingPayment` means either the webhook or the success page already
