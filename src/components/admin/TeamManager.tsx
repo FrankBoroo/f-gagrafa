@@ -29,7 +29,10 @@ export function TeamManager({ members, currentUserId }: { members: TeamMember[];
     e.preventDefault();
     startTransition(async () => {
       const result = asResult<{ link: string; emailAttempted: boolean }>(await inviteTeamMember({ email, fullName, role }));
-      if (!result.ok || !result.link) return toast.error(result.error ?? "Could not create the invitation");
+      if (!result.ok || !result.link) {
+        toast.error(result.error ?? "Could not create the invitation");
+        return;
+      }
       setIssued({ link: result.link, emailAttempted: Boolean(result.emailAttempted), who: email });
       setEmail("");
       setFullName("");
@@ -40,7 +43,10 @@ export function TeamManager({ members, currentUserId }: { members: TeamMember[];
   function freshLink(member: TeamMember) {
     startTransition(async () => {
       const result = asResult<{ link: string; emailAttempted: boolean }>(await newSignInLink(member.id));
-      if (!result.ok || !result.link) return toast.error(result.error ?? "Could not create a link");
+      if (!result.ok || !result.link) {
+        toast.error(result.error ?? "Could not create a link");
+        return;
+      }
       setIssued({ link: result.link, emailAttempted: Boolean(result.emailAttempted), who: member.email });
     });
   }
@@ -48,7 +54,10 @@ export function TeamManager({ members, currentUserId }: { members: TeamMember[];
   function setMemberRole(member: TeamMember, next: "admin" | "staff") {
     startTransition(async () => {
       const result = asResult(await changeTeamRole(member.id, next));
-      if (!result.ok) return toast.error(result.error ?? "Could not change the role");
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not change the role");
+        return;
+      }
       toast.success(`${member.email} is now ${next}`);
       router.refresh();
     });
@@ -58,7 +67,10 @@ export function TeamManager({ members, currentUserId }: { members: TeamMember[];
     if (!window.confirm(`Remove ${member.email}'s admin access?`)) return;
     startTransition(async () => {
       const result = asResult(await removeTeamAccess(member.id));
-      if (!result.ok) return toast.error(result.error ?? "Could not remove access");
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not remove access");
+        return;
+      }
       toast.success("Access removed");
       router.refresh();
     });
