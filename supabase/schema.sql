@@ -460,3 +460,34 @@ alter table unit_access_codes enable row level security;
 alter table bookings add column if not exists cancelled_at timestamptz;
 alter table bookings add column if not exists cancellation_reason text;
 alter table bookings add column if not exists refunded_amount numeric(10,2) not null default 0;
+
+-- =========================================================
+-- ADDITIONS 4: Tour / gallery page
+-- (Existing databases: run supabase/migration-tour-gallery.sql instead.)
+-- =========================================================
+create table if not exists gallery_items (
+  id uuid primary key default gen_random_uuid(),
+  category text not null check (category in ('property', 'neighbourhood')),
+  image_url text not null,
+  caption text,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_gallery_items_order on gallery_items (category, sort_order);
+
+alter table gallery_items enable row level security;
+
+-- The gallery is public content, so anyone may read it. There are deliberately no write
+-- policies: only the server's service key (used by the admin) can add, edit or remove photos.
+drop policy if exists "gallery_items: public read" on gallery_items;
+create policy "gallery_items: public read" on gallery_items for select using (true);
+
+-- =========================================================
+-- ADDITIONS 5: deposits
+-- (Existing databases: run supabase/migration-deposits.sql instead.)
+-- =========================================================
+alter table property_settings add column if not exists deposit_percent int not null default 50;
+
+-- What was charged up front for a deposit booking (null for pay-in-full bookings).
+alter table bookings add column if not exists deposit_amount numeric(10,2);

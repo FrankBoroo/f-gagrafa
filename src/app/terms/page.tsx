@@ -24,7 +24,8 @@ export default function TermsPage() {
             <li>Within 48 hours of check-in, no-shows, or after check-in: non-refundable.</li>
           </ul>
           <p className="mt-3">
-            Refunds are issued to the original payment method and may take 5–10 business
+            Refund percentages apply to the amount you have actually paid, including any
+            deposit. Refunds are issued to the original payment method and may take 5–10 business
             days to reflect, depending on your bank or Mobile Money provider.
           </p>
         </Section>
@@ -33,8 +34,10 @@ export default function TermsPage() {
           <p>
             Full payment is required at the time of booking to confirm a reservation,
             processed securely through Paystack (card, Mobile Money) or, for bookings
-            made directly with our team, by cash or bank transfer. Rates are quoted in
-            Ghanaian Cedis (GHS) unless otherwise stated.
+            made directly with our team, by cash or bank transfer. Where check-in is at
+            least 7 days away you may instead reserve with a deposit, shown at checkout,
+            and pay the remaining balance at check-in. Rates are quoted in Ghanaian
+            Cedis (GHS) unless otherwise stated.
           </p>
         </Section>
 

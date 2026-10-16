@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Pencil, Check, X } from "lucide-react";
@@ -57,6 +58,23 @@ export function UnitEditCard({ unit }: { unit: Unit }) {
 
   return (
     <div className={`card p-5 ${!isActive ? "opacity-60" : ""}`}>
+      <Link
+        href={`/admin/units/${unit.id}#photos`}
+        className="group relative mb-4 block aspect-[16/9] overflow-hidden rounded-lg bg-sand"
+        aria-label={`Edit photos for ${unit.name}`}
+      >
+        <Image
+          src={unit.images?.[0] ?? "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"}
+          alt={`Main photo of ${unit.name}`}
+          fill
+          sizes="(min-width: 1280px) 30vw, (min-width: 768px) 45vw, 100vw"
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <span className="absolute bottom-2 right-2 rounded-full bg-navy/80 px-3 py-1 text-xs text-ivory">
+          {unit.images?.length ?? 0} photo{(unit.images?.length ?? 0) === 1 ? "" : "s"} · Edit photos
+        </span>
+      </Link>
+
       <div className="flex items-start justify-between gap-3">
         {editing ? (
           <input

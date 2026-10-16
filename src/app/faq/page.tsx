@@ -22,6 +22,10 @@ const faqs = [
     a: "We accept card payments, MTN Mobile Money, and Vodafone Cash through our secure checkout, as well as cash or bank transfer for bookings made directly with our team.",
   },
   {
+    q: "Can I reserve with a deposit?",
+    a: "Yes. When your check-in is at least 7 days away you can choose to pay a deposit now (shown at checkout) to reserve your dates, and pay the remaining balance at check-in. If your check-in is sooner than 7 days away, payment in full is required. Refunds follow our cancellation policy and are based on the amount you've actually paid.",
+  },
+  {
     q: "Is there a minimum stay?",
     a: "Most residences have a 2-night minimum. Monthly rates are available for stays of 21 nights or longer — contact us for a quote.",
   },

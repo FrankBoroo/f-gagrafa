@@ -6,37 +6,13 @@ import { toast } from "sonner";
 import { Star, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { asResult } from "@/lib/action-result";
+import { prepareImage } from "@/lib/image-prepare";
 import {
   createUnitImageUpload, registerUnitImage, removeUnitImage, setPrimaryUnitImage,
 } from "@/app/admin/units/actions";
 
 const BUCKET = "unit-images";
 const MAX_PHOTOS = 12;
-
-// Shrinks a photo in the browser before upload (max 1920px, JPEG): a 5 MB phone photo
-// becomes a few hundred KB, which matters on mobile networks and for page speed.
-async function prepareImage(file: File): Promise<Blob> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1920 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-      if (blob) return blob;
-    }
-  } catch {
-    // fall through to the original file
-  }
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    throw new Error(`"${file.name}" isn't a JPG, PNG or WebP photo.`);
-  }
-  if (file.size > 8 * 1024 * 1024) throw new Error(`"${file.name}" is larger than 8 MB.`);
-  return file;
-}
 
 export function UnitPhotoManager({ unitId, images: initialImages }: { unitId: string; images: string[] }) {
   const router = useRouter();
@@ -81,23 +57,43 @@ export function UnitPhotoManager({ unitId, images: initialImages }: { unitId: st
     }
   }
 
+  // Both handlers catch failures: a dropped connection or a server error must show a
+  // message, never leave the button looking dead.
   async function makeMain(url: string) {
     setBusyUrl(url);
-    const result = asResult<{ images: string[] }>(await setPrimaryUnitImage(unitId, url));
-    setBusyUrl(null);
-    if (!result.ok || !result.images) return toast.error(result.error ?? "Could not update");
-    setImages(result.images);
-    router.refresh();
+    try {
+      const result = asResult<{ images: string[] }>(await setPrimaryUnitImage(unitId, url));
+      if (!result.ok || !result.images) {
+        toast.error(result.error ?? "Could not update the main photo");
+        return;
+      }
+      setImages(result.images);
+      toast.success("Main photo updated — it now shows on the cards and the residence page");
+      router.refresh();
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusyUrl(null);
+    }
   }
 
   async function remove(url: string) {
     if (!window.confirm("Remove this photo?")) return;
     setBusyUrl(url);
-    const result = asResult<{ images: string[] }>(await removeUnitImage(unitId, url));
-    setBusyUrl(null);
-    if (!result.ok || !result.images) return toast.error(result.error ?? "Could not remove");
-    setImages(result.images);
-    router.refresh();
+    try {
+      const result = asResult<{ images: string[] }>(await removeUnitImage(unitId, url));
+      if (!result.ok || !result.images) {
+        toast.error(result.error ?? "Could not remove the photo");
+        return;
+      }
+      setImages(result.images);
+      toast.success("Photo removed");
+      router.refresh();
+    } catch {
+      toast.error("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setBusyUrl(null);
+    }
   }
 
   return (

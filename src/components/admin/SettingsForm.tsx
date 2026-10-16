@@ -19,6 +19,7 @@ interface Settings {
   entry_instructions?: string | null;
   house_rules?: string | null;
   emergency_contact?: string | null;
+  deposit_percent?: number | null;
 }
 
 export function SettingsForm({ settings }: { settings: Settings }) {
@@ -38,6 +39,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
     emergency_contact: settings.emergency_contact ?? "",
   });
   const [isPending, startTransition] = useTransition();
+  // Only present once the deposits migration has been run; until then we leave it out of the
+  // save, so the rest of Settings keeps saving normally.
+  const depositAvailable = settings.deposit_percent !== undefined && settings.deposit_percent !== null;
+  const [depositPercent, setDepositPercent] = useState<number>(settings.deposit_percent ?? 50);
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -46,7 +51,11 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   function save(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await updatePropertySettings({ id: settings.id, ...form });
+      const result = await updatePropertySettings({
+        id: settings.id,
+        ...form,
+        ...(depositAvailable ? { deposit_percent: depositPercent } : {}),
+      });
       if (!result.ok) {
         toast.error(result.error ?? "Could not save settings");
         return;
@@ -105,6 +114,34 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           onChange={(v) => update("emergency_contact", v)}
           hint="e.g. Front desk: +233 … (24/7)."
         />
+      </div>
+
+      <div className="card space-y-4 p-6">
+        <h2 className="text-lg">Deposits</h2>
+        <p className="text-sm text-navy/50">
+          Guests can reserve by paying this share of the total now and the rest at check-in. It's only
+          offered when check-in is at least 7 days away; closer than that, guests pay in full. Set 0 to
+          turn deposits off.
+        </p>
+        <div>
+          <label className="text-sm text-navy/60" htmlFor="deposit-percent">Deposit (% of the total)</label>
+          <input
+            id="deposit-percent"
+            type="number"
+            min={0}
+            max={90}
+            step={1}
+            disabled={!depositAvailable}
+            value={depositPercent}
+            onChange={(e) => setDepositPercent(Number(e.target.value))}
+            className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3 disabled:bg-sand disabled:text-navy/40"
+          />
+          {!depositAvailable && (
+            <p className="mt-1 text-xs text-amber-700">
+              Deposits aren't switched on yet. Run <code>supabase/migration-deposits.sql</code> in the Supabase SQL Editor, then reload this page.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="card space-y-4 p-6">

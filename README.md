@@ -185,7 +185,51 @@ supabase/schema.sql           Full schema, RLS policies, seed data
    (a Gmail address won't work). Until then, mail only reaches your own Resend
    account address.
 5. Paystack: point the webhook at `https://YOUR-DOMAIN/api/webhooks/paystack`.
-6. The daily reminder emails run from `vercel.json` and need `CRON_SECRET` set.
+6. The daily job (`vercel.json`) sends reminder emails and clears abandoned checkouts.
+   It **requires `CRON_SECRET`** and refuses to run without it.
+7. Run `supabase/migration-booking-safety.sql` (follow the steps inside it). It makes unpaid
+   checkouts release their dates after 30 minutes, and adds a database-level guard so two
+   guests can never end up holding the same dates.
+
+### Database migrations
+
+Run these in the Supabase SQL Editor, in this order, once each (skip any you've already run):
+
+1. `supabase/migration-booking-safety.sql` — follow the steps inside it.
+2. `supabase/migration-portal-and-ops.sql` — adds the guest-portal attempt log, the new
+   Settings columns (Wi-Fi, entry instructions, house rules, emergency contacts, reception hours),
+   door codes, and the cancellation/refund columns. Safe to re-run.
+3. `supabase/migration-tour-gallery.sql` — the table behind the Tour page. Safe to re-run.
+4. `supabase/migration-deposits.sql` — the deposit percentage setting and the deposit column on
+   bookings. Safe to re-run. Deposits switch on (at 50%) once this has been run.
+
+### Guest portal, units, refunds and team
+
+- **Guest portal** — guests prove who they are with their booking code plus the email or phone on
+  the booking (or the link in their emails). Wi-Fi, door code and entry details only show for a
+  confirmed stay, from the day before check-in until check-out.
+- **Unit photos** upload straight from the browser to Supabase Storage (the `unit-images`
+  bucket is created automatically on first upload), and are shrunk in the browser first.
+  Door codes are stored in their own locked table, never on the public `units` table.
+- **Cancellations & refunds** follow the tiers on the FAQ/Terms pages
+  (`src/lib/cancellation-policy.ts`). Only admins can refund; refunds can go back through
+  Paystack or be recorded as paid out by hand. Guests can *request* a cancellation from the portal.
+- **Team** (`/admin/team`, admin only) creates invite links on your own domain, so no Supabase
+  redirect settings are needed. The link is always shown for you to copy, since email may not
+  be set up. Set `NEXT_PUBLIC_SITE_URL` first.
+
+### Tour page and deposits
+
+- **Tour** (`/tour`) shows three sections: your residences (pulled from each unit's photos
+  automatically), the property, and the neighbourhood. Manage the last two under Admin → Tour:
+  upload photos, add captions, reorder them. Photos upload straight from the browser to the
+  `gallery-images` bucket (created automatically). Each residence page also has a gallery with a
+  full-screen viewer.
+- **Deposits**: when check-in is at least 7 days away, guests can reserve by paying a share of
+  the total now (50% by default, change it in Admin → Settings; 0 turns it off) and pay the rest
+  at check-in. Staff record the balance with "Record payment" on the booking. The rules live in
+  `src/lib/deposit.ts`, and the server re-checks them whatever the browser sends. Refunds apply
+  the usual cancellation tiers to whatever has actually been paid.
 
 ### Next.js 15 notes
 

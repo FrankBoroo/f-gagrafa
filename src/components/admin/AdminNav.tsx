@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, CalendarDays, Building2, Users,
   ClipboardList, CreditCard, Star, Settings, CalendarOff,
-  BarChart3, Tag, ScrollText, LayoutGrid, Menu, X, UserPlus,
+  BarChart3, Tag, ScrollText, LayoutGrid, Menu, X, UserPlus, Camera,
 } from "lucide-react";
 import { SignOutButton } from "@/components/admin/SignOutButton";
 
@@ -16,6 +16,7 @@ const nav = [
   { href: "/admin/calendar", label: "Calendar", icon: LayoutGrid, adminOnly: false },
   { href: "/admin/units", label: "Units", icon: Building2, adminOnly: false },
   { href: "/admin/availability", label: "Availability", icon: CalendarOff, adminOnly: false },
+  { href: "/admin/tour", label: "Tour", icon: Camera, adminOnly: false },
   { href: "/admin/guests", label: "Guests", icon: Users, adminOnly: false },
   { href: "/admin/service-requests", label: "Service Requests", icon: ClipboardList, adminOnly: false },
   { href: "/admin/reviews", label: "Reviews", icon: Star, adminOnly: false },

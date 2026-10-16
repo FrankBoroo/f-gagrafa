@@ -8,6 +8,7 @@ export type PaymentConfirmationResult =
   | { outcome: "paid"; booking: any }
   | { outcome: "failed"; booking: any | null; reason: string }
   | { outcome: "needs_review"; booking: any }
+  | { outcome: "closed"; booking: any }
   | { outcome: "not_found" };
 
 // Shared by the booking-success page (user redirected back from Paystack) and
@@ -30,10 +31,11 @@ export async function confirmPaymentByReference(
   // Already handled (e.g. the webhook beat us to it) — nothing more to do. A booking
   // that is paid but cancelled is the "paid after the hold expired and the dates
   // were re-let" case, which needs a person to resolve it.
-  if (booking.payment_status === "paid") {
-    return booking.status === "cancelled"
-      ? { outcome: "needs_review", booking }
-      : { outcome: "paid", booking };
+  if (booking.payment_status !== "unpaid") {
+    // Refunded or cancelled by an admin: a late webhook retry, or a revisit to the success
+    // page, must never bring the booking back to life.
+    if (booking.payment_status === "refunded" || booking.cancelled_at) return { outcome: "closed", booking };
+    return booking.status === "cancelled" ? { outcome: "needs_review", booking } : { outcome: "paid", booking };
   }
 
   const verification = await verifyPaystackTransaction(reference);
@@ -41,6 +43,15 @@ export async function confirmPaymentByReference(
   if (verification.status !== "success") {
     return { outcome: "failed", booking, reason: verification.status };
   }
+
+  // Compare what was actually charged with what this booking expected: the full total, or
+  // the deposit if the guest chose to reserve with a deposit.
+  const expected = Number(booking.deposit_amount ?? booking.total_amount);
+  const charged = verification.amount / 100;
+  if (charged + 0.005 < expected) {
+    return { outcome: "failed", booking, reason: "amount_mismatch" };
+  }
+  const paidInFull = charged + 0.005 >= Number(booking.total_amount);
 
   const { data: existingPayment } = await supabase
     .from("payments")
@@ -62,7 +73,7 @@ export async function confirmPaymentByReference(
 
   const { data: updatedBooking, error: updateError } = await supabase
     .from("bookings")
-    .update({ status: "confirmed", payment_status: "paid" })
+    .update({ status: "confirmed", payment_status: paidInFull ? "paid" : "partial" })
     .eq("id", booking.id)
     .select("*, units(name)")
     .single();
@@ -79,7 +90,7 @@ export async function confirmPaymentByReference(
     await supabase
       .from("bookings")
       .update({
-        payment_status: "paid",
+        payment_status: paidInFull ? "paid" : "partial",
         admin_notes: [booking.admin_notes, reason].filter(Boolean).join("\n"),
       })
       .eq("id", booking.id);
@@ -95,7 +106,7 @@ export async function confirmPaymentByReference(
   if (!existingPayment) {
     const unitName = (updatedBooking as any)?.units?.name ?? (booking as any).units?.name ?? "your residence";
     await Promise.all([
-      sendBookingConfirmationEmail(updatedBooking ?? booking, unitName),
+      sendBookingConfirmationEmail(updatedBooking ?? booking, unitName, charged),
       sendBookingConfirmationWhatsApp(updatedBooking ?? booking, unitName),
     ]);
 

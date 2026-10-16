@@ -21,6 +21,7 @@ const settingsSchema = z.object({
   entry_instructions: z.string().max(1500).optional(),
   house_rules: z.string().max(1500).optional(),
   emergency_contact: z.string().max(300).optional(),
+  deposit_percent: z.coerce.number().int().min(0).max(90).optional(),
 });
 
 export async function updatePropertySettings(input: z.infer<typeof settingsSchema>) {

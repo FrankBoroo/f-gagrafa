@@ -1,9 +1,9 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import type { Unit } from "@/lib/types";
 import { BookingWidget } from "@/components/site/BookingWidget";
+import { UnitGallery } from "@/components/site/UnitGallery";
 
 export default async function UnitDetailPage({
   params,
@@ -43,15 +43,9 @@ export default async function UnitDetailPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(unitJsonLd) }}
       />
-      <section className="relative h-[60vh] w-full">
-        <Image
-          src={unit.images?.[0] ?? "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267"}
-          alt={unit.name}
-          fill
-          priority
-          className="object-cover"
-        />
-      </section>
+      <div className="container-gagrafa pt-8">
+        <UnitGallery images={unit.images ?? []} name={unit.name} />
+      </div>
 
       <div className="container-gagrafa grid gap-16 py-16 lg:grid-cols-3">
         <div className="lg:col-span-2">

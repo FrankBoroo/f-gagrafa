@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { confirmPaymentByReference } from "@/lib/booking-payment";
+import { formatCurrency } from "@/lib/utils";
 
 // Paystack redirects here with ?reference=<our booking code>&trxref=<same>.
 // We verify server-side (never trust the redirect alone) before showing success.
@@ -63,11 +64,32 @@ export default async function BookingSuccessPage({
     );
   }
 
+  if (result.outcome === "closed") {
+    return (
+      <StatusScreen
+        icon={<HelpCircle className="text-navy/40" size={48} />}
+        title="This booking has been cancelled"
+        body="This booking was cancelled, so there's nothing more to pay. If you were refunded, it can take 5–10 business days to appear. Contact us if you have any questions."
+        ctaHref="/contact"
+        ctaLabel="Contact us"
+      />
+    );
+  }
+
+  const booking = result.booking;
+  const isDeposit = booking.payment_status === "partial";
+  const deposit = Number(booking.deposit_amount ?? 0);
+  const balance = Math.max(Number(booking.total_amount) - (deposit || Number(booking.total_amount)), 0);
+
   return (
     <StatusScreen
       icon={<CheckCircle2 className="text-champagne" size={48} />}
-      title="Booking Confirmed"
-      body="Thank you — a confirmation has been sent to your email. Keep your booking code handy to access your Guest Portal."
+      title={isDeposit ? "Reservation Confirmed" : "Booking Confirmed"}
+      body={
+        isDeposit
+          ? `Thank you — your deposit of ${formatCurrency(deposit, booking.currency)} is received and your dates are reserved. The remaining ${formatCurrency(balance, booking.currency)} is due at check-in. A confirmation has been sent to your email.`
+          : "Thank you — a confirmation has been sent to your email. Keep your booking code handy to access your Guest Portal."
+      }
       code={result.booking.booking_code}
       ctaHref={`/portal?code=${result.booking.booking_code}`}
       ctaLabel="Go to Guest Portal"

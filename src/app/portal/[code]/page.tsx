@@ -59,6 +59,13 @@ export default async function PortalDetailPage({
     doorCode = codeRow?.access_code ?? null;
   }
 
+  // Money actually received so far (refunds are stored as negative rows).
+  const { data: paymentRows } = await supabase.from("payments").select("amount, status").eq("booking_id", booking.id);
+  const paidNet = (paymentRows ?? [])
+    .filter((p: any) => p.status === "success" || p.status === "refunded")
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+  const balanceDue = Math.max(Number(booking.total_amount) - paidNet, 0);
+
   const { data: existingReview } = await supabase
     .from("reviews")
     .select("id, rating, comment")
@@ -76,7 +83,7 @@ export default async function PortalDetailPage({
 
   const canRequestCancellation = status === "pending" || status === "confirmed";
   const refundPercent = refundPercentFor(booking.check_in);
-  const wasPaid = booking.payment_status === "paid";
+  const wasPaid = paidNet > 0.005;
   const refundedAmount = Number(booking.refunded_amount ?? 0);
 
   return (
@@ -95,12 +102,18 @@ export default async function PortalDetailPage({
         </div>
         <div className="mt-2 flex justify-between text-sm">
           <span className="text-navy/60">Payment status</span>
-          <span className="capitalize">{booking.payment_status}</span>
+          <span className="capitalize">{booking.payment_status === "partial" ? "Deposit paid" : booking.payment_status}</span>
         </div>
         <div className="mt-2 flex justify-between text-sm">
           <span className="text-navy/60">Total</span>
           <span>{formatCurrency(booking.total_amount, booking.currency)}</span>
         </div>
+        {paidNet > 0.005 && balanceDue > 0.005 && !isCancelled && (
+          <div className="mt-2 flex justify-between text-sm">
+            <span className="text-navy/60">Balance due at check-in</span>
+            <span>{formatCurrency(balanceDue, booking.currency)}</span>
+          </div>
+        )}
         {refundedAmount > 0 && (
           <div className="mt-2 flex justify-between text-sm">
             <span className="text-navy/60">Refunded</span>
@@ -181,9 +194,9 @@ export default async function PortalDetailPage({
                   <p className="mt-4 border-t border-navy/10 pt-4">
                     If you cancel today you'd be refunded{" "}
                     <strong>
-                      {formatCurrency((Number(booking.total_amount) * refundPercent) / 100, booking.currency)}
+                      {formatCurrency((paidNet * refundPercent) / 100, booking.currency)}
                     </strong>{" "}
-                    ({refundPercent}%).
+                    ({refundPercent}% of the {formatCurrency(paidNet, booking.currency)} you've paid).
                   </p>
                 ) : (
                   <p className="mt-4 border-t border-navy/10 pt-4">

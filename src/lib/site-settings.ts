@@ -12,6 +12,7 @@ export interface PublicSettings {
   contact_phone: string;
   contact_email: string;
   reception_hours: string;
+  deposit_percent: number; // 0 = deposits off
 }
 
 const DEFAULTS: PublicSettings = {
@@ -21,6 +22,7 @@ const DEFAULTS: PublicSettings = {
   contact_phone: "",
   contact_email: "",
   reception_hours: "24/7 — someone is always at the desk",
+  deposit_percent: 0,
 };
 
 async function loadPublicSettings(): Promise<PublicSettings> {
@@ -36,6 +38,7 @@ async function loadPublicSettings(): Promise<PublicSettings> {
       contact_phone: data.contact_phone || "",
       contact_email: data.contact_email || "",
       reception_hours: data.reception_hours || DEFAULTS.reception_hours,
+      deposit_percent: Math.min(90, Math.max(0, Math.round(Number(data.deposit_percent ?? 0)) || 0)),
     };
   } catch {
     return DEFAULTS;

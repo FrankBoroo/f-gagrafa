@@ -15,6 +15,7 @@ export const createBookingSchema = guestDetailsSchema.extend({
   adults: z.coerce.number().int().min(1, "At least 1 adult"),
   children: z.coerce.number().int().min(0).default(0),
   promo_code: z.string().optional(),
+  payment_option: z.enum(["full", "deposit"]).default("full"),
   honeypot: z.string().optional(),
   renderedAt: z.number().optional(),
 }).refine((data) => new Date(data.check_out) > new Date(data.check_in), {

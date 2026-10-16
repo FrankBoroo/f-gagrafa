@@ -49,7 +49,16 @@ async function send(args: { to: string; subject: string; html: string; replyTo?:
   }
 }
 
-export async function sendBookingConfirmationEmail(booking: any, unitName: string) {
+export async function sendBookingConfirmationEmail(booking: any, unitName: string, paidAmount?: number) {
+  const total = Number(booking.total_amount);
+  const paid = paidAmount ?? total;
+  const balance = Math.max(total - paid, 0);
+  const money = (n: number) => `${booking.currency} ${n.toLocaleString()}`;
+  const paymentLines =
+    balance > 0.005
+      ? `<strong>Deposit paid:</strong> ${money(paid)}<br/><strong>Balance due at check-in:</strong> ${money(balance)}`
+      : `<strong>Total paid:</strong> ${money(total)}`;
+
   await send({
     to: booking.guest_email,
     subject: `Booking confirmed — ${booking.booking_code}`,
@@ -61,7 +70,7 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
         <strong>Residence:</strong> ${unitName}<br/>
         <strong>Check-in:</strong> ${booking.check_in}<br/>
         <strong>Check-out:</strong> ${booking.check_out}<br/>
-        <strong>Total paid:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}
+        ${paymentLines}
       </p>
       <p><a href="${portalMagicLink(booking.booking_code)}">Open your Guest Portal</a> for check-in details, Wi-Fi, and to request services. You can also sign in any time with your booking code and the email or phone you booked with.</p>
       <p>— The Gagrafa</p>
@@ -83,6 +92,7 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
         <strong>Total:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}<br/>
         <strong>Payment status:</strong> ${booking.payment_status}
+        ${booking.deposit_amount ? `<br/><strong>Deposit due now:</strong> ${booking.currency} ${Number(booking.deposit_amount).toLocaleString()} (balance at check-in)` : ""}
       </p>
     `,
   });
@@ -187,13 +197,14 @@ export async function sendStaffInviteEmail(email: string, name: string, role: st
   });
 }
 
-export async function sendPreArrivalReminder(booking: any, unitName: string) {
+export async function sendPreArrivalReminder(booking: any, unitName: string, balanceDue = 0) {
   await send({
     to: booking.guest_email,
     subject: `See you soon at The Gagrafa — ${booking.booking_code}`,
     html: `
       <p>Hi ${booking.guest_name},</p>
       <p>Your stay at <strong>${unitName}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
+      ${balanceDue > 0.005 ? `<p><strong>Balance due on arrival:</strong> ${booking.currency} ${balanceDue.toLocaleString()}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
       <p>Check-in is from 2:00 PM. Your digital access code and Wi-Fi details will be ready in your Guest Portal:</p>
       <p><a href="${portalMagicLink(booking.booking_code)}">View your stay details</a></p>
       <p>— The Gagrafa</p>

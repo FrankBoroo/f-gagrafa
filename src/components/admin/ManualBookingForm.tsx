@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { calculateNights } from "@/lib/types";
+import { addDays } from "@/lib/dates";
 import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
 
@@ -33,6 +34,15 @@ export function ManualBookingForm({ units }: { units: Unit[] }) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function handleCheckIn(value: string) {
+    setForm((f) => ({
+      ...f,
+      check_in: value,
+      // Keep a later check-out already chosen; otherwise default to the next day.
+      check_out: value && (!f.check_out || f.check_out <= value) ? addDays(value, 1) : f.check_out,
+    }));
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
@@ -58,7 +68,7 @@ export function ManualBookingForm({ units }: { units: Unit[] }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="text-sm text-navy/60">Check-in</label>
-          <input type="date" required value={form.check_in} onChange={(e) => update("check_in", e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+          <input type="date" required value={form.check_in} onChange={(e) => handleCheckIn(e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
         </div>
         <div>
           <label className="text-sm text-navy/60">Check-out</label>

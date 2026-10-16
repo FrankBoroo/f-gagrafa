@@ -7,6 +7,7 @@ import { Modal } from "@/components/admin/Modal";
 import { formatCurrency } from "@/lib/utils";
 import { asResult } from "@/lib/action-result";
 import { calculateNights } from "@/lib/types";
+import { addDays } from "@/lib/dates";
 import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/cancellation-policy";
 import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
 
@@ -41,6 +42,12 @@ export function EditDatesDialog({ booking, open, onClose }: DialogProps) {
   const paid = Number(booking.net_paid ?? 0);
   const balance = total - paid;
 
+  function handleCheckIn(value: string) {
+    setCheckIn(value);
+    // Keep a later check-out already chosen; otherwise default to the next day.
+    if (value && (!checkOut || checkOut <= value)) setCheckOut(addDays(value, 1));
+  }
+
   function submit() {
     startTransition(async () => {
       const result = asResult(
@@ -62,7 +69,7 @@ export function EditDatesDialog({ booking, open, onClose }: DialogProps) {
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
           <label className="text-sm text-navy/60">Check-in</label>
-          <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className={inputClass} />
+          <input type="date" value={checkIn} onChange={(e) => handleCheckIn(e.target.value)} className={inputClass} />
         </div>
         <div>
           <label className="text-sm text-navy/60">Check-out</label>

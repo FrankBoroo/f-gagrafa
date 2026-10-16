@@ -37,14 +37,18 @@ export async function GET(req: NextRequest) {
   // --- Pre-arrival reminders ---
   const { data: arriving } = await supabase
     .from("bookings")
-    .select("*, units(name)")
+    .select("*, units(name), payments(amount, status)")
     .eq("check_in", dateKey(tomorrow))
-    .eq("payment_status", "paid")
+    .in("payment_status", ["paid", "partial"])
     .neq("status", "cancelled")
     .is("reminder_sent_at", null);
 
   for (const booking of arriving ?? []) {
-    await sendPreArrivalReminder(booking, (booking as any).units?.name ?? "your residence");
+    const paidSoFar = ((booking as any).payments ?? [])
+      .filter((p: any) => p.status === "success" || p.status === "refunded")
+      .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+    const balanceDue = Math.max(Number(booking.total_amount) - paidSoFar, 0);
+    await sendPreArrivalReminder(booking, (booking as any).units?.name ?? "your residence", balanceDue);
     await supabase.from("bookings").update({ reminder_sent_at: new Date().toISOString() }).eq("id", booking.id);
   }
 
@@ -53,7 +57,7 @@ export async function GET(req: NextRequest) {
     .from("bookings")
     .select("*")
     .eq("check_out", dateKey(yesterday))
-    .eq("payment_status", "paid")
+    .in("payment_status", ["paid", "partial"])
     .neq("status", "cancelled")
     .is("review_request_sent_at", null);
 

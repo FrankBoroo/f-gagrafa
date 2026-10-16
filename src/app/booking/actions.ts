@@ -6,6 +6,7 @@ import { generateBookingCode } from "@/lib/types";
 import { initializePaystackTransaction } from "@/lib/paystack";
 import { sendAdminNewBookingNotification } from "@/lib/email";
 import { checkPromoCode } from "@/lib/promo";
+import { canOfferDeposit, depositAmount } from "@/lib/deposit";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 
 export async function previewPromoCode(code: string, subtotal: number) {
@@ -140,6 +141,24 @@ export async function createBookingAndInitializePayment(
     totalAmount = promoResult.finalAmount!;
   }
 
+  // Optional deposit: pay part now, the rest at check-in. Decided here on the server, never
+  // trusted from the browser: the percentage comes from Settings, and it's only offered when
+  // check-in is far enough away.
+  let amountDueNow = totalAmount;
+  let depositDue: number | null = null;
+  if (data.payment_option === "deposit") {
+    const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
+    const percent = Number(settingsRow?.deposit_percent ?? 0);
+    if (!canOfferDeposit(data.check_in, percent)) {
+      return { ok: false, error: "A deposit isn't available for these dates. Please pay in full." };
+    }
+    depositDue = depositAmount(totalAmount, percent);
+    if (depositDue <= 0 || depositDue >= totalAmount) {
+      return { ok: false, error: "A deposit isn't available for this booking. Please pay in full." };
+    }
+    amountDueNow = depositDue;
+  }
+
   const bookingCode = generateBookingCode();
 
   const { data: booking, error } = await supabase
@@ -161,6 +180,7 @@ export async function createBookingAndInitializePayment(
       payment_status: "unpaid",
       promo_code: appliedPromoCode,
       discount_amount: discountAmount,
+      ...(depositDue !== null ? { deposit_amount: depositDue } : {}),
     })
     .select()
     .single();
@@ -169,6 +189,9 @@ export async function createBookingAndInitializePayment(
     // 23P01 = the database's double-booking guard: another guest took these dates a moment ago.
     if (error?.code === "23P01") {
       return { ok: false, error: "Sorry — those dates were just taken by another guest. Please choose different dates." };
+    }
+    if (depositDue !== null && (error?.code === "42703" || error?.code === "PGRST204")) {
+      return { ok: false, error: "Deposits aren't available right now. Please pay in full." };
     }
     return { ok: false, error: error?.message ?? "Could not create booking" };
   }
@@ -183,7 +206,7 @@ export async function createBookingAndInitializePayment(
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
     const transaction = await initializePaystackTransaction({
       email: data.guest_email,
-      amountInMajorUnits: totalAmount,
+      amountInMajorUnits: amountDueNow,
       reference: bookingCode,
       currency: "GHS",
       callbackUrl: `${siteUrl}/booking/success`,
@@ -191,6 +214,8 @@ export async function createBookingAndInitializePayment(
         booking_id: booking.id,
         booking_code: bookingCode,
         unit_name: unit.name,
+        payment_option: data.payment_option,
+        amount_due_now: amountDueNow,
       },
     });
 

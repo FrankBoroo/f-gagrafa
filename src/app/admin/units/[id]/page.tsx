@@ -38,12 +38,14 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
       <h1 className="mt-3 text-3xl">{unit.name}</h1>
       <p className="mt-1 text-sm text-navy/50">/units/{unit.slug}</p>
 
-      <div className="mt-8 grid max-w-5xl gap-8 lg:grid-cols-2">
-        <UnitForm unitId={unit.id} initial={initial} />
-        <div className="space-y-8">
+      <div className="mt-8 max-w-5xl space-y-8">
+        <div id="photos" className="scroll-mt-24">
           <UnitPhotoManager unitId={unit.id} images={Array.isArray(unit.images) ? unit.images : []} />
+        </div>
+        <div className="grid gap-8 lg:grid-cols-2">
+          <UnitForm unitId={unit.id} initial={initial} />
           {admin && (
-            <div className="card p-6">
+            <div className="card self-start p-6">
               <h2 className="text-lg">Delete</h2>
               <p className="mt-1 mb-4 text-sm text-navy/50">
                 Only possible for a residence with no booking history. Otherwise switch it off above
