@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { UnitCard } from "@/components/site/UnitCard";
 import { MapEmbed } from "@/components/site/MapEmbed";
+import { HeroVideo } from "@/components/site/HeroVideo";
 import { getPublicSettings } from "@/lib/site-settings";
 import type { Unit } from "@/lib/types";
 
@@ -35,36 +35,10 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy">
-        <Image
-          src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c"
-          alt="The Gagrafa residence"
-          fill
-          priority
-          className="object-cover opacity-60"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/40 to-transparent" />
-        <div className="container-gagrafa relative z-10 pb-24 pt-40 text-ivory">
-          <p className="text-xs uppercase tracking-[0.3em] text-champagne">Spintex, Accra</p>
-          <h1 className="mt-6 max-w-2xl text-5xl leading-tight md:text-7xl">
-            Live Luxuriously,<br />Stay Serenely.
-          </h1>
-          <p className="mt-6 max-w-md text-ivory/70">
-            Serviced residences on Community 20 — where quiet design and attentive
-            service meet, for a night or a season.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link href="/booking" className="btn-gold">Book Your Stay</Link>
-            <Link href="/units" className="btn-secondary border-ivory/30 text-ivory hover:bg-ivory/10">
-              View Residences
-            </Link>
-          </div>
-        </div>
-      </section>
+      <HeroVideo />
 
       {/* About */}
-      <section className="container-gagrafa py-28">
+      <section id="welcome" className="container-gagrafa scroll-mt-20 py-28">
         <div className="grid gap-12 md:grid-cols-2">
           <h2 className="text-3xl md:text-4xl">
             A residence built for the way you actually live.
