@@ -36,7 +36,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("service request insert failed", error);
+    return NextResponse.json({ error: "We couldn't send your request. Please try again." }, { status: 500 });
+  }
 
   const { data: booking } = await supabase
     .from("bookings")

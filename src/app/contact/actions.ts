@@ -28,7 +28,10 @@ export async function submitContactMessage(input: SubmitArgs) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("contact_messages").insert({ name, email, message });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("contact message insert failed", error);
+    return { ok: false, error: "We couldn't send your message. Please try again or email us directly." };
+  }
 
   // Best-effort — the message is already saved above regardless of whether
   // this succeeds, and it resolves the same Settings-configurable admin

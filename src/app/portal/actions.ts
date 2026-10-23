@@ -117,7 +117,10 @@ export async function submitReview(input: z.infer<typeof reviewSchema>) {
     comment: parsed.data.comment,
     is_published: false,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("review insert failed", error);
+    return { ok: false, error: "We couldn't save your review. Please try again." };
+  }
 
   revalidatePath(`/portal/${booking.booking_code}`);
   return { ok: true };
@@ -157,7 +160,10 @@ export async function requestCancellation(bookingId: string, reason: string) {
     type: "other",
     description: `CANCELLATION REQUEST${cleanReason ? `: ${cleanReason}` : ""}`,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("cancellation request insert failed", error);
+    return { ok: false, error: "We couldn't send your request. Please try again or contact us." };
+  }
 
   await sendCancellationRequestAlert(booking, cleanReason);
   revalidatePath(`/portal/${booking.booking_code}`);
