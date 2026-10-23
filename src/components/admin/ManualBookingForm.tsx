@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { calculateNights } from "@/lib/types";
-import { addDays } from "@/lib/dates";
+import { defaultCheckOut } from "@/lib/dates";
 import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
 
@@ -38,8 +38,7 @@ export function ManualBookingForm({ units }: { units: Unit[] }) {
     setForm((f) => ({
       ...f,
       check_in: value,
-      // Keep a later check-out already chosen; otherwise default to the next day.
-      check_out: value && (!f.check_out || f.check_out <= value) ? addDays(value, 1) : f.check_out,
+      check_out: defaultCheckOut(value, f.check_out),
     }));
   }
 

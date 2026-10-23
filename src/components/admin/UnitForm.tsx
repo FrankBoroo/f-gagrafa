@@ -159,7 +159,7 @@ export function UnitForm({ unitId, initial }: { unitId?: string; initial?: UnitF
         <input type="checkbox" className="mt-1" checked={form.is_active} onChange={(e) => update("is_active", e.target.checked)} />
         <span>
           Visible on the public site and open for booking
-          {!editing && <span className="block text-xs text-navy/40">Leave off until you've added photos, then switch it on.</span>}
+          {!editing && <span className="block text-xs text-navy/40">Leave off until you&rsquo;ve added photos, then switch it on.</span>}
         </span>
       </label>
 

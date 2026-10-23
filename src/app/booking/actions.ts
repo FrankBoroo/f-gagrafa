@@ -8,6 +8,7 @@ import { sendAdminNewBookingNotification } from "@/lib/email";
 import { checkPromoCode } from "@/lib/promo";
 import { canOfferDeposit, depositAmount } from "@/lib/deposit";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
+import { siteUrl } from "@/lib/env";
 
 export async function previewPromoCode(code: string, subtotal: number) {
   return checkPromoCode(code, subtotal);
@@ -203,13 +204,13 @@ export async function createBookingAndInitializePayment(
   // Booking code doubles as the Paystack reference — one less thing to track,
   // and it's what the success page and webhook both look bookings up by.
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    const site = siteUrl();
     const transaction = await initializePaystackTransaction({
       email: data.guest_email,
       amountInMajorUnits: amountDueNow,
       reference: bookingCode,
       currency: "GHS",
-      callbackUrl: `${siteUrl}/booking/success`,
+      callbackUrl: `${site}/booking/success`,
       metadata: {
         booking_id: booking.id,
         booking_code: bookingCode,

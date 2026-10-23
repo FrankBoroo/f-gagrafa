@@ -19,7 +19,7 @@ export default async function AdminTourPage() {
 
       {error ? (
         <p className="mt-8 max-w-xl rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          The Tour table doesn't exist yet. Run <code>supabase/migration-tour-gallery.sql</code> in the
+          The Tour table doesn&rsquo;t exist yet. Run <code>supabase/migration-tour-gallery.sql</code> in the
           Supabase SQL Editor, then reload this page.
         </p>
       ) : (

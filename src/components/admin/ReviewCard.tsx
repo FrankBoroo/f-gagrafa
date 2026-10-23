@@ -41,7 +41,7 @@ export function ReviewCard({ review }: { review: any }) {
         </span>
       </div>
 
-      {review.comment && <p className="mt-4 text-sm text-navy/70">"{review.comment}"</p>}
+      {review.comment && <p className="mt-4 text-sm text-navy/70">&ldquo;{review.comment}&rdquo;</p>}
 
       <div className="mt-4 flex gap-2 border-t border-navy/10 pt-4">
         <button onClick={togglePublish} className="btn-secondary flex-1 px-4 py-2 text-xs" disabled={isPending}>

@@ -87,7 +87,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         <h2 className="text-lg">Guest information</h2>
         <p className="text-sm text-navy/50">
           Shown in the Guest Portal. Wi-Fi and entry details are only revealed to a verified guest
-          with a paid, active stay — never on the public site. Each residence's door code is set on
+          with a paid, active stay — never on the public site. Each residence&rsquo;s door code is set on
           its own page under Units.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -119,7 +119,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       <div className="card space-y-4 p-6">
         <h2 className="text-lg">Deposits</h2>
         <p className="text-sm text-navy/50">
-          Guests can reserve by paying this share of the total now and the rest at check-in. It's only
+          Guests can reserve by paying this share of the total now and the rest at check-in. It&rsquo;s only
           offered when check-in is at least 7 days away; closer than that, guests pay in full. Set 0 to
           turn deposits off.
         </p>
@@ -138,7 +138,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           />
           {!depositAvailable && (
             <p className="mt-1 text-xs text-amber-700">
-              Deposits aren't switched on yet. Run <code>supabase/migration-deposits.sql</code> in the Supabase SQL Editor, then reload this page.
+              Deposits aren&rsquo;t switched on yet. Run <code>supabase/migration-deposits.sql</code> in the Supabase SQL Editor, then reload this page.
             </p>
           )}
         </div>

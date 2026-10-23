@@ -14,7 +14,7 @@ export default async function SetPasswordPage() {
     <div className="container-gagrafa max-w-md py-24">
       <h1 className="text-4xl">Set your password</h1>
       <p className="mt-3 text-navy/60">
-        Choose a password for <span className="text-navy">{user.email}</span>. You'll use it to sign in to the admin.
+        Choose a password for <span className="text-navy">{user.email}</span>. You&rsquo;ll use it to sign in to the admin.
       </p>
       <SetPasswordForm />
     </div>

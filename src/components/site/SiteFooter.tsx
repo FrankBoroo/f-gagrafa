@@ -14,6 +14,7 @@ export async function SiteFooter() {
           <p className="text-xs uppercase tracking-widest text-champagne">Explore</p>
           <div className="mt-3 flex flex-col gap-2 text-sm text-ivory/70">
             <Link href="/units">Residences</Link>
+            <Link href="/tour">Tour</Link>
             <Link href="/about">About</Link>
             <Link href="/contact">Contact</Link>
           </div>

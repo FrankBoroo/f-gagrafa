@@ -27,7 +27,7 @@ export function ReviewForm({ bookingId }: { bookingId: string }) {
   if (sent) {
     return (
       <div className="card mt-4 p-6 text-sm text-navy/70">
-        Thank you for your review — it'll appear on the site once approved.
+        Thank you for your review — it&rsquo;ll appear on the site once approved.
       </div>
     );
   }

@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { calculateNights } from "@/lib/types";
 import type { Unit } from "@/lib/types";
+import { addDays, defaultCheckOut } from "@/lib/dates";
+import { canOfferDeposit, depositAmount } from "@/lib/deposit";
 import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
 import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
 
@@ -24,18 +26,14 @@ type GuestForm = z.infer<typeof guestSchema>;
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";
 
-function addDays(date: string, days: number) {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 function parseGuests(raw: string | null) {
   const n = Number(raw);
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 2;
 }
 
-export function BookingFlow({ units }: { units: Unit[] }) {
+type PaymentOption = "full" | "deposit";
+
+export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositPercent: number }) {
   const params = useSearchParams();
   const [step, setStep] = useState(1);
   const initialUnitId = units.find((u) => u.slug === params.get("unit"))?.id ?? "";
@@ -52,6 +50,7 @@ export function BookingFlow({ units }: { units: Unit[] }) {
   const [renderedAt] = useState(() => Date.now());
   const [promoCode, setPromoCode] = useState("");
   const [promoStatus, setPromoStatus] = useState<{ checking: boolean; applied?: { code: string; discountAmount: number }; error?: string }>({ checking: false });
+  const [paymentOption, setPaymentOption] = useState<PaymentOption>("full");
 
   const unit = units.find((u) => u.id === unitId);
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
@@ -60,6 +59,14 @@ export function BookingFlow({ units }: { units: Unit[] }) {
   const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability) : null;
   const canContinue =
     Boolean(unit) && nights > 0 && guests >= 1 && !checking && selectedBlockReason === null;
+
+  // Deposit option (shown on step 3, only for stays far enough ahead). The server re-checks
+  // the same rules from `lib/deposit.ts`, so this only decides what the guest sees.
+  const deposit = depositAmount(total, depositPercent);
+  const depositOffered =
+    Boolean(checkIn) && canOfferDeposit(checkIn, depositPercent) && deposit > 0 && deposit < total;
+  const payingDeposit = depositOffered && paymentOption === "deposit";
+  const dueNow = payingDeposit ? deposit : total;
 
   // `min` for the date inputs. Set after mount so server and client markup match.
   useEffect(() => {
@@ -120,7 +127,7 @@ export function BookingFlow({ units }: { units: Unit[] }) {
 
   function handleCheckInChange(value: string) {
     setCheckIn(value);
-    if (value && checkOut && checkOut <= value) setCheckOut("");
+    setCheckOut((current: string) => defaultCheckOut(value, current));
   }
 
   const availableCount = availability ? units.filter((u) => availability[u.id] !== false).length : 0;
@@ -164,6 +171,7 @@ export function BookingFlow({ units }: { units: Unit[] }) {
         adults: guests,
         children: 0,
         promo_code: promoStatus.applied?.code,
+        payment_option: payingDeposit ? "deposit" : "full",
         honeypot,
         renderedAt,
         ...guestDetails,
@@ -351,10 +359,32 @@ export function BookingFlow({ units }: { units: Unit[] }) {
                 </div>
               )}
               <div className="flex justify-between text-lg text-navy">
-                <span>Total due</span>
+                <span>Total</span>
                 <span>{formatCurrency(total)}</span>
               </div>
             </div>
+
+            {depositOffered && (
+              <fieldset className="mt-5 border-t border-navy/10 pt-4">
+                <legend className="sr-only">How would you like to pay?</legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <PaymentChoice
+                    checked={!payingDeposit}
+                    onSelect={() => setPaymentOption("full")}
+                    title="Pay in full"
+                    amount={formatCurrency(total)}
+                    note="Nothing more to pay at check-in."
+                  />
+                  <PaymentChoice
+                    checked={payingDeposit}
+                    onSelect={() => setPaymentOption("deposit")}
+                    title={`Reserve with ${depositPercent}%`}
+                    amount={formatCurrency(deposit)}
+                    note={`The remaining ${formatCurrency(total - deposit)} is due at check-in.`}
+                  />
+                </div>
+              </fieldset>
+            )}
           </div>
           <p className="mt-4 text-xs text-navy/50">
             Paystack checkout (card, Mobile Money, Vodafone Cash) opens on submit. Payment
@@ -367,12 +397,41 @@ export function BookingFlow({ units }: { units: Unit[] }) {
               disabled={submitting}
               onClick={handleSubmit(onSubmit)}
             >
-              {submitting ? "Processing…" : `Pay ${formatCurrency(total)}`}
+              {submitting ? "Processing…" : `Pay ${formatCurrency(dueNow)}${payingDeposit ? " now" : ""}`}
             </button>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function PaymentChoice({
+  checked,
+  onSelect,
+  title,
+  amount,
+  note,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  title: string;
+  amount: string;
+  note: string;
+}) {
+  return (
+    <label
+      className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${
+        checked ? "border-champagne bg-champagne/10" : "border-navy/15 hover:border-navy/30"
+      }`}
+    >
+      <input type="radio" name="payment_option" checked={checked} onChange={onSelect} className="mt-1 accent-navy" />
+      <span>
+        <span className="block text-sm text-navy">{title}</span>
+        <span className="mt-0.5 block text-lg text-navy">{amount}</span>
+        <span className="mt-1 block text-xs text-navy/60">{note}</span>
+      </span>
+    </label>
   );
 }
 

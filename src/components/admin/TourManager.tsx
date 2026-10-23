@@ -167,7 +167,7 @@ export function TourManager({ initialItems }: { initialItems: GalleryRow[] }) {
       <div className="card max-w-2xl p-6">
         <h2 className="text-lg">Add photos</h2>
         <p className="mt-1 text-sm text-navy/50">
-          Choose where they go, then pick one or several photos. They're shrunk automatically before upload.
+          Choose where they go, then pick one or several photos. They&rsquo;re shrunk automatically before upload.
         </p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
@@ -198,7 +198,7 @@ export function TourManager({ initialItems }: { initialItems: GalleryRow[] }) {
           </label>
         </div>
         <p className="mt-4 text-xs text-navy/50">
-          Residence photos aren't managed here: they appear on the Tour page automatically from each
+          Residence photos aren&rsquo;t managed here: they appear on the Tour page automatically from each
           residence under Units.
         </p>
       </div>

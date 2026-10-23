@@ -1,3 +1,4 @@
+import { serverEnv } from "@/lib/env.server";
 // Thin wrapper around Paystack's REST API. Server-only — never import from a
 // client component (it uses PAYSTACK_SECRET_KEY).
 
@@ -37,7 +38,7 @@ interface PaystackVerifyResponse {
 }
 
 function requireSecretKey(): string {
-  const key = process.env.PAYSTACK_SECRET_KEY;
+  const key = serverEnv.PAYSTACK_SECRET_KEY;
   if (!key) {
     throw new Error(
       "PAYSTACK_SECRET_KEY is not set. Add it to .env.local from your Paystack dashboard."

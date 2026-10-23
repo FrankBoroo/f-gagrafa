@@ -58,7 +58,7 @@ export default function FAQPage() {
       </div>
 
       <p className="mt-14 text-navy/60">
-        Can't find what you're looking for?{" "}
+        Can&rsquo;t find what you&rsquo;re looking for?{" "}
         <a href="/contact" className="text-champagne-dark underline">Get in touch</a>.
       </p>
     </div>

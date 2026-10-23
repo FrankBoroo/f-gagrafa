@@ -4,3 +4,10 @@ export function addDays(date: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+// Check-out to use after the guest picks a check-in: keep a later check-out they already
+// chose, otherwise default to the next day (one night).
+export function defaultCheckOut(checkIn: string, currentCheckOut: string): string {
+  if (!checkIn) return currentCheckOut;
+  return currentCheckOut && currentCheckOut > checkIn ? currentCheckOut : addDays(checkIn, 1);
+}

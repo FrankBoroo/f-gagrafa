@@ -236,7 +236,7 @@ export function CancelRefundDialog({ booking, open, onClose, isAdmin }: DialogPr
           </label>
           <label className="flex items-start gap-2">
             <input type="radio" name="refund-choice" checked={choice === "manual"} onChange={() => setChoice("manual")} className="mt-1" />
-            <span>I've refunded them myself (record it)</span>
+            <span>I&rsquo;ve refunded them myself (record it)</span>
           </label>
           {choice === "manual" && (
             <select value={manualMethod} onChange={(e) => setManualMethod(e.target.value as "cash" | "bank" | "momo")} className={inputClass}>

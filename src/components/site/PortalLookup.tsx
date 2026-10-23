@@ -37,7 +37,7 @@ export function PortalLookup({ defaultCode, needsVerification }: { defaultCode?:
           id="portal-code"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="GAG-2026-XXXX"
+          placeholder="GAG-2026-XXXXXX"
           autoCapitalize="characters"
           className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
         />

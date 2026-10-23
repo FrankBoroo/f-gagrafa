@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { Unit } from "@/lib/types";
 import { BookingWidget } from "@/components/site/BookingWidget";
 import { UnitGallery } from "@/components/site/UnitGallery";
+import { siteUrl } from "@/lib/env";
 
 export default async function UnitDetailPage({
   params,
@@ -20,20 +21,20 @@ export default async function UnitDetailPage({
 
   if (!unit) notFound();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thegagrafa.com";
+  const site = siteUrl();
   const unitJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${unit.name} — The Gagrafa`,
     description: unit.short_description ?? unit.description,
     image: unit.images?.[0],
-    url: `${siteUrl}/units/${unit.slug}`,
+    url: `${site}/units/${unit.slug}`,
     offers: {
       "@type": "Offer",
       price: unit.base_price_per_night,
       priceCurrency: "GHS",
       availability: "https://schema.org/InStock",
-      url: `${siteUrl}/units/${unit.slug}`,
+      url: `${site}/units/${unit.slug}`,
     },
   };
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { confirmPaymentByReference } from "@/lib/booking-payment";
+import { serverEnv } from "@/lib/env.server";
 
 // Backup confirmation path: the success page verifies payment when the guest
 // is redirected back, but that depends on the guest's browser completing the
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-paystack-signature");
 
-  const secret = process.env.PAYSTACK_SECRET_KEY;
+  const secret = serverEnv.PAYSTACK_SECRET_KEY;
   if (!secret) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }

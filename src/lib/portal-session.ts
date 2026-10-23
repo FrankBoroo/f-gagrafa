@@ -1,6 +1,8 @@
 import "server-only";
 import crypto from "crypto";
 import { cookies } from "next/headers";
+import { siteUrl } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 // Guest portal access without guest accounts: after a guest proves who they are
 // (booking code + the email/phone on the booking, or a link we emailed them), we
@@ -14,7 +16,7 @@ const LINK_DAYS = 60;
 export const PORTAL_COOKIE_MAX_AGE = COOKIE_DAYS * 86_400;
 
 function signingKey(): string {
-  const base = process.env.PORTAL_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const base = serverEnv.PORTAL_SESSION_SECRET || serverEnv.SUPABASE_SERVICE_ROLE_KEY;
   if (!base) {
     throw new Error("Set PORTAL_SESSION_SECRET (or SUPABASE_SERVICE_ROLE_KEY) to sign guest portal sessions.");
   }
@@ -77,7 +79,7 @@ export async function grantPortalAccess(code: string): Promise<void> {
 // A link for emails: opening it grants access with no typing, because only the
 // guest's own inbox received it. Never throws — falls back to the normal sign-in page.
 export function portalMagicLink(code: string): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const site = siteUrl();
   try {
     const token = createPortalToken(code, LINK_DAYS);
     return `${site}/api/portal/enter?code=${encodeURIComponent(code)}&t=${encodeURIComponent(token)}`;

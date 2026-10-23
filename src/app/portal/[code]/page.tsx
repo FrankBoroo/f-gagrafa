@@ -129,7 +129,7 @@ export default async function PortalDetailPage({
           {refundedAmount > 0
             ? ` A refund of ${formatCurrency(refundedAmount, booking.currency)} has been issued.`
             : " No refund applied."}{" "}
-          Questions? Please get in touch and we'll help.
+          Questions? Please get in touch and we&rsquo;ll help.
         </div>
       ) : (
         <>
@@ -192,11 +192,11 @@ export default async function PortalDetailPage({
                 </ul>
                 {wasPaid ? (
                   <p className="mt-4 border-t border-navy/10 pt-4">
-                    If you cancel today you'd be refunded{" "}
+                    If you cancel today you&rsquo;d be refunded{" "}
                     <strong>
                       {formatCurrency((paidNet * refundPercent) / 100, booking.currency)}
                     </strong>{" "}
-                    ({refundPercent}% of the {formatCurrency(paidNet, booking.currency)} you've paid).
+                    ({refundPercent}% of the {formatCurrency(paidNet, booking.currency)} you&rsquo;ve paid).
                   </p>
                 ) : (
                   <p className="mt-4 border-t border-navy/10 pt-4">
@@ -216,7 +216,7 @@ export default async function PortalDetailPage({
           {existingReview ? (
             <div className="card mt-4 p-6 text-sm text-navy/70">
               You rated this stay {existingReview.rating}/5.
-              {existingReview.comment && <p className="mt-2">"{existingReview.comment}"</p>}
+              {existingReview.comment && <p className="mt-2">&ldquo;{existingReview.comment}&rdquo;</p>}
             </div>
           ) : (
             <ReviewForm bookingId={booking.id} />

@@ -6,6 +6,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { sendStaffInviteEmail } from "@/lib/email";
 import { inviteTeamMemberSchema, type InviteTeamMemberInput } from "@/lib/validations";
+import { publicEnv } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 // Everything here is admin-only, and checked inside each action (not just on the page).
 async function requireAdmin() {
@@ -20,7 +22,7 @@ const NOT_ADMIN = { ok: false as const, error: "Only admins can manage the team.
 // Supabase doesn't email anything for generateLink — we send it ourselves, and also hand
 // the link back so an admin can pass it on by WhatsApp if email isn't working.
 async function createSignInLink(supabase: any, email: string, fullName: string) {
-  const site = process.env.NEXT_PUBLIC_SITE_URL;
+  const site = publicEnv.configuredSiteUrl;
   if (!site) return { error: "NEXT_PUBLIC_SITE_URL isn't set, so a link can't be built." };
 
   let result = await supabase.auth.admin.generateLink({
@@ -71,7 +73,7 @@ export async function inviteTeamMember(input: InviteTeamMemberInput) {
   await sendStaffInviteEmail(email, fullName, role, link);
   await logAudit("team.invited", "profile", userId, { email, role });
   revalidatePath("/admin/team");
-  return { ok: true, link, emailAttempted: Boolean(process.env.RESEND_API_KEY) };
+  return { ok: true, link, emailAttempted: Boolean(serverEnv.RESEND_API_KEY) };
 }
 
 // A fresh link for someone already on the team (invite expired, password forgotten, or an
@@ -95,7 +97,7 @@ export async function newSignInLink(userId: string) {
 
   await sendStaffInviteEmail(email, profile.full_name ?? "", profile.role, link);
   await logAudit("team.link_sent", "profile", userId, { email });
-  return { ok: true, link, emailAttempted: Boolean(process.env.RESEND_API_KEY) };
+  return { ok: true, link, emailAttempted: Boolean(serverEnv.RESEND_API_KEY) };
 }
 
 // Never let the team end up with no admin, and never let someone lock themselves out.

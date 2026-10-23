@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 import { calculateNights } from "@/lib/types";
+import { addDays, defaultCheckOut } from "@/lib/dates";
 import type { Unit } from "@/lib/types";
 
 export function BookingWidget({ unit }: { unit: Unit }) {
@@ -11,6 +12,17 @@ export function BookingWidget({ unit }: { unit: Unit }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(2);
+  const [today, setToday] = useState("");
+
+  // `min` for the date inputs. Set after mount so server and client markup match.
+  useEffect(() => {
+    setToday(new Date().toISOString().slice(0, 10));
+  }, []);
+
+  function handleCheckInChange(value: string) {
+    setCheckIn(value);
+    setCheckOut((current: string) => defaultCheckOut(value, current));
+  }
 
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
@@ -43,7 +55,8 @@ export function BookingWidget({ unit }: { unit: Unit }) {
           <input
             type="date"
             value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
+            min={today || undefined}
+            onChange={(e) => handleCheckInChange(e.target.value)}
             className="mt-1 rounded-lg border border-navy/15 px-3 py-2 text-sm text-navy"
           />
         </label>
@@ -52,6 +65,7 @@ export function BookingWidget({ unit }: { unit: Unit }) {
           <input
             type="date"
             value={checkOut}
+            min={checkIn ? addDays(checkIn, 1) : today || undefined}
             onChange={(e) => setCheckOut(e.target.value)}
             className="mt-1 rounded-lg border border-navy/15 px-3 py-2 text-sm text-navy"
           />

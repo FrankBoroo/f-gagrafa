@@ -1,4 +1,5 @@
 import "server-only";
+import { serverEnv } from "@/lib/env.server";
 
 // Sends via Twilio's WhatsApp API using plain fetch (no SDK dependency).
 // Best-effort like email.ts: guarded, never throws back to the caller.
@@ -11,9 +12,9 @@ import "server-only";
 
 function isConfigured() {
   return Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    process.env.TWILIO_WHATSAPP_FROM
+    serverEnv.TWILIO_ACCOUNT_SID &&
+    serverEnv.TWILIO_AUTH_TOKEN &&
+    serverEnv.TWILIO_WHATSAPP_FROM
   );
 }
 
@@ -29,8 +30,8 @@ export async function sendWhatsAppMessage(toPhone: string, body: string) {
   }
 
   try {
-    const sid = process.env.TWILIO_ACCOUNT_SID!;
-    const auth = Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
+    const sid = serverEnv.TWILIO_ACCOUNT_SID!;
+    const auth = Buffer.from(`${sid}:${serverEnv.TWILIO_AUTH_TOKEN}`).toString("base64");
 
     const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: "POST",
@@ -39,7 +40,7 @@ export async function sendWhatsAppMessage(toPhone: string, body: string) {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        From: process.env.TWILIO_WHATSAPP_FROM!,
+        From: serverEnv.TWILIO_WHATSAPP_FROM!,
         To: toWhatsAppAddress(toPhone),
         Body: body,
       }),

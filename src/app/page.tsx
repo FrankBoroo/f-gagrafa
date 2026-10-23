@@ -71,7 +71,7 @@ export default async function HomePage() {
           </h2>
           <p className="self-center text-navy/70">
             The Gagrafa sits quietly on Community 20 in Spintex — close enough to
-            Accra's business districts to be convenient, far enough to feel calm.
+            Accra&rsquo;s business districts to be convenient, far enough to feel calm.
             Each residence is furnished with the same care as a well-kept home:
             considered materials, dependable utilities, and service that
             anticipates rather than intrudes.

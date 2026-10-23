@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPreArrivalReminder, sendPostStayReviewRequest } from "@/lib/email";
+import { serverEnv } from "@/lib/env.server";
 
 function dateKey(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -15,7 +16,7 @@ function dateKey(d: Date) {
 // review_request_sent_at so re-running the job is always safe).
 export async function GET(req: NextRequest) {
   // Fail closed: without a secret this endpoint would be open to anyone.
-  const secret = process.env.CRON_SECRET;
+  const secret = serverEnv.CRON_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 500 });
   }

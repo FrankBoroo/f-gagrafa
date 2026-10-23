@@ -42,14 +42,14 @@ export default function AboutPage() {
             <p>
               The Gagrafa was built for a specific kind of traveller — the one who wants
               the independence of an apartment with the reliability of a well-run hotel.
-              Spintex is one of Accra's most connected neighbourhoods, close to the
+              Spintex is one of Accra&rsquo;s most connected neighbourhoods, close to the
               business districts without the noise of being in the middle of them, and
               Community 20 sits quietly within it.
             </p>
             <p>
               We furnish every residence ourselves, maintain them ourselves, and keep a
               small team on-site around the clock, so the experience stays consistent
-              whether you're here for three nights or three months.
+              whether you&rsquo;re here for three nights or three months.
             </p>
           </div>
         </div>

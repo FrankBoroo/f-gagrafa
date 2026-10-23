@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Toaster } from "sonner";
+import { siteUrl } from "@/lib/env";
 
 const display = Playfair_Display({
   subsets: ["latin"],
@@ -38,7 +39,7 @@ const organizationJsonLd = {
     addressLocality: "Accra",
     addressCountry: "GH",
   },
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.thegagrafa.com",
+  url: siteUrl(),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

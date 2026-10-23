@@ -19,7 +19,7 @@ export default async function ContactPage() {
       <h1 className="mt-3 text-4xl md:text-5xl">Contact Us</h1>
       <p className="mt-4 max-w-xl text-navy/60">
         Questions about a stay, a group booking, or anything else — reach out and
-        we'll get back to you shortly.
+        we&rsquo;ll get back to you shortly.
       </p>
 
       <div className="mt-14 grid gap-12 lg:grid-cols-2">

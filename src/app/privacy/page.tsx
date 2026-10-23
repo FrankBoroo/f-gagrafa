@@ -36,7 +36,7 @@ export default function PrivacyPage() {
             <li><strong>Twilio (WhatsApp)</strong> — to deliver booking confirmations by WhatsApp, where applicable</li>
           </ul>
           <p className="mt-3">
-            We do not sell guest data, and we don't share it with anyone beyond what's
+            We do not sell guest data, and we don&rsquo;t share it with anyone beyond what&rsquo;s
             needed to run your stay and the services above.
           </p>
         </Section>
@@ -45,14 +45,14 @@ export default function PrivacyPage() {
           <p>
             Booking and payment records are kept for as long as needed to meet our
             accounting and legal obligations. You can request deletion of your contact
-            details at any time, subject to records we're required to retain.
+            details at any time, subject to records we&rsquo;re required to retain.
           </p>
         </Section>
 
         <Section title="5. Your rights">
           <p>
             You can request a copy of the personal data we hold about you, ask us to
-            correct it, or ask us to delete it where we're not required to keep it, by
+            correct it, or ask us to delete it where we&rsquo;re not required to keep it, by
             emailing{" "}
             <a href="mailto:reservations@thegagrafa.com" className="text-champagne-dark underline">
               reservations@thegagrafa.com
@@ -63,14 +63,14 @@ export default function PrivacyPage() {
         <Section title="6. Cookies">
           <p>
             Our website uses only the essential cookies needed to keep you signed in to
-            the Guest Portal or admin dashboard. We don't use third-party advertising
+            the Guest Portal or admin dashboard. We don&rsquo;t use third-party advertising
             or tracking cookies.
           </p>
         </Section>
 
         <Section title="7. Changes to this policy">
           <p>
-            We may update this policy from time to time; the "last updated" date above
+            We may update this policy from time to time; the &ldquo;last updated&rdquo; date above
             reflects the most recent revision.
           </p>
         </Section>

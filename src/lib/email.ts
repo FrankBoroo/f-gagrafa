@@ -1,6 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { portalMagicLink } from "@/lib/portal-session";
+import { serverEnv } from "@/lib/env.server";
 
 // Every send here is best-effort: guarded by RESEND_API_KEY, wrapped in
 // try/catch, and never thrown back to the caller. A missing or bad key
@@ -8,7 +9,7 @@ import { portalMagicLink } from "@/lib/portal-session";
 // those are already saved to the database before any of these run.
 
 function fromAddress() {
-  return process.env.RESEND_FROM_EMAIL || "The Gagrafa <onboarding@resend.dev>";
+  return serverEnv.RESEND_FROM_EMAIL || "The Gagrafa <onboarding@resend.dev>";
 }
 
 // The admin notification address can be set two ways: the Settings page in
@@ -26,17 +27,17 @@ async function adminAddress(): Promise<string> {
   } catch {
     // property_settings may not exist yet on an older schema — fall through
   }
-  return process.env.ADMIN_NOTIFICATION_EMAIL || process.env.RESEND_FROM_EMAIL || "reservations@thegagrafa.com";
+  return serverEnv.ADMIN_NOTIFICATION_EMAIL || serverEnv.RESEND_FROM_EMAIL || "reservations@thegagrafa.com";
 }
 
 async function send(args: { to: string; subject: string; html: string; replyTo?: string }) {
-  if (!process.env.RESEND_API_KEY) {
+  if (!serverEnv.RESEND_API_KEY) {
     console.warn(`Resend not configured — skipped email "${args.subject}" to ${args.to}`);
     return;
   }
   try {
     const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(serverEnv.RESEND_API_KEY);
     await resend.emails.send({
       from: fromAddress(),
       to: args.to,

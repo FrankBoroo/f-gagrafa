@@ -51,6 +51,9 @@ export async function confirmPaymentByReference(
   if (charged + 0.005 < expected) {
     return { outcome: "failed", booking, reason: "amount_mismatch" };
   }
+  if (booking.currency && verification.currency !== booking.currency) {
+    return { outcome: "failed", booking, reason: "currency_mismatch" };
+  }
   const paidInFull = charged + 0.005 >= Number(booking.total_amount);
 
   const { data: existingPayment } = await supabase
@@ -59,8 +62,12 @@ export async function confirmPaymentByReference(
     .eq("paystack_reference", reference)
     .maybeSingle();
 
+  // Only the call that records the payment sends notifications. The webhook and the success
+  // page can both get here at once; the unique `paystack_reference` lets just one insert win
+  // (23505 = the other one already recorded it).
+  let firstConfirmation = false;
   if (!existingPayment) {
-    await supabase.from("payments").insert({
+    const { error: insertError } = await supabase.from("payments").insert({
       booking_id: booking.id,
       amount: verification.amount / 100,
       currency: verification.currency,
@@ -69,6 +76,7 @@ export async function confirmPaymentByReference(
       status: "success",
       paid_at: verification.paid_at ?? new Date().toISOString(),
     });
+    firstConfirmation = insertError?.code !== "23505";
   }
 
   const { data: updatedBooking, error: updateError } = await supabase
@@ -94,16 +102,16 @@ export async function confirmPaymentByReference(
         admin_notes: [booking.admin_notes, reason].filter(Boolean).join("\n"),
       })
       .eq("id", booking.id);
-    if (!existingPayment) {
+    if (firstConfirmation) {
       await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", reason);
     }
     return { outcome: "needs_review", booking };
   }
 
   // Only fire notifications the first time this booking is confirmed —
-  // `existingPayment` means either the webhook or the success page already
+  // `firstConfirmation` is false when the webhook or the success page already
   // handled this reference.
-  if (!existingPayment) {
+  if (firstConfirmation) {
     const unitName = (updatedBooking as any)?.units?.name ?? (booking as any).units?.name ?? "your residence";
     await Promise.all([
       sendBookingConfirmationEmail(updatedBooking ?? booking, unitName, charged),

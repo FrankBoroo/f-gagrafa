@@ -18,8 +18,11 @@ Three parts in one Next.js app: public direct-booking site, guest portal, admin/
 - `npm run dev` : local dev (needs `.env.local`, copy from `.env.example`)
 - `npx tsc --noEmit` : type check. **Run before every push.**
 - `npm run build` : production build. **Run before every push.** Vercel fails on type errors.
-- `npm run lint` : ESLint (`next lint`).
-- There is no test framework or `test` script yet; verification is type check + build + manual runs.
+- `npm run lint` : ESLint (`next lint`, config in `.eslintrc.json`).
+- `npm test` : Vitest unit tests (`src/**/*.test.ts`). Single file: `npx vitest run src/lib/deposit.test.ts`; by name: `npx vitest run -t "deposit"`. **Run before every push.**
+- `npm run build` type-checks app code only, not test files, so keep running `npx tsc --noEmit` too.
+- On Windows, if the build fails with `Debug Failure. Expected ...\.tsbuildinfo`, delete `.next/cache/.tsbuildinfo` and rebuild.
+- `/api/health` returns `{ ok: true }` when the app can reach the database (503 otherwise).
 
 ## Rules that have caused build failures before
 - Next 15: `cookies()`, `params` and `searchParams` are Promises. Type them as `Promise<...>` and `await` them.
@@ -28,7 +31,7 @@ Three parts in one Next.js app: public direct-booking site, guest portal, admin/
 - Files named `actions.ts` ("use server") may only export async functions and types. No constants.
 - Every staff-level server action must call `isStaff()` / `isAdmin()` from `src/lib/auth.ts` and return `UNAUTHORIZED` on failure.
 - Callbacks passed to `startTransition(async () => ...)` must return void. Never `return toast.error(...)`; call it, then `return;`.
-- Env fallbacks use `||`, not `??`, because `.env.example` ships empty strings.
+- Read env vars through `src/lib/env.ts` (public `NEXT_PUBLIC_*`, `siteUrl()`) or `src/lib/env.server.ts` (secrets, `serverEnv` / `requireServerEnv`), never `process.env` directly. Both treat empty strings as unset, because `.env.example` ships blanks; any other fallback uses `||`, not `??`.
 - Annotate callback parameters explicitly (strict mode flags implicit `any`).
 - Keep email / WhatsApp sends best-effort. They must never block or fail a booking.
 - Dates shown in the UI: avoid locale-dependent formatting during render (hydration warnings). Use `.slice(0, 10)` or a fixed format.

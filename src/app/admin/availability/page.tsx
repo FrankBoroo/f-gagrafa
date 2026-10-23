@@ -15,7 +15,7 @@ export default async function AdminAvailabilityPage() {
       <h1 className="text-3xl">Availability</h1>
       <p className="mt-2 max-w-2xl text-sm text-navy/50">
         Block dates for maintenance, owner stays, or anything else — blocked
-        dates are enforced the same way as existing bookings, so guests can't
+        dates are enforced the same way as existing bookings, so guests can&rsquo;t
         book over them.
       </p>
       <div className="mt-8">

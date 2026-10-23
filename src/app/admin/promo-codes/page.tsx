@@ -20,7 +20,7 @@ export default async function AdminPromoCodesPage() {
       <h1 className="text-3xl">Promo Codes</h1>
       <p className="mt-2 max-w-2xl text-sm text-navy/50">
         Codes apply at checkout. Usage only counts once a booking is actually paid for —
-        an abandoned checkout doesn't burn a use.
+        an abandoned checkout doesn&rsquo;t burn a use.
       </p>
       <div className="mt-8">
         <PromoCodeManager codes={codes ?? []} />
