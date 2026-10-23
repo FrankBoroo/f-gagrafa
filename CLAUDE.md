@@ -7,6 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Luxury serviced apartments, Spintex / Community 20, Accra. Tagline: "Live Luxuriously, Stay Serenely".
 Three parts in one Next.js app: public direct-booking site, guest portal, admin/property dashboard.
 
+## Open pre-deployment items (owner to check in dashboards)
+Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they can't be verified from the repo; ask the owner before marking them Pass.
+- [ ] **#2 Password reset**: Supabase → Authentication → Email: set link (OTP) expiry to 1800 s or less. Invite/recovery links are made only by admins in `src/app/admin/team/actions.ts`.
+- [ ] **#5 Rate limiting**: Supabase → Authentication → Rate Limits: confirm sign-in limits are on (login is `signInWithPassword` in `src/components/site/LoginForm.tsx`). The availability check (`checkUnitsAvailability` in `src/app/booking/actions.ts`) has no limit.
+- [ ] **#8 Monitoring**: add an uptime monitor (UptimeRobot / Better Stack) on `/api/health`, and Vercel error alerts. Nothing alerts on failed payments or bookings yet.
+
 ## Stack
 - Next.js 15.5 App Router, TypeScript (strict), Tailwind (navy / champagne / ivory / sand palette), Playfair Display + Inter
 - Supabase: Postgres + RLS, Auth, Storage (`@supabase/ssr ^0.7`)
