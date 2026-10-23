@@ -12,6 +12,7 @@ import { calculateNights } from "@/lib/types";
 import type { Unit } from "@/lib/types";
 import { addDays, defaultCheckOut } from "@/lib/dates";
 import { canOfferDeposit, depositAmount } from "@/lib/deposit";
+import { toChargeAmount, type Pricing } from "@/lib/pricing";
 import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
 import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
 
@@ -33,7 +34,13 @@ function parseGuests(raw: string | null) {
 
 type PaymentOption = "full" | "deposit";
 
-export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositPercent: number }) {
+export function BookingFlow({
+  units, depositPercent, pricing,
+}: {
+  units: Unit[];
+  depositPercent: number;
+  pricing: Pricing;
+}) {
   const params = useSearchParams();
   const [step, setStep] = useState(1);
   const initialUnitId = units.find((u) => u.slug === params.get("unit"))?.id ?? "";
@@ -67,6 +74,15 @@ export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositP
     Boolean(checkIn) && canOfferDeposit(checkIn, depositPercent) && deposit > 0 && deposit < total;
   const payingDeposit = depositOffered && paymentOption === "deposit";
   const dueNow = payingDeposit ? deposit : total;
+
+  // Paystack charges cedis. With USD prices, show what will actually be charged, using the
+  // same conversion and deposit rounding as the server (which uses the rate at booking time).
+  const currency = pricing.currency;
+  const chargeTotal = toChargeAmount(total, pricing);
+  const chargeDueNow =
+    chargeTotal === null ? null : payingDeposit ? depositAmount(chargeTotal, depositPercent) : chargeTotal;
+  const convertsToCedis = currency === "USD" && chargeDueNow !== null;
+  const money = (amount: number) => formatCurrency(amount, currency);
 
   // `min` for the date inputs. Set after mount so server and client markup match.
   useEffect(() => {
@@ -138,7 +154,7 @@ export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositP
 
   const selectionSummary =
     unit && nights > 0
-      ? `${unit.name} · ${nights} night${nights === 1 ? "" : "s"} · ${formatCurrency(subtotal)}`
+      ? `${unit.name} · ${nights} night${nights === 1 ? "" : "s"} · ${money(subtotal)}`
       : unit
         ? `${unit.name} selected — now choose your dates`
         : "Choose your dates and a residence to continue";
@@ -253,6 +269,7 @@ export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositP
                 guests={guests}
                 nights={nights}
                 availability={availability}
+                currency={currency}
               />
             </div>
           </div>
@@ -350,18 +367,29 @@ export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositP
             <div className="mt-5 space-y-1.5 border-t border-navy/10 pt-4 text-sm text-navy/70">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{money(subtotal)}</span>
               </div>
               {promoStatus.applied && (
                 <div className="flex justify-between text-emerald-600">
                   <span>Discount</span>
-                  <span>-{formatCurrency(promoStatus.applied.discountAmount)}</span>
+                  <span>-{money(promoStatus.applied.discountAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-lg text-navy">
                 <span>Total</span>
-                <span>{formatCurrency(total)}</span>
+                <span>{money(total)}</span>
               </div>
+              {convertsToCedis && chargeTotal !== null && (
+                <div className="flex justify-between text-xs text-navy/50">
+                  <span>Charged in Ghana cedis at $1 = GH₵{pricing.usdToGhsRate}</span>
+                  <span>{formatCurrency(chargeTotal)}</span>
+                </div>
+              )}
+              {chargeTotal === null && (
+                <p className="text-xs text-amber-700">
+                  Online booking is paused while we update our rates. Please contact us to book.
+                </p>
+              )}
             </div>
 
             {depositOffered && (
@@ -372,15 +400,15 @@ export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositP
                     checked={!payingDeposit}
                     onSelect={() => setPaymentOption("full")}
                     title="Pay in full"
-                    amount={formatCurrency(total)}
+                    amount={money(total)}
                     note="Nothing more to pay at check-in."
                   />
                   <PaymentChoice
                     checked={payingDeposit}
                     onSelect={() => setPaymentOption("deposit")}
                     title={`Reserve with ${depositPercent}%`}
-                    amount={formatCurrency(deposit)}
-                    note={`The remaining ${formatCurrency(total - deposit)} is due at check-in.`}
+                    amount={money(deposit)}
+                    note={`The remaining ${money(total - deposit)} is due at check-in.`}
                   />
                 </div>
               </fieldset>
@@ -394,10 +422,14 @@ export function BookingFlow({ units, depositPercent }: { units: Unit[]; depositP
             <button className="btn-secondary w-full" onClick={() => setStep(2)}>Back</button>
             <button
               className="btn-gold w-full"
-              disabled={submitting}
+              disabled={submitting || chargeDueNow === null}
               onClick={handleSubmit(onSubmit)}
             >
-              {submitting ? "Processing…" : `Pay ${formatCurrency(dueNow)}${payingDeposit ? " now" : ""}`}
+              {submitting
+                ? "Processing…"
+                : convertsToCedis
+                  ? `Pay ${formatCurrency(chargeDueNow ?? 0)} (${money(dueNow)})${payingDeposit ? " now" : ""}`
+                  : `Pay ${money(dueNow)}${payingDeposit ? " now" : ""}`}
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createPromoCode, togglePromoCodeActive } from "@/app/admin/promo-codes/actions";
+import type { PriceCurrency } from "@/lib/pricing";
 
 interface PromoCode {
   id: string;
@@ -16,7 +17,7 @@ interface PromoCode {
   is_active: boolean;
 }
 
-export function PromoCodeManager({ codes }: { codes: PromoCode[] }) {
+export function PromoCodeManager({ codes, currency }: { codes: PromoCode[]; currency: PriceCurrency }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     code: "",
@@ -77,7 +78,7 @@ export function PromoCodeManager({ codes }: { codes: PromoCode[] }) {
               className="mt-2 w-full rounded-lg border border-navy/15 px-3 py-2.5 text-sm"
             >
               <option value="percent">Percent off</option>
-              <option value="fixed">Fixed amount (GHS)</option>
+              <option value="fixed">Fixed amount ({currency})</option>
             </select>
           </div>
           <div>
@@ -131,7 +132,7 @@ export function PromoCodeManager({ codes }: { codes: PromoCode[] }) {
                 </label>
               </div>
               <p className="mt-1 text-sm text-navy/50">
-                {c.discount_type === "percent" ? `${c.discount_value}% off` : `GHS ${c.discount_value} off`}
+                {c.discount_type === "percent" ? `${c.discount_value}% off` : `${currency} ${c.discount_value} off`}
                 {" · "}
                 {c.used_count}{c.max_uses ? `/${c.max_uses}` : ""} used
                 {c.valid_until ? ` · expires ${c.valid_until}` : ""}

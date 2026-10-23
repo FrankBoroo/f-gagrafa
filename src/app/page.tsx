@@ -90,7 +90,7 @@ export default async function HomePage() {
           </div>
           <div className="mt-12 grid gap-8 md:grid-cols-3">
             {(units as Unit[] | null)?.map((unit) => (
-              <UnitCard key={unit.id} unit={unit} />
+              <UnitCard key={unit.id} unit={unit} currency={settings.pricing.currency} />
             ))}
           </div>
         </div>

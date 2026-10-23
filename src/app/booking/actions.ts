@@ -7,6 +7,7 @@ import { initializePaystackTransaction } from "@/lib/paystack";
 import { sendAdminNewBookingNotification } from "@/lib/email";
 import { checkPromoCode } from "@/lib/promo";
 import { canOfferDeposit, depositAmount } from "@/lib/deposit";
+import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 import { siteUrl } from "@/lib/env";
 
@@ -126,6 +127,11 @@ export async function createBookingAndInitializePayment(
   const nights = Math.round(
     (new Date(data.check_out).getTime() - new Date(data.check_in).getTime()) / 86_400_000
   );
+  // Prices (and fixed promo amounts) are in the Settings price currency. Read fresh here,
+  // so the exchange rate is the one in force at the moment of booking.
+  const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
+  const pricing = pricingFromSettings(settingsRow);
+
   const subtotal = nights * Number(unit.base_price_per_night);
 
   let totalAmount = subtotal;
@@ -142,19 +148,25 @@ export async function createBookingAndInitializePayment(
     totalAmount = promoResult.finalAmount!;
   }
 
+  // Everything from here on (stored total, deposit, Paystack charge) is in cedis.
+  const chargeTotal = toChargeAmount(totalAmount, pricing);
+  if (chargeTotal === null) {
+    return { ok: false, error: "Online booking is paused while we update our rates. Please contact us to book." };
+  }
+  const chargeDiscount = toChargeAmount(discountAmount, pricing) ?? 0;
+
   // Optional deposit: pay part now, the rest at check-in. Decided here on the server, never
   // trusted from the browser: the percentage comes from Settings, and it's only offered when
   // check-in is far enough away.
-  let amountDueNow = totalAmount;
+  let amountDueNow = chargeTotal;
   let depositDue: number | null = null;
   if (data.payment_option === "deposit") {
-    const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
     const percent = Number(settingsRow?.deposit_percent ?? 0);
     if (!canOfferDeposit(data.check_in, percent)) {
       return { ok: false, error: "A deposit isn't available for these dates. Please pay in full." };
     }
-    depositDue = depositAmount(totalAmount, percent);
-    if (depositDue <= 0 || depositDue >= totalAmount) {
+    depositDue = depositAmount(chargeTotal, percent);
+    if (depositDue <= 0 || depositDue >= chargeTotal) {
       return { ok: false, error: "A deposit isn't available for this booking. Please pay in full." };
     }
     amountDueNow = depositDue;
@@ -175,13 +187,17 @@ export async function createBookingAndInitializePayment(
       guest_email: data.guest_email,
       guest_phone: data.guest_phone,
       special_requests: data.special_requests,
-      total_amount: totalAmount,
+      total_amount: chargeTotal,
       currency: "GHS",
       status: "pending",
       payment_status: "unpaid",
       promo_code: appliedPromoCode,
-      discount_amount: discountAmount,
+      discount_amount: chargeDiscount,
       ...(depositDue !== null ? { deposit_amount: depositDue } : {}),
+      // Only set for USD pricing, so cedi bookings keep working before migration-usd-pricing.sql runs.
+      ...(pricing.currency === "USD"
+        ? { display_currency: "USD", display_total: totalAmount, exchange_rate: pricing.usdToGhsRate }
+        : {}),
     })
     .select()
     .single();
@@ -194,7 +210,11 @@ export async function createBookingAndInitializePayment(
     if (depositDue !== null && (error?.code === "42703" || error?.code === "PGRST204")) {
       return { ok: false, error: "Deposits aren't available right now. Please pay in full." };
     }
-    return { ok: false, error: error?.message ?? "Could not create booking" };
+    if (pricing.currency === "USD" && (error?.code === "42703" || error?.code === "PGRST204")) {
+      return { ok: false, error: "Online booking is paused while we update our rates. Please contact us to book." };
+    }
+    console.error("booking insert failed", error);
+    return { ok: false, error: "We couldn't create your booking. Please try again or contact us." };
   }
 
   // Fire this now (booking created), not on payment success — admin wants

@@ -44,6 +44,10 @@ export interface Booking {
   payment_status: PaymentStatus;
   special_requests: string | null;
   admin_notes: string | null;
+  // Set only for bookings made with USD prices (migration-usd-pricing.sql); totals above stay in cedis.
+  display_currency?: string | null;
+  display_total?: number | null;
+  exchange_rate?: number | null;
 }
 
 export interface ServiceRequest {

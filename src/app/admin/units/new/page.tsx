@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { UnitForm } from "@/components/admin/UnitForm";
+import { getPublicSettings } from "@/lib/site-settings";
 
-export default function NewUnitPage() {
+export default async function NewUnitPage() {
+  const { pricing } = await getPublicSettings();
   return (
     <div>
       <Link href="/admin/units" className="text-sm text-navy/50 hover:text-navy">← All residences</Link>
@@ -11,7 +13,7 @@ export default function NewUnitPage() {
         site until you switch it on.
       </p>
       <div className="mt-8 max-w-2xl">
-        <UnitForm />
+        <UnitForm currency={pricing.currency} />
       </div>
     </div>
   );

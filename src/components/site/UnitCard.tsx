@@ -2,8 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
 import type { Unit } from "@/lib/types";
+import type { PriceCurrency } from "@/lib/pricing";
 
-export function UnitCard({ unit }: { unit: Unit }) {
+export function UnitCard({ unit, currency = "GHS" }: { unit: Unit; currency?: PriceCurrency }) {
   return (
     <Link href={`/units/${unit.slug}`} className="card group block overflow-hidden">
       <div className="relative h-64 w-full overflow-hidden">
@@ -23,7 +24,7 @@ export function UnitCard({ unit }: { unit: Unit }) {
         <div className="mt-4 flex items-baseline justify-between border-t border-navy/10 pt-4">
           <span className="text-xs uppercase tracking-widest text-navy/50">From</span>
           <span className="text-lg text-navy">
-            {formatCurrency(unit.base_price_per_night)} <span className="text-sm text-navy/50">/ night</span>
+            {formatCurrency(unit.base_price_per_night, currency)} <span className="text-sm text-navy/50">/ night</span>
           </span>
         </div>
       </div>

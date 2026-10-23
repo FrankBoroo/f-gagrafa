@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
+import { bookedPriceSuffix } from "@/lib/pricing";
 import { hasPortalAccess } from "@/lib/portal-session";
 import { REFUND_TIERS, refundPercentFor } from "@/lib/cancellation-policy";
 import { ServiceRequestForm } from "@/components/site/ServiceRequestForm";
@@ -106,7 +107,7 @@ export default async function PortalDetailPage({
         </div>
         <div className="mt-2 flex justify-between text-sm">
           <span className="text-navy/60">Total</span>
-          <span>{formatCurrency(booking.total_amount, booking.currency)}</span>
+          <span>{formatCurrency(booking.total_amount, booking.currency)}{bookedPriceSuffix(booking)}</span>
         </div>
         {paidNet > 0.005 && balanceDue > 0.005 && !isCancelled && (
           <div className="mt-2 flex justify-between text-sm">

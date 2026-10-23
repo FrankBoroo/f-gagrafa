@@ -2,9 +2,11 @@ import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { UnitEditCard } from "@/components/admin/UnitEditCard";
 import type { Unit } from "@/lib/types";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export default async function AdminUnitsPage() {
   const supabase = createServiceClient();
+  const { pricing } = await getPublicSettings();
   const { data: units } = await supabase.from("units").select("*").order("sort_order");
 
   return (
@@ -24,7 +26,7 @@ export default async function AdminUnitsPage() {
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {(units as Unit[] | null)?.map((unit) => (
-          <UnitEditCard key={unit.id} unit={unit} />
+          <UnitEditCard key={unit.id} unit={unit} currency={pricing.currency} />
         ))}
       </div>
     </div>

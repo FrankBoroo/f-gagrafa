@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { updateBookingStatus } from "@/app/admin/bookings/actions";
 import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
+import type { Pricing } from "@/lib/pricing";
 
 const statusColor: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -22,7 +23,7 @@ const paymentColor: Record<string, string> = {
   refunded: "text-navy/50",
 };
 
-export function BookingCard({ booking, isAdmin }: { booking: any; isAdmin: boolean }) {
+export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdmin: boolean; pricing: Pricing }) {
   const [status, setStatus] = useState(booking.status);
   const [isPending, startTransition] = useTransition();
   const [dialog, setDialog] = useState<null | "dates" | "pay" | "cancel">(null);
@@ -134,7 +135,7 @@ export function BookingCard({ booking, isAdmin }: { booking: any; isAdmin: boole
         </p>
       )}
 
-      {dialog === "dates" && <EditDatesDialog booking={liveBooking} open onClose={() => setDialog(null)} />}
+      {dialog === "dates" && <EditDatesDialog booking={liveBooking} pricing={pricing} open onClose={() => setDialog(null)} />}
       {dialog === "pay" && <RecordPaymentDialog booking={liveBooking} open onClose={() => setDialog(null)} />}
       {dialog === "cancel" && (
         <CancelRefundDialog booking={liveBooking} isAdmin={isAdmin} open onClose={() => setDialog(null)} />

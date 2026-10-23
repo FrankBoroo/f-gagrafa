@@ -202,6 +202,8 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
 3. `supabase/migration-tour-gallery.sql` — the table behind the Tour page. Safe to re-run.
 4. `supabase/migration-deposits.sql` — the deposit percentage setting and the deposit column on
    bookings. Safe to re-run. Deposits switch on (at 50%) once this has been run.
+5. `supabase/migration-usd-pricing.sql` — lets prices show in US dollars while Paystack charges
+   cedis at the rate set in Admin → Settings. Safe to re-run. Nothing changes until you pick USD.
 
 ### Guest portal, units, refunds and team
 

@@ -8,8 +8,9 @@ import { calculateNights } from "@/lib/types";
 import { defaultCheckOut } from "@/lib/dates";
 import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
+import { toChargeAmount, type Pricing } from "@/lib/pricing";
 
-export function ManualBookingForm({ units }: { units: Unit[] }) {
+export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: Pricing }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     unit_id: units[0]?.id ?? "",
@@ -29,6 +30,8 @@ export function ManualBookingForm({ units }: { units: Unit[] }) {
   const unit = units.find((u) => u.id === form.unit_id);
   const nights = form.check_in && form.check_out ? Math.max(calculateNights(form.check_in, form.check_out), 0) : 0;
   const total = unit ? nights * unit.base_price_per_night : 0;
+  // Stored and recorded in cedis, like online bookings.
+  const chargeTotal = toChargeAmount(total, pricing);
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -59,7 +62,7 @@ export function ManualBookingForm({ units }: { units: Unit[] }) {
         <label className="text-sm text-navy/60">Residence</label>
         <select value={form.unit_id} onChange={(e) => update("unit_id", e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3">
           {units.map((u) => (
-            <option key={u.id} value={u.id}>{u.name} — {formatCurrency(u.base_price_per_night)}/night</option>
+            <option key={u.id} value={u.id}>{u.name} — {formatCurrency(u.base_price_per_night, pricing.currency)}/night</option>
           ))}
         </select>
       </div>
@@ -128,7 +131,12 @@ export function ManualBookingForm({ units }: { units: Unit[] }) {
       {nights > 0 && unit && (
         <div className="flex justify-between border-t border-navy/10 pt-4 text-lg">
           <span>Total ({nights} nights)</span>
-          <span>{formatCurrency(total)}</span>
+          <span>
+            {formatCurrency(total, pricing.currency)}
+            {pricing.currency === "USD" && chargeTotal !== null && (
+              <span className="ml-2 text-sm text-navy/50">= {formatCurrency(chargeTotal)}</span>
+            )}
+          </span>
         </div>
       )}
 

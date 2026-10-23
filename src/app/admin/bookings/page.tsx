@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth";
 import { BookingFilters } from "@/components/admin/BookingFilters";
 import { BookingCard } from "@/components/admin/BookingCard";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export default async function AdminBookingsPage({
   searchParams,
@@ -11,6 +12,7 @@ export default async function AdminBookingsPage({
 }) {
   const params = await searchParams;
   const supabase = createServiceClient();
+  const { pricing } = await getPublicSettings();
 
   let query = supabase
     .from("bookings")
@@ -59,6 +61,7 @@ export default async function AdminBookingsPage({
             key={`${b.id}-${b.status}-${b.payment_status}-${b.check_in}-${b.check_out}-${b.total_amount}-${b.net_paid}`}
             booking={b}
             isAdmin={admin}
+            pricing={pricing}
           />
         ))}
       </div>

@@ -8,8 +8,9 @@ import { Pencil, Check, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { updateUnit, toggleUnitActive } from "@/app/admin/units/actions";
 import type { Unit } from "@/lib/types";
+import type { PriceCurrency } from "@/lib/pricing";
 
-export function UnitEditCard({ unit }: { unit: Unit }) {
+export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCurrency }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
@@ -105,7 +106,7 @@ export function UnitEditCard({ unit }: { unit: Unit }) {
 
       <div className="mt-4 grid grid-cols-2 gap-3 border-t border-navy/10 pt-4 text-sm sm:grid-cols-4">
         <div>
-          <p className="text-xs uppercase tracking-widest text-navy/40">Price / night</p>
+          <p className="text-xs uppercase tracking-widest text-navy/40">Price / night ({currency})</p>
           {editing ? (
             <input
               type="number"
@@ -115,7 +116,7 @@ export function UnitEditCard({ unit }: { unit: Unit }) {
               className="mt-1 w-full rounded-lg border border-navy/15 px-2 py-1"
             />
           ) : (
-            <p>{formatCurrency(unit.base_price_per_night)}</p>
+            <p>{formatCurrency(unit.base_price_per_night, currency)}</p>
           )}
         </div>
         <div>

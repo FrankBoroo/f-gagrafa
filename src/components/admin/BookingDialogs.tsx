@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { asResult } from "@/lib/action-result";
 import { calculateNights } from "@/lib/types";
 import { addDays } from "@/lib/dates";
+import { toChargeAmount, type Pricing } from "@/lib/pricing";
 import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/cancellation-policy";
 import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
 
@@ -29,7 +30,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 // ---------------------------------------------------------------- Edit dates
-export function EditDatesDialog({ booking, open, onClose }: DialogProps) {
+export function EditDatesDialog({ booking, open, onClose, pricing }: DialogProps & { pricing: Pricing }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [checkIn, setCheckIn] = useState<string>(booking.check_in);
@@ -38,7 +39,10 @@ export function EditDatesDialog({ booking, open, onClose }: DialogProps) {
 
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
   const rate = Number(booking.units?.base_price_per_night ?? 0);
-  const suggested = nights * rate;
+  // The total is in cedis. A booking made with USD prices keeps its own rate; otherwise use today's.
+  const bookingRate = Number(booking.exchange_rate) || null;
+  const suggested =
+    toChargeAmount(nights * rate, bookingRate ? { currency: "USD", usdToGhsRate: bookingRate } : pricing) ?? 0;
   const paid = Number(booking.net_paid ?? 0);
   const balance = total - paid;
 

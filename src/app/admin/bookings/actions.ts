@@ -11,6 +11,7 @@ import {
 import { refundPaystackTransaction } from "@/lib/paystack";
 import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/email";
 import { generateBookingCode } from "@/lib/types";
+import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
 import { logAudit } from "@/lib/audit";
 import { isStaff, isAdmin, UNAUTHORIZED } from "@/lib/auth";
 
@@ -84,7 +85,14 @@ export async function createManualBooking(input: ManualBookingInput) {
   const nights = Math.round(
     (new Date(data.check_out).getTime() - new Date(data.check_in).getTime()) / 86_400_000
   );
-  const totalAmount = nights * Number(unit.base_price_per_night);
+  // Same rule as online bookings: price in the Settings currency, store and charge cedis.
+  const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
+  const pricing = pricingFromSettings(settingsRow);
+  const priceTotal = nights * Number(unit.base_price_per_night);
+  const totalAmount = toChargeAmount(priceTotal, pricing);
+  if (totalAmount === null) {
+    return { ok: false, error: "Prices are set to USD but there's no exchange rate. Add one in Settings first." };
+  }
   const bookingCode = generateBookingCode();
 
   const { data: booking, error } = await supabase
@@ -105,6 +113,9 @@ export async function createManualBooking(input: ManualBookingInput) {
       currency: "GHS",
       status: "confirmed",
       payment_status: data.mark_as_paid ? "paid" : "unpaid",
+      ...(pricing.currency === "USD"
+        ? { display_currency: "USD", display_total: priceTotal, exchange_rate: pricing.usdToGhsRate }
+        : {}),
     })
     .select()
     .single();

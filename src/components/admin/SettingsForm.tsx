@@ -20,6 +20,8 @@ interface Settings {
   house_rules?: string | null;
   emergency_contact?: string | null;
   deposit_percent?: number | null;
+  price_currency?: string | null;
+  usd_to_ghs_rate?: number | string | null;
 }
 
 export function SettingsForm({ settings }: { settings: Settings }) {
@@ -43,6 +45,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   // save, so the rest of Settings keeps saving normally.
   const depositAvailable = settings.deposit_percent !== undefined && settings.deposit_percent !== null;
   const [depositPercent, setDepositPercent] = useState<number>(settings.deposit_percent ?? 50);
+  // Same idea for the USD pricing migration.
+  const currencyAvailable = settings.price_currency !== undefined && settings.price_currency !== null;
+  const [priceCurrency, setPriceCurrency] = useState<"GHS" | "USD">(settings.price_currency === "USD" ? "USD" : "GHS");
+  const [usdRate, setUsdRate] = useState<string>(settings.usd_to_ghs_rate ? String(settings.usd_to_ghs_rate) : "");
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -55,6 +61,9 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         id: settings.id,
         ...form,
         ...(depositAvailable ? { deposit_percent: depositPercent } : {}),
+        ...(currencyAvailable
+          ? { price_currency: priceCurrency, usd_to_ghs_rate: usdRate.trim() === "" ? ("" as const) : Number(usdRate) }
+          : {}),
       });
       if (!result.ok) {
         toast.error(result.error ?? "Could not save settings");
@@ -142,6 +151,50 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             </p>
           )}
         </div>
+      </div>
+
+      <div className="card space-y-4 p-6">
+        <h2 className="text-lg">Prices &amp; currency</h2>
+        <p className="text-sm text-navy/50">
+          The currency guests see on the site. Paystack always charges in cedis: with USD prices, the
+          total is converted at this rate when the guest books, and the checkout shows both amounts.
+          Residence prices and fixed-amount promo codes are read in this currency, so update them when you
+          switch.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-sm text-navy/60" htmlFor="price-currency">Show prices in</label>
+            <select
+              id="price-currency"
+              disabled={!currencyAvailable}
+              value={priceCurrency}
+              onChange={(e) => setPriceCurrency(e.target.value === "USD" ? "USD" : "GHS")}
+              className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3 disabled:bg-sand disabled:text-navy/40"
+            >
+              <option value="GHS">Ghana cedis (GH₵)</option>
+              <option value="USD">US dollars ($)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-navy/60" htmlFor="usd-rate">Exchange rate (GH₵ per $1)</label>
+            <input
+              id="usd-rate"
+              type="number"
+              min={0}
+              step="0.0001"
+              disabled={!currencyAvailable}
+              value={usdRate}
+              onChange={(e) => setUsdRate(e.target.value)}
+              placeholder="e.g. 15.50"
+              className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3 disabled:bg-sand disabled:text-navy/40"
+            />
+          </div>
+        </div>
+        {!currencyAvailable && (
+          <p className="text-xs text-amber-700">
+            USD pricing isn&rsquo;t switched on yet. Run <code>supabase/migration-usd-pricing.sql</code> in the Supabase SQL Editor, then reload this page.
+          </p>
+        )}
       </div>
 
       <div className="card space-y-4 p-6">

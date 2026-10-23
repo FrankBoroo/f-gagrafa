@@ -6,8 +6,9 @@ import { formatCurrency } from "@/lib/utils";
 import { calculateNights } from "@/lib/types";
 import { addDays, defaultCheckOut } from "@/lib/dates";
 import type { Unit } from "@/lib/types";
+import type { PriceCurrency } from "@/lib/pricing";
 
-export function BookingWidget({ unit }: { unit: Unit }) {
+export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency?: PriceCurrency }) {
   const router = useRouter();
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -45,7 +46,7 @@ export function BookingWidget({ unit }: { unit: Unit }) {
   return (
     <div className="card sticky top-28 p-6">
       <p className="text-2xl">
-        {formatCurrency(unit.base_price_per_night)}
+        {formatCurrency(unit.base_price_per_night, currency)}
         <span className="text-sm text-navy/50"> / night</span>
       </p>
 
@@ -86,12 +87,12 @@ export function BookingWidget({ unit }: { unit: Unit }) {
       {nights > 0 && (
         <div className="mt-5 space-y-2 border-t border-navy/10 pt-5 text-sm text-navy/70">
           <div className="flex justify-between">
-            <span>{formatCurrency(unit.base_price_per_night)} × {nights} nights</span>
-            <span>{formatCurrency(total)}</span>
+            <span>{formatCurrency(unit.base_price_per_night, currency)} × {nights} nights</span>
+            <span>{formatCurrency(total, currency)}</span>
           </div>
           <div className="flex justify-between text-base text-navy">
             <span>Total</span>
-            <span>{formatCurrency(total)}</span>
+            <span>{formatCurrency(total, currency)}</span>
           </div>
         </div>
       )}

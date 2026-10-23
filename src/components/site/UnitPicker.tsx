@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import type { PriceCurrency } from "@/lib/pricing";
 import type { Unit } from "@/lib/types";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";
@@ -22,9 +23,10 @@ export function getUnitBlockReason(
 }
 
 export function UnitPicker({
-  units, selectedId, onSelect, guests, nights, availability,
+  units, selectedId, onSelect, guests, nights, availability, currency = "GHS",
 }: {
   units: Unit[];
+  currency?: PriceCurrency;
   selectedId: string;
   onSelect: (id: string) => void;
   guests: number;
@@ -47,6 +49,7 @@ export function UnitPicker({
           onSelect={onSelect}
           blockReason={getUnitBlockReason(unit, guests, availability)}
           nights={nights}
+          currency={currency}
         />
       ))}
     </fieldset>
@@ -54,9 +57,10 @@ export function UnitPicker({
 }
 
 function UnitOption({
-  unit, selected, onSelect, blockReason, nights,
+  unit, selected, onSelect, blockReason, nights, currency,
 }: {
   unit: Unit;
+  currency: PriceCurrency;
   selected: boolean;
   onSelect: (id: string) => void;
   blockReason: string | null;
@@ -196,12 +200,12 @@ function UnitOption({
 
         <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-navy/10 pt-4">
           <p className="text-sm text-navy/60">
-            <span className="text-lg text-navy">{formatCurrency(unit.base_price_per_night)}</span> / night
+            <span className="text-lg text-navy">{formatCurrency(unit.base_price_per_night, currency)}</span> / night
           </p>
           {nights > 0 && (
             <p className="text-sm text-navy/70">
               {nights} night{nights === 1 ? "" : "s"} ·{" "}
-              <span className="text-navy">{formatCurrency(nights * unit.base_price_per_night)}</span>
+              <span className="text-navy">{formatCurrency(nights * unit.base_price_per_night, currency)}</span>
             </p>
           )}
         </div>

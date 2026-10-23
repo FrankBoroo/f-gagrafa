@@ -63,6 +63,7 @@ Run in this order in the Supabase SQL editor:
 3. `supabase/migration-portal-and-ops.sql`
 4. `supabase/migration-tour-gallery.sql`
 5. `supabase/migration-deposits.sql`
+6. `supabase/migration-usd-pricing.sql`
 
 Migrations are idempotent. Never re-run all of `schema.sql` on an existing database.
 

@@ -22,6 +22,13 @@ const settingsSchema = z.object({
   house_rules: z.string().max(1500).optional(),
   emergency_contact: z.string().max(300).optional(),
   deposit_percent: z.coerce.number().int().min(0).max(90).optional(),
+  price_currency: z.enum(["GHS", "USD"]).optional(),
+  // Blank clears the rate; otherwise cedis per dollar.
+  usd_to_ghs_rate: z
+    .union([z.literal(""), z.coerce.number().positive("The exchange rate must be above 0").max(10000)])
+    .optional(),
+}).refine((s) => s.price_currency !== "USD" || (typeof s.usd_to_ghs_rate === "number" && s.usd_to_ghs_rate > 0), {
+  message: "Add the exchange rate (GH₵ per $1) before switching prices to USD",
 });
 
 export async function updatePropertySettings(input: z.infer<typeof settingsSchema>) {
@@ -31,7 +38,11 @@ export async function updatePropertySettings(input: z.infer<typeof settingsSchem
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid settings" };
   }
-  const { id, ...fields } = parsed.data;
+  const { id, usd_to_ghs_rate, ...rest } = parsed.data;
+  const fields = {
+    ...rest,
+    ...(usd_to_ghs_rate !== undefined ? { usd_to_ghs_rate: usd_to_ghs_rate === "" ? null : usd_to_ghs_rate } : {}),
+  };
 
   const supabase = createServiceClient();
   const { error } = await supabase
@@ -42,9 +53,10 @@ export async function updatePropertySettings(input: z.infer<typeof settingsSchem
   if (error) {
     // 42703 / PGRST204 = a column is missing: the newest migration hasn't been run yet.
     if (error.code === "42703" || error.code === "PGRST204") {
-      return { ok: false, error: "The database is missing the new settings columns. Run supabase/migration-portal-and-ops.sql in the Supabase SQL Editor, then try again." };
+      return { ok: false, error: "The database is missing some settings columns. Run the migrations listed in the README in the Supabase SQL Editor, then try again." };
     }
-    return { ok: false, error: error.message };
+    console.error("settings update failed", error);
+    return { ok: false, error: "Could not save settings. Please try again." };
   }
 
   // Never write the Wi-Fi password into the audit log.

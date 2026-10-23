@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { PromoCodeManager } from "@/components/admin/PromoCodeManager";
 import { isAdmin } from "@/lib/auth";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export default async function AdminPromoCodesPage() {
   if (!(await isAdmin())) {
@@ -14,6 +15,7 @@ export default async function AdminPromoCodesPage() {
 
   const supabase = createServiceClient();
   const { data: codes } = await supabase.from("promo_codes").select("*").order("created_at", { ascending: false });
+  const { pricing } = await getPublicSettings();
 
   return (
     <div>
@@ -23,7 +25,7 @@ export default async function AdminPromoCodesPage() {
         an abandoned checkout doesn&rsquo;t burn a use.
       </p>
       <div className="mt-8">
-        <PromoCodeManager codes={codes ?? []} />
+        <PromoCodeManager codes={codes ?? []} currency={pricing.currency} />
       </div>
     </div>
   );

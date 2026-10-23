@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
 import type { Unit } from "@/lib/types";
 import { BookingWidget } from "@/components/site/BookingWidget";
 import { UnitGallery } from "@/components/site/UnitGallery";
 import { siteUrl } from "@/lib/env";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export default async function UnitDetailPage({
   params,
@@ -20,6 +20,7 @@ export default async function UnitDetailPage({
     .single<Unit>();
 
   if (!unit) notFound();
+  const { pricing } = await getPublicSettings();
 
   const site = siteUrl();
   const unitJsonLd = {
@@ -32,7 +33,7 @@ export default async function UnitDetailPage({
     offers: {
       "@type": "Offer",
       price: unit.base_price_per_night,
-      priceCurrency: "GHS",
+      priceCurrency: pricing.currency,
       availability: "https://schema.org/InStock",
       url: `${site}/units/${unit.slug}`,
     },
@@ -76,7 +77,7 @@ export default async function UnitDetailPage({
         </div>
 
         <div>
-          <BookingWidget unit={unit} />
+          <BookingWidget unit={unit} currency={pricing.currency} />
         </div>
       </div>
     </div>

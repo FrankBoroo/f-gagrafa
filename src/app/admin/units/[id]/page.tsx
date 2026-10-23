@@ -5,6 +5,7 @@ import { isAdmin } from "@/lib/auth";
 import { UnitForm, type UnitFormValues } from "@/components/admin/UnitForm";
 import { UnitPhotoManager } from "@/components/admin/UnitPhotoManager";
 import { DeleteUnitButton } from "@/components/admin/DeleteUnitButton";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export default async function EditUnitPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +17,7 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
   // Door codes live in their own table; tolerate it not existing yet (migration not run).
   const { data: codeRow } = await supabase.from("unit_access_codes").select("access_code").eq("unit_id", id).maybeSingle();
   const admin = await isAdmin();
+  const { pricing } = await getPublicSettings();
 
   const initial: UnitFormValues = {
     name: unit.name,
@@ -43,7 +45,7 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
           <UnitPhotoManager unitId={unit.id} images={Array.isArray(unit.images) ? unit.images : []} />
         </div>
         <div className="grid gap-8 lg:grid-cols-2">
-          <UnitForm unitId={unit.id} initial={initial} />
+          <UnitForm unitId={unit.id} initial={initial} currency={pricing.currency} />
           {admin && (
             <div className="card self-start p-6">
               <h2 className="text-lg">Delete</h2>

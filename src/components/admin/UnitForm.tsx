@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { createUnit, updateUnitDetails } from "@/app/admin/units/actions";
 import { asResult } from "@/lib/action-result";
 import type { UnitType } from "@/lib/types";
+import type { PriceCurrency } from "@/lib/pricing";
 
 export interface UnitFormValues {
   name: string;
@@ -45,7 +46,13 @@ const EMPTY: UnitFormValues = {
   is_active: false, // new residences start as drafts until photos are added
 };
 
-export function UnitForm({ unitId, initial }: { unitId?: string; initial?: UnitFormValues }) {
+export function UnitForm({
+  unitId, initial, currency,
+}: {
+  unitId?: string;
+  initial?: UnitFormValues;
+  currency: PriceCurrency;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<UnitFormValues>(initial ?? EMPTY);
@@ -118,7 +125,7 @@ export function UnitForm({ unitId, initial }: { unitId?: string; initial?: UnitF
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Price per night (GHS)">
+        <Field label={`Price per night (${currency})`}>
           <input
             type="number" min={1} step="any" required
             value={form.base_price_per_night || ""}

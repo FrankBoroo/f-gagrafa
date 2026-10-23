@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { UnitCard } from "@/components/site/UnitCard";
 import type { Unit } from "@/lib/types";
+import { getPublicSettings } from "@/lib/site-settings";
 
 export const metadata = { title: "Residences — The Gagrafa" };
 
 export default async function UnitsPage() {
   const supabase = await createClient();
+  const { pricing } = await getPublicSettings();
   const { data: units } = await supabase
     .from("units")
     .select("*")
@@ -23,7 +25,7 @@ export default async function UnitsPage() {
 
       <div className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {(units as Unit[] | null)?.map((unit) => (
-          <UnitCard key={unit.id} unit={unit} />
+          <UnitCard key={unit.id} unit={unit} currency={pricing.currency} />
         ))}
       </div>
 

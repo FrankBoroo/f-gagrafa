@@ -20,7 +20,7 @@ export default async function BookingPage() {
       <p className="text-xs uppercase tracking-[0.3em] text-champagne">Reserve</p>
       <h1 className="mt-3 text-4xl">Book Your Stay</h1>
       <Suspense>
-        <BookingFlow units={(units as Unit[]) ?? []} depositPercent={settings.deposit_percent} />
+        <BookingFlow units={(units as Unit[]) ?? []} depositPercent={settings.deposit_percent} pricing={settings.pricing} />
       </Suspense>
     </div>
   );
