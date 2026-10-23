@@ -29,6 +29,16 @@ const config: Config = {
       boxShadow: {
         soft: "0 10px 40px -12px rgba(15,22,32,0.18)",
       },
+      keyframes: {
+        "slow-zoom": {
+          from: { transform: "scale(1.12)" },
+          to: { transform: "scale(1)" },
+        },
+      },
+      animation: {
+        // Banner photos settle in slowly; components add motion-reduce:animate-none.
+        "slow-zoom": "slow-zoom 18s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+      },
     },
   },
   plugins: [],

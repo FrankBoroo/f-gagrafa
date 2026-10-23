@@ -14,9 +14,11 @@ describe("generateBookingCode", () => {
     expect(generateBookingCode(new Date("2027-01-01T00:30:00Z"))).toMatch(/^GAG-2027-/);
   });
 
-  it("does not repeat across many codes", () => {
+  // 32^6 ≈ 1.07 billion codes, so 20,000 of them have ~0.19 expected repeats (birthday maths).
+  // Demanding zero failed ~18% of runs; more than 3 repeats would mean a broken generator.
+  it("rarely repeats across many codes", () => {
     const codes = new Set(Array.from({ length: 20_000 }, () => generateBookingCode()));
-    expect(codes.size).toBe(20_000);
+    expect(20_000 - codes.size).toBeLessThanOrEqual(3);
   });
 });
 

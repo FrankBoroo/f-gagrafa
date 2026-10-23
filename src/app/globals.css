@@ -43,3 +43,13 @@
 .dark body {
   @apply bg-navy text-ivory;
 }
+
+@layer utilities {
+  /* Sideways strips scroll by swipe, trackpad and arrow buttons; the bar itself only adds noise. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

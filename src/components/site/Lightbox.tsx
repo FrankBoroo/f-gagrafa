@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
@@ -62,7 +63,9 @@ export function Lightbox({
     onIndexChange(dx < 0 ? (current + 1) % count : (current - 1 + count) % count);
   }
 
-  return (
+  // Rendered into <body>: a parent with a transform (e.g. a scroll reveal) would otherwise
+  // trap this fixed overlay inside itself, under the sticky header.
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-navy/95"
       role="dialog"
@@ -104,6 +107,7 @@ export function Lightbox({
       )}
 
       {image.caption && <p className="px-4 py-4 text-center text-sm text-ivory/80">{image.caption}</p>}
-    </div>
+    </div>,
+    document.body
   );
 }
