@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import type { Unit } from "@/lib/types";
 import type { PriceCurrency } from "@/lib/booking/pricing";
@@ -45,7 +45,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
   return (
     <div data-hide-floating-book className="card sticky top-28 p-6">
       <p className="text-2xl">
-        {formatCurrency(unit.base_price_per_night, currency)}
+        {formatMoney(unit.base_price_per_night, currency)}
         <span className="text-sm text-navy/50"> / night</span>
       </p>
 
@@ -86,12 +86,12 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
       {nights > 0 && (
         <div className="mt-5 space-y-2 border-t border-navy/10 pt-5 text-sm text-navy/70">
           <div className="flex justify-between">
-            <span>{formatCurrency(unit.base_price_per_night, currency)} × {nights} nights</span>
-            <span>{formatCurrency(total, currency)}</span>
+            <span>{formatMoney(unit.base_price_per_night, currency)} × {nights} nights</span>
+            <span>{formatMoney(total, currency)}</span>
           </div>
           <div className="flex justify-between text-base text-navy">
             <span>Total</span>
-            <span>{formatCurrency(total, currency)}</span>
+            <span>{formatMoney(total, currency)}</span>
           </div>
         </div>
       )}

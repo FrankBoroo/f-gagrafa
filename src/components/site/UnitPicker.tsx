@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 import type { Unit } from "@/lib/types";
 
@@ -200,12 +200,12 @@ function UnitOption({
 
         <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-navy/10 pt-4">
           <p className="text-sm text-navy/60">
-            <span className="text-lg text-navy">{formatCurrency(unit.base_price_per_night, currency)}</span> / night
+            <span className="text-lg text-navy">{formatMoney(unit.base_price_per_night, currency)}</span> / night
           </p>
           {nights > 0 && (
             <p className="text-sm text-navy/70">
               {nights} night{nights === 1 ? "" : "s"} ·{" "}
-              <span className="text-navy">{formatCurrency(nights * unit.base_price_per_night, currency)}</span>
+              <span className="text-navy">{formatMoney(nights * unit.base_price_per_night, currency)}</span>
             </p>
           )}
         </div>

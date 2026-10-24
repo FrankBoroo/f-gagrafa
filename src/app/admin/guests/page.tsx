@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { GuestSearch } from "@/components/admin/GuestSearch";
 
 interface GuestSummary {
@@ -89,7 +89,7 @@ export default async function AdminGuestsPage({
                   <p className="text-navy/50">{g.guest_phone}</p>
                 </td>
                 <td className="px-5 py-4">{g.bookingCount}</td>
-                <td className="px-5 py-4">{formatCurrency(g.totalSpent)}</td>
+                <td className="px-5 py-4">{formatMoney(g.totalSpent)}</td>
                 <td className="px-5 py-4">{g.lastStay}</td>
                 <td className="px-5 py-4 capitalize">{Array.from(g.statuses).join(", ").replace(/_/g, " ")}</td>
               </tr>

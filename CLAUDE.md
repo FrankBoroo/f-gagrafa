@@ -41,7 +41,7 @@ Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they 
 - Read env vars through `src/lib/env.ts` (public `NEXT_PUBLIC_*`, `siteUrl()`) or `src/lib/env.server.ts` (secrets, `serverEnv` / `requireServerEnv`), never `process.env` directly. Both treat empty strings as unset, because `.env.example` ships blanks; any other fallback uses `||`, not `??`.
 - Annotate callback parameters explicitly (strict mode flags implicit `any`).
 - Keep email / WhatsApp sends best-effort. They must never block or fail a booking.
-- Dates shown in the UI: avoid locale-dependent formatting during render (hydration warnings). Use `.slice(0, 10)` or a fixed format.
+- Money and dates shown to people (pages and emails): use `formatMoney` / `formatDate` / `formatDateTime` / `formatMonthYear` from `src/lib/format.ts`. Never `toLocaleString`, `toLocaleDateString` or `Intl` (hydration warnings, server-locale output). Date arithmetic and "YYYY-MM-DD" keys: `src/lib/booking/dates.ts`.
 
 ## Architecture notes
 - **Access gates**: `src/middleware.ts` only guards `/admin/:path*` (signed in + role staff/admin). Pages and actions still re-check with `isStaff()` / `isAdmin()`; the guest portal has its own cookie check, not middleware.

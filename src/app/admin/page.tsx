@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 
 export default async function AdminOverviewPage() {
   const supabase = createServiceClient();
@@ -17,7 +17,7 @@ export default async function AdminOverviewPage() {
   const cards = [
     { label: "Check-ins today", value: checkIns ?? 0 },
     { label: "Check-outs today", value: checkOuts ?? 0 },
-    { label: "Revenue this month", value: formatCurrency(revenueThisMonth) },
+    { label: "Revenue this month", value: formatMoney(revenueThisMonth) },
     { label: "Pending requests", value: pendingRequests ?? 0 },
   ];
 

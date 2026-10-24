@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { formatMonthYear } from "@/lib/format";
 
 interface CalendarBooking {
   id: string;
@@ -52,7 +53,7 @@ export function BookingCalendar({
     router.push(`/admin/calendar?year=${d.getFullYear()}&month=${d.getMonth() + 1}`);
   }
 
-  const monthLabel = firstDay.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const monthLabel = formatMonthYear(year, month);
 
   return (
     <div className="card p-5">

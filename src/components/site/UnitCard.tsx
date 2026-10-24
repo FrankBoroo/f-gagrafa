@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import type { Unit } from "@/lib/types";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 
@@ -24,7 +24,7 @@ export function UnitCard({ unit, currency = "GHS" }: { unit: Unit; currency?: Pr
         <div className="mt-4 flex items-baseline justify-between border-t border-navy/10 pt-4">
           <span className="text-xs uppercase tracking-widest text-navy/50">From</span>
           <span className="text-lg text-navy">
-            {formatCurrency(unit.base_price_per_night, currency)} <span className="text-sm text-navy/50">/ night</span>
+            {formatMoney(unit.base_price_per_night, currency)} <span className="text-sm text-navy/50">/ night</span>
           </span>
         </div>
       </div>

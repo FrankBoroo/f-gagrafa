@@ -1,8 +1,13 @@
+// "YYYY-MM-DD" for a moment in time, in UTC (the form dates are stored and compared in).
+export function toISODate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 // "YYYY-MM-DD" arithmetic done in UTC so it never shifts by a day with the visitor's time zone.
 export function addDays(date: string, days: number): string {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toISODate(d);
 }
 
 // Check-out to use after the guest picks a check-in: keep a later check-out they already

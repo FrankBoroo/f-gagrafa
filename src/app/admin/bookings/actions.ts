@@ -13,6 +13,7 @@ import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify
 import { generateBookingCode } from "@/lib/booking/codes";
 import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
 import { calculateNights } from "@/lib/booking/dates";
+import { formatMoney } from "@/lib/format";
 import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { logAudit } from "@/lib/audit";
 import { isStaff, isAdmin, UNAUTHORIZED } from "@/lib/auth";
@@ -159,10 +160,6 @@ function netPaid(payments: any[] | null): number {
     .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 }
 
-function money(amount: number, currency: string) {
-  return `${currency} ${amount.toLocaleString()}`;
-}
-
 function refreshBookingPages(code?: string) {
   revalidatePath("/admin/bookings");
   revalidatePath("/admin/payments");
@@ -222,7 +219,7 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
   if (refundMethod !== "none") {
     if (refundAmount <= 0) return { ok: false, error: "Enter a refund amount above 0, or choose “No refund”." };
     if (refundAmount > paid + 0.005) {
-      return { ok: false, error: `You can refund at most ${money(paid, booking.currency)} (what's been paid, less earlier refunds).` };
+      return { ok: false, error: `You can refund at most ${formatMoney(paid, booking.currency)} (what's been paid, less earlier refunds).` };
     }
   }
 
@@ -389,7 +386,7 @@ export async function recordPayment(input: RecordPaymentInput) {
   const { data: payments } = await supabase.from("payments").select("amount, status").eq("booking_id", bookingId);
   const outstanding = Number(booking.total_amount) - netPaid(payments);
   if (amount > outstanding + 0.005) {
-    return { ok: false, error: `That's more than the outstanding balance of ${money(Math.max(outstanding, 0), booking.currency)}.` };
+    return { ok: false, error: `That's more than the outstanding balance of ${formatMoney(Math.max(outstanding, 0), booking.currency)}.` };
   }
 
   const { error: paymentError } = await supabase.from("payments").insert({

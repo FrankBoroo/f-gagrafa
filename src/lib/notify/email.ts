@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { portalMagicLink } from "@/lib/portal-session";
 import { serverEnv } from "@/lib/env.server";
 import { bookedPriceSuffix } from "@/lib/booking/pricing";
+import { formatMoney } from "@/lib/format";
 import { log } from "@/lib/logger";
 import { takeToken } from "@/lib/rate-limit";
 
@@ -68,7 +69,7 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
   const total = Number(booking.total_amount);
   const paid = paidAmount ?? total;
   const balance = Math.max(total - paid, 0);
-  const money = (n: number) => `${booking.currency} ${n.toLocaleString()}`;
+  const money = (n: number) => formatMoney(n, booking.currency);
   const paymentLines =
     balance > 0.005
       ? `<strong>Deposit paid:</strong> ${money(paid)}<br/><strong>Balance due at check-in:</strong> ${money(balance)}`
@@ -108,9 +109,9 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
         <strong>Guest:</strong> ${esc(booking.guest_name)} (${esc(booking.guest_email)}, ${esc(booking.guest_phone ?? "no phone")})<br/>
         <strong>Residence:</strong> ${esc(unitName)}<br/>
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
-        <strong>Total:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}${bookedPriceSuffix(booking)}<br/>
+        <strong>Total:</strong> ${formatMoney(Number(booking.total_amount), booking.currency)}${bookedPriceSuffix(booking)}<br/>
         <strong>Payment status:</strong> ${booking.payment_status}
-        ${booking.deposit_amount ? `<br/><strong>Deposit due now:</strong> ${booking.currency} ${Number(booking.deposit_amount).toLocaleString()} (balance at check-in)` : ""}
+        ${booking.deposit_amount ? `<br/><strong>Deposit due now:</strong> ${formatMoney(Number(booking.deposit_amount), booking.currency)} (balance at check-in)` : ""}
       </p>
     `,
   });
@@ -148,7 +149,7 @@ export async function sendBookingCancelledEmail(
   refund: { amount: number; method: string } | null
 ) {
   const refundLine = refund && refund.amount > 0
-    ? `<p>A refund of <strong>${booking.currency} ${refund.amount.toLocaleString()}</strong> has been issued to ${METHOD_LABEL[refund.method] ?? refund.method}.${
+    ? `<p>A refund of <strong>${formatMoney(refund.amount, booking.currency)}</strong> has been issued to ${METHOD_LABEL[refund.method] ?? refund.method}.${
         refund.method === "paystack" ? " It can take 5–10 business days to appear on your statement." : ""
       }</p>`
     : "<p>No refund applies to this cancellation under our cancellation policy.</p>";
@@ -176,7 +177,7 @@ export async function sendBookingChangedEmail(booking: any, unitName: string) {
       <p>
         <strong>Check-in:</strong> ${booking.check_in}<br/>
         <strong>Check-out:</strong> ${booking.check_out}<br/>
-        <strong>Total:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}
+        <strong>Total:</strong> ${formatMoney(Number(booking.total_amount), booking.currency)}
       </p>
       <p><a href="${portalMagicLink(booking.booking_code)}">View your booking</a>. If this isn't what you agreed with us, just reply to this email.</p>
       <p>— The Gagrafa</p>
@@ -222,7 +223,7 @@ export async function sendPreArrivalReminder(booking: any, unitName: string, bal
     html: `
       <p>Hi ${esc(booking.guest_name)},</p>
       <p>Your stay at <strong>${esc(unitName)}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
-      ${balanceDue > 0.005 ? `<p><strong>Balance due on arrival:</strong> ${booking.currency} ${balanceDue.toLocaleString()}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
+      ${balanceDue > 0.005 ? `<p><strong>Balance due on arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
       <p>Check-in is from 2:00 PM. Your digital access code and Wi-Fi details will be ready in your Guest Portal:</p>
       <p><a href="${portalMagicLink(booking.booking_code)}">View your stay details</a></p>
       <p>— The Gagrafa</p>

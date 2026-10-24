@@ -1,11 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { BarChart } from "@/components/admin/BarChart";
 import { isAdmin } from "@/lib/auth";
-
-function dateKey(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+import { toISODate as dateKey } from "@/lib/booking/dates";
 
 export default async function AdminReportsPage() {
   if (!(await isAdmin())) {
@@ -75,7 +72,7 @@ export default async function AdminReportsPage() {
       <p className="mt-2 text-sm text-navy/50">Last {days} days.</p>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-3">
-        <StatCard label="Revenue (net of refunds)" value={formatCurrency(totalRevenue)} />
+        <StatCard label="Revenue (net of refunds)" value={formatMoney(totalRevenue)} />
         <StatCard label="Average occupancy" value={`${avgOccupancy}%`} />
         <StatCard label="Active bookings" value={String(totalBookingsInRange)} />
       </div>
@@ -84,7 +81,7 @@ export default async function AdminReportsPage() {
         <div className="card p-6">
           <h2 className="text-lg">Daily revenue</h2>
           <div className="mt-6">
-            <BarChart data={revenueData} valueFormatter={(v) => formatCurrency(v)} color="#C9A66B" />
+            <BarChart data={revenueData} valueFormatter={(v) => formatMoney(v)} color="#C9A66B" />
           </div>
         </div>
         <div className="card p-6">

@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/format";
 import { isAdmin } from "@/lib/auth";
 import { oneOf } from "@/lib/db-values";
 import { Constants } from "@/types/database";
@@ -55,7 +55,7 @@ export default async function AdminPaymentsPage({
         <h1 className="text-3xl">Payments</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-navy/50">
-            {payments?.length ?? 0} transactions · {formatCurrency(totalCollected)} net collected
+            {payments?.length ?? 0} transactions · {formatMoney(totalCollected)} net collected
           </span>
           <a href="/api/admin/export/payments" className="btn-secondary px-5 py-2.5 text-sm">Export CSV</a>
         </div>
@@ -93,12 +93,12 @@ export default async function AdminPaymentsPage({
           <tbody>
             {payments?.map((p: any) => (
               <tr key={p.id} className="border-b border-navy/5">
-                <td className="px-5 py-4">{new Date(p.paid_at ?? p.created_at).toLocaleDateString()}</td>
+                <td className="px-5 py-4">{formatDate(p.paid_at ?? p.created_at)}</td>
                 <td className="px-5 py-4">{p.bookings?.booking_code ?? "—"}</td>
                 <td className="px-5 py-4">{p.bookings?.guest_name ?? "—"}</td>
                 <td className="px-5 py-4">{methodLabel[p.method] ?? p.method}</td>
                 <td className="px-5 py-4 text-navy/50">{p.paystack_reference ?? "—"}</td>
-                <td className="px-5 py-4">{formatCurrency(p.amount, p.currency)}</td>
+                <td className="px-5 py-4">{formatMoney(p.amount, p.currency)}</td>
                 <td className="px-5 py-4">
                   <span className={`rounded-full px-3 py-1 text-xs capitalize ${statusColor[p.status] ?? "bg-navy/10 text-navy/60"}`}>
                     {p.status}

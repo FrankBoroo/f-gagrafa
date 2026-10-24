@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
@@ -61,7 +61,7 @@ export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: 
         <label className="text-sm text-navy/60">Residence</label>
         <select value={form.unit_id} onChange={(e) => update("unit_id", e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3">
           {units.map((u) => (
-            <option key={u.id} value={u.id}>{u.name} — {formatCurrency(u.base_price_per_night, pricing.currency)}/night</option>
+            <option key={u.id} value={u.id}>{u.name} — {formatMoney(u.base_price_per_night, pricing.currency)}/night</option>
           ))}
         </select>
       </div>
@@ -131,9 +131,9 @@ export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: 
         <div className="flex justify-between border-t border-navy/10 pt-4 text-lg">
           <span>Total ({nights} nights)</span>
           <span>
-            {formatCurrency(total, pricing.currency)}
+            {formatMoney(total, pricing.currency)}
             {pricing.currency === "USD" && chargeTotal !== null && (
-              <span className="ml-2 text-sm text-navy/50">= {formatCurrency(chargeTotal)}</span>
+              <span className="ml-2 text-sm text-navy/50">= {formatMoney(chargeTotal)}</span>
             )}
           </span>
         </div>

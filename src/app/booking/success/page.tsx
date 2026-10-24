@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 
 // Paystack redirects here with ?reference=<our booking code>&trxref=<same>.
 // We verify server-side (never trust the redirect alone) before showing success.
@@ -87,7 +87,7 @@ export default async function BookingSuccessPage({
       title={isDeposit ? "Reservation Confirmed" : "Booking Confirmed"}
       body={
         isDeposit
-          ? `Thank you — your deposit of ${formatCurrency(deposit, booking.currency)} is received and your dates are reserved. The remaining ${formatCurrency(balance, booking.currency)} is due at check-in. A confirmation has been sent to your email.`
+          ? `Thank you — your deposit of ${formatMoney(deposit, booking.currency)} is received and your dates are reserved. The remaining ${formatMoney(balance, booking.currency)} is due at check-in. A confirmation has been sent to your email.`
           : "Thank you — a confirmation has been sent to your email. Keep your booking code handy to access your Guest Portal."
       }
       code={result.booking.booking_code}

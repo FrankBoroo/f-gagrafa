@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPreArrivalReminder, sendPostStayReviewRequest } from "@/lib/notify/email";
 import { serverEnv } from "@/lib/env.server";
-
-function dateKey(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+import { toISODate as dateKey } from "@/lib/booking/dates";
 
 // Scheduled daily (see vercel.json). Protected by CRON_SECRET so this can't
 // be triggered by anyone who finds the URL.

@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth";
+import { formatDateTime } from "@/lib/format";
 
 export default async function AuditLogPage() {
   const admin = await isAdmin();
@@ -38,7 +39,7 @@ export default async function AuditLogPage() {
           <tbody>
             {entries?.map((e: any) => (
               <tr key={e.id} className="border-b border-navy/5 align-top">
-                <td className="whitespace-nowrap px-5 py-4">{new Date(e.created_at).toLocaleString()}</td>
+                <td className="whitespace-nowrap px-5 py-4">{formatDateTime(e.created_at)}</td>
                 <td className="px-5 py-4">{e.actor_email ?? "system"}</td>
                 <td className="px-5 py-4">{e.action}</td>
                 <td className="px-5 py-4">{e.entity_type}{e.entity_id ? ` · ${e.entity_id.slice(0, 8)}` : ""}</td>

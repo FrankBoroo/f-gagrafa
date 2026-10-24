@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bookedPriceSuffix, pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 
 describe("pricingFromSettings", () => {
   it("defaults to cedis when the settings row or columns are missing", () => {
@@ -37,13 +37,13 @@ describe("toChargeAmount", () => {
   });
 });
 
-describe("formatCurrency", () => {
+describe("formatMoney", () => {
   it("uses a fixed format with no locale", () => {
-    expect(formatCurrency(1200)).toBe("GH₵1,200");
-    expect(formatCurrency(1234567, "USD")).toBe("$1,234,567");
-    expect(formatCurrency(1533.33)).toBe("GH₵1,533.33");
-    expect(formatCurrency(-50, "USD")).toBe("-$50");
-    expect(formatCurrency(0)).toBe("GH₵0");
+    expect(formatMoney(1200)).toBe("GH₵1,200");
+    expect(formatMoney(1234567, "USD")).toBe("$1,234,567");
+    expect(formatMoney(1533.33)).toBe("GH₵1,533.33");
+    expect(formatMoney(-50, "USD")).toBe("-$50");
+    expect(formatMoney(0)).toBe("GH₵0");
   });
 });
 

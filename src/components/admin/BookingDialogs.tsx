@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Modal } from "@/components/admin/Modal";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { asResult } from "@/lib/action-result";
 import { addDays, calculateNights } from "@/lib/booking/dates";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
@@ -85,7 +85,7 @@ export function EditDatesDialog({ booking, open, onClose, pricing }: DialogProps
         <input type="number" min={0} step="any" value={total} onChange={(e) => setTotal(Number(e.target.value))} className={inputClass} />
         {rate > 0 && nights > 0 && (
           <p className="mt-1 text-xs text-navy/50">
-            {nights} night{nights === 1 ? "" : "s"} at the standard rate = {formatCurrency(suggested, booking.currency)}
+            {nights} night{nights === 1 ? "" : "s"} at the standard rate = {formatMoney(suggested, booking.currency)}
             {booking.promo_code ? " (before this booking's promo discount)" : ""}.{" "}
             <button type="button" className="underline" onClick={() => setTotal(suggested)}>Use this</button>
           </p>
@@ -93,8 +93,8 @@ export function EditDatesDialog({ booking, open, onClose, pricing }: DialogProps
       </div>
 
       <div className="mt-4 space-y-1 rounded-lg bg-sand p-4">
-        <Row label="Paid so far" value={formatCurrency(paid, booking.currency)} />
-        <Row label={balance > 0 ? "Balance due" : balance < 0 ? "Overpaid by" : "Balance"} value={formatCurrency(Math.abs(balance), booking.currency)} />
+        <Row label="Paid so far" value={formatMoney(paid, booking.currency)} />
+        <Row label={balance > 0 ? "Balance due" : balance < 0 ? "Overpaid by" : "Balance"} value={formatMoney(Math.abs(balance), booking.currency)} />
         {balance > 0 && <p className="pt-1 text-xs text-navy/50">Use “Record payment” on the booking when the balance is received.</p>}
         {balance < 0 && <p className="pt-1 text-xs text-navy/50">Use Cancel / Refund → refund to return the difference.</p>}
       </div>
@@ -134,9 +134,9 @@ export function RecordPaymentDialog({ booking, open, onClose }: DialogProps) {
     <Modal open={open} onClose={onClose} title="Record payment">
       <p className="text-sm text-navy/60">{booking.guest_name} · {booking.booking_code}</p>
       <div className="mt-4 space-y-1 rounded-lg bg-sand p-4">
-        <Row label="Total" value={formatCurrency(Number(booking.total_amount), booking.currency)} />
-        <Row label="Paid so far" value={formatCurrency(Number(booking.net_paid ?? 0), booking.currency)} />
-        <Row label="Outstanding" value={formatCurrency(outstanding, booking.currency)} />
+        <Row label="Total" value={formatMoney(Number(booking.total_amount), booking.currency)} />
+        <Row label="Paid so far" value={formatMoney(Number(booking.net_paid ?? 0), booking.currency)} />
+        <Row label="Outstanding" value={formatMoney(outstanding, booking.currency)} />
       </div>
       <div className="mt-4">
         <label className="text-sm text-navy/60">Amount received ({booking.currency})</label>
@@ -202,21 +202,21 @@ export function CancelRefundDialog({ booking, open, onClose, isAdmin }: DialogPr
   const confirmLabel = isPending
     ? "Working…"
     : alreadyCancelled
-      ? `Refund ${formatCurrency(amount, booking.currency)}`
+      ? `Refund ${formatMoney(amount, booking.currency)}`
       : choice === "none"
         ? "Cancel booking"
-        : `Cancel & refund ${formatCurrency(amount, booking.currency)}`;
+        : `Cancel & refund ${formatMoney(amount, booking.currency)}`;
 
   return (
     <Modal open={open} onClose={onClose} title={alreadyCancelled ? "Refund" : "Cancel booking"}>
       <p className="text-sm text-navy/60">{booking.guest_name} · {booking.units?.name} · {booking.booking_code}</p>
 
       <div className="mt-4 space-y-1 rounded-lg bg-sand p-4">
-        <Row label="Paid so far (net)" value={formatCurrency(paid, booking.currency)} />
+        <Row label="Paid so far (net)" value={formatMoney(paid, booking.currency)} />
         {!alreadyCancelled && paid > 0 && (
           <Row
             label={days >= 0 ? `Policy: ${days} day${days === 1 ? "" : "s"} before check-in` : "Policy: stay has started"}
-            value={`${refundPercentFor(booking.check_in)}% = ${formatCurrency(suggestedRefund(paid, booking.check_in), booking.currency)}`}
+            value={`${refundPercentFor(booking.check_in)}% = ${formatMoney(suggestedRefund(paid, booking.check_in), booking.currency)}`}
           />
         )}
       </div>
@@ -261,7 +261,7 @@ export function CancelRefundDialog({ booking, open, onClose, isAdmin }: DialogPr
         <div className="mt-4">
           <label className="text-sm text-navy/60">Refund amount ({booking.currency})</label>
           <input type="number" min={0} max={paid} step="any" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className={inputClass} />
-          <p className="mt-1 text-xs text-navy/50">Up to {formatCurrency(paid, booking.currency)}.</p>
+          <p className="mt-1 text-xs text-navy/50">Up to {formatMoney(paid, booking.currency)}.</p>
         </div>
       )}
 

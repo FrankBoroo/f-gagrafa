@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { bookedPriceSuffix } from "@/lib/booking/pricing";
 import { hasPortalAccess } from "@/lib/portal-session";
 import { REFUND_TIERS, refundPercentFor } from "@/lib/booking/cancellation-policy";
@@ -8,12 +8,7 @@ import { ServiceRequestForm } from "@/components/site/ServiceRequestForm";
 import { ReviewForm } from "@/components/site/ReviewForm";
 import { CancellationRequest } from "@/components/site/CancellationRequest";
 import type { Unit } from "@/lib/types";
-
-function addDays(date: string, days: number) {
-  const d = new Date(date);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+import { addDays } from "@/lib/booking/dates";
 
 export default async function PortalDetailPage({
   params,
@@ -107,18 +102,18 @@ export default async function PortalDetailPage({
         </div>
         <div className="mt-2 flex justify-between text-sm">
           <span className="text-navy/60">Total</span>
-          <span>{formatCurrency(booking.total_amount, booking.currency)}{bookedPriceSuffix(booking)}</span>
+          <span>{formatMoney(booking.total_amount, booking.currency)}{bookedPriceSuffix(booking)}</span>
         </div>
         {paidNet > 0.005 && balanceDue > 0.005 && !isCancelled && (
           <div className="mt-2 flex justify-between text-sm">
             <span className="text-navy/60">Balance due at check-in</span>
-            <span>{formatCurrency(balanceDue, booking.currency)}</span>
+            <span>{formatMoney(balanceDue, booking.currency)}</span>
           </div>
         )}
         {refundedAmount > 0 && (
           <div className="mt-2 flex justify-between text-sm">
             <span className="text-navy/60">Refunded</span>
-            <span>{formatCurrency(refundedAmount, booking.currency)}</span>
+            <span>{formatMoney(refundedAmount, booking.currency)}</span>
           </div>
         )}
       </div>
@@ -128,7 +123,7 @@ export default async function PortalDetailPage({
           This booking was cancelled
           {booking.cancelled_at ? ` on ${String(booking.cancelled_at).slice(0, 10)}` : ""}.
           {refundedAmount > 0
-            ? ` A refund of ${formatCurrency(refundedAmount, booking.currency)} has been issued.`
+            ? ` A refund of ${formatMoney(refundedAmount, booking.currency)} has been issued.`
             : " No refund applied."}{" "}
           Questions? Please get in touch and we&rsquo;ll help.
         </div>
@@ -195,9 +190,9 @@ export default async function PortalDetailPage({
                   <p className="mt-4 border-t border-navy/10 pt-4">
                     If you cancel today you&rsquo;d be refunded{" "}
                     <strong>
-                      {formatCurrency((paidNet * refundPercent) / 100, booking.currency)}
+                      {formatMoney((paidNet * refundPercent) / 100, booking.currency)}
                     </strong>{" "}
-                    ({refundPercent}% of the {formatCurrency(paidNet, booking.currency)} you&rsquo;ve paid).
+                    ({refundPercent}% of the {formatMoney(paidNet, booking.currency)} you&rsquo;ve paid).
                   </p>
                 ) : (
                   <p className="mt-4 border-t border-navy/10 pt-4">

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { updateBookingStatus } from "@/app/admin/bookings/actions";
 import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
 import type { Pricing } from "@/lib/booking/pricing";
@@ -78,15 +78,15 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-navy/10 pt-4">
         <div className="text-sm">
-          <span className="text-navy">{formatCurrency(booking.total_amount, booking.currency)}</span>
+          <span className="text-navy">{formatMoney(booking.total_amount, booking.currency)}</span>
           <span className={`ml-2 capitalize ${paymentColor[booking.payment_status]}`}>
             {booking.payment_status}
           </span>
           {refunded > 0 && (
-            <span className="ml-2 text-xs text-navy/50">· refunded {formatCurrency(refunded, booking.currency)}</span>
+            <span className="ml-2 text-xs text-navy/50">· refunded {formatMoney(refunded, booking.currency)}</span>
           )}
           {canRecordPayment && !awaitingPayment && (
-            <span className="ml-2 text-xs text-amber-700">· {formatCurrency(outstanding, booking.currency)} due</span>
+            <span className="ml-2 text-xs text-amber-700">· {formatMoney(outstanding, booking.currency)} due</span>
           )}
         </div>
         <div className="flex gap-2">

@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import type { Unit } from "@/lib/types";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
@@ -81,7 +81,7 @@ export function BookingFlow({
   const chargeDueNow =
     chargeTotal === null ? null : payingDeposit ? depositAmount(chargeTotal, depositPercent) : chargeTotal;
   const convertsToCedis = currency === "USD" && chargeDueNow !== null;
-  const money = (amount: number) => formatCurrency(amount, currency);
+  const money = (amount: number) => formatMoney(amount, currency);
 
   // `min` for the date inputs. Set after mount so server and client markup match.
   useEffect(() => {
@@ -381,7 +381,7 @@ export function BookingFlow({
               {convertsToCedis && chargeTotal !== null && (
                 <div className="flex justify-between text-xs text-navy/50">
                   <span>Charged in Ghana cedis at $1 = GH₵{pricing.usdToGhsRate}</span>
-                  <span>{formatCurrency(chargeTotal)}</span>
+                  <span>{formatMoney(chargeTotal)}</span>
                 </div>
               )}
               {chargeTotal === null && (
@@ -427,7 +427,7 @@ export function BookingFlow({
               {submitting
                 ? "Processing…"
                 : convertsToCedis
-                  ? `Pay ${formatCurrency(chargeDueNow ?? 0)} (${money(dueNow)})${payingDeposit ? " now" : ""}`
+                  ? `Pay ${formatMoney(chargeDueNow ?? 0)} (${money(dueNow)})${payingDeposit ? " now" : ""}`
                   : `Pay ${money(dueNow)}${payingDeposit ? " now" : ""}`}
             </button>
           </div>

@@ -1,4 +1,4 @@
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 
 // Price currency rules in one place. Unit prices and fixed promo amounts are in the
 // currency picked in Settings; Paystack always charges cedis, so a USD total is converted
@@ -37,5 +37,5 @@ export function bookedPriceSuffix(booking: {
   display_total?: number | string | null;
 }): string {
   if (!booking.display_currency || booking.display_total === null || booking.display_total === undefined) return "";
-  return ` (${formatCurrency(Number(booking.display_total), booking.display_currency)})`;
+  return ` (${formatMoney(Number(booking.display_total), booking.display_currency)})`;
 }

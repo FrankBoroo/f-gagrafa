@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Pencil, Check, X } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatMoney } from "@/lib/format";
 import { updateUnit, toggleUnitActive } from "@/app/admin/units/actions";
 import type { Unit } from "@/lib/types";
 import type { PriceCurrency } from "@/lib/booking/pricing";
@@ -116,7 +116,7 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
               className="mt-1 w-full rounded-lg border border-navy/15 px-2 py-1"
             />
           ) : (
-            <p>{formatCurrency(unit.base_price_per_night, currency)}</p>
+            <p>{formatMoney(unit.base_price_per_night, currency)}</p>
           )}
         </div>
         <div>
