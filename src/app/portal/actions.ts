@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { grantPortalAccess, hasPortalAccess } from "@/lib/portal-session";
 import { sendCancellationRequestAlert } from "@/lib/email";
+import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 
 const reviewSchema = z.object({
   booking_id: z.string().uuid(),
@@ -49,6 +50,9 @@ export async function verifyPortalAccess(rawCode: string, contact: string) {
   if (!code || !contact.trim()) {
     return { ok: false as const, error: "Enter your booking code and the email or phone you booked with." };
   }
+
+  // Per visitor as well as per code, so guessing across many codes is slowed down too.
+  if (await isOverLimit("portal")) return { ok: false as const, error: RATE_LIMITED_MESSAGE };
 
   const supabase = createServiceClient();
 

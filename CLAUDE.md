@@ -10,7 +10,7 @@ Three parts in one Next.js app: public direct-booking site, guest portal, admin/
 ## Open pre-deployment items (owner to check in dashboards)
 Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they can't be verified from the repo; ask the owner before marking them Pass.
 - [ ] **#2 Password reset**: Supabase → Authentication → Email: set link (OTP) expiry to 1800 s or less. Invite/recovery links are made only by admins in `src/app/admin/team/actions.ts`.
-- [ ] **#5 Rate limiting**: Supabase → Authentication → Rate Limits: confirm sign-in limits are on (login is `signInWithPassword` in `src/components/site/LoginForm.tsx`). The availability check (`checkUnitsAvailability` in `src/app/booking/actions.ts`) has no limit.
+- [ ] **#5 Rate limiting**: Supabase → Authentication → Rate Limits: confirm sign-in limits are on (login is `signInWithPassword` in `src/components/site/LoginForm.tsx`). Public actions (booking, availability, promo, contact, portal, service requests) are limited per visitor in `src/lib/rate-limit.ts` once `migration-rate-limits.sql` has been run.
 - [ ] **#8 Monitoring**: add an uptime monitor (UptimeRobot / Better Stack) on `/api/health`, and Vercel error alerts. Nothing alerts on failed payments or bookings yet.
 
 ## Stack
@@ -64,6 +64,7 @@ Run in this order in the Supabase SQL editor:
 4. `supabase/migration-tour-gallery.sql`
 5. `supabase/migration-deposits.sql`
 6. `supabase/migration-usd-pricing.sql`
+7. `supabase/migration-rate-limits.sql`
 
 Migrations are idempotent. Never re-run all of `schema.sql` on an existing database.
 
@@ -71,8 +72,7 @@ Migrations are idempotent. Never re-run all of `schema.sql` on an existing datab
 See `.env.example`. Needed on Vercel too: Supabase URL / anon / service-role keys, Paystack public + secret keys, Resend key and `RESEND_FROM_EMAIL` (verified domain required), Twilio (optional), `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET` (the cron route refuses to run without it), `ADMIN_NOTIFICATION_EMAIL`, `PORTAL_SESSION_SECRET` (falls back to the service-role key if unset). Add the Paystack webhook URL `/api/webhooks/paystack` in the Paystack dashboard. Vercel reads env vars at build time, so redeploy after changing them.
 
 ## Pending / deferred work
-- **Homepage design extras**: split hero, scroll reveals, parallax, magnetic buttons, custom cursor, grain, diagonal section.
-- **Floating "Book Your Stay" button.**
+- **Homepage design extras (optional, desktop only)**: magnetic buttons, custom cursor, grain, diagonal section. Done: video hero with parallax, see-through header, scroll reveals, floating "Book Your Stay" on phones.
 - **100%-off promo codes**: Paystack rejects a zero amount, so the booking is auto-cancelled with a generic error. Needs a "no payment needed" path that confirms the booking directly.
 - Replace placeholder Terms / Privacy text and contact details; verify a Resend domain.
 

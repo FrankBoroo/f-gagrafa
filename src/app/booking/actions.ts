@@ -10,8 +10,14 @@ import { canOfferDeposit, depositAmount } from "@/lib/deposit";
 import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 import { siteUrl } from "@/lib/env";
+import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 
+// Preview only: the booking itself recomputes the discount from server-side prices.
 export async function previewPromoCode(code: string, subtotal: number) {
+  if (typeof code !== "string" || code.length > 40 || !Number.isFinite(subtotal) || subtotal < 0) {
+    return { valid: false, error: "Invalid or inactive code" };
+  }
+  if (await isOverLimit("promo")) return { valid: false, error: RATE_LIMITED_MESSAGE };
   return checkPromoCode(code, subtotal);
 }
 
@@ -45,6 +51,7 @@ export async function checkUnitsAvailability(
   if (nights > 365) {
     return { ok: false, error: "Online bookings are limited to 365 nights — contact us for longer stays" };
   }
+  if (await isOverLimit("availability")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const supabase = createServiceClient();
   const { data: units } = await supabase.from("units").select("id").eq("is_active", true);
@@ -90,6 +97,8 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid booking details" };
   }
   const data = parsed.data;
+
+  if (await isOverLimit("booking")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   if (data.check_in < new Date().toISOString().slice(0, 10)) {
     return { ok: false, error: "Check-in can't be in the past" };

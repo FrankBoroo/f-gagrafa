@@ -204,6 +204,9 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
    bookings. Safe to re-run. Deposits switch on (at 50%) once this has been run.
 5. `supabase/migration-usd-pricing.sql` — lets prices show in US dollars while Paystack charges
    cedis at the rate set in Admin → Settings. Safe to re-run. Nothing changes until you pick USD.
+6. `supabase/migration-rate-limits.sql` — limits how often one visitor can book, check dates,
+   try promo codes, send contact messages, open the guest portal or raise service requests.
+   Safe to re-run. Until it is run the site works normally, just without these limits.
 
 ### Guest portal, units, refunds and team
 

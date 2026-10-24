@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
   // Sweep unpaid checkouts that were abandoned. Booking attempts also release these
   // on demand; this just keeps the table tidy.
   const { data: expiredCount } = await supabase.rpc("expire_stale_pending_bookings");
+  // Rate-limit hits older than a day are never looked at again. Missing function: just skip.
+  const { data: purgedHits } = await supabase.rpc("purge_rate_limit_hits");
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -71,5 +73,6 @@ export async function GET(req: NextRequest) {
     preArrivalSent: arriving?.length ?? 0,
     postStaySent: departed?.length ?? 0,
     expiredPending: expiredCount ?? 0,
+    purgedRateLimitHits: purgedHits ?? 0,
   });
 }

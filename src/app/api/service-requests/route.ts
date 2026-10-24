@@ -2,15 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendServiceRequestNotification } from "@/lib/email";
 import { hasPortalAccess } from "@/lib/portal-session";
+import { isOverLimit, RATE_LIMITED_MESSAGE, RATE_LIMITS } from "@/lib/rate-limit";
 
 const TYPES = ["cleaning", "towels", "maintenance", "other"];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
-  const { booking_id, type, description } = await req.json();
-  if (!booking_id || !type || !TYPES.includes(type)) {
+  if (await isOverLimit("serviceRequest")) {
+    return NextResponse.json(
+      { error: RATE_LIMITED_MESSAGE },
+      { status: 429, headers: { "Retry-After": String(RATE_LIMITS.serviceRequest.windowSeconds) } }
+    );
+  }
+
+  const body = await req.json().catch(() => null);
+  const { booking_id, type, description } = (body ?? {}) as Record<string, unknown>;
+  if (typeof booking_id !== "string" || !UUID_RE.test(booking_id) || typeof type !== "string" || !TYPES.includes(type)) {
     return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
   }
-  if (typeof description === "string" && description.length > 1000) {
+  if (description != null && (typeof description !== "string" || description.length > 1000)) {
     return NextResponse.json({ error: "Description is too long" }, { status: 400 });
   }
 

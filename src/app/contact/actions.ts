@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { contactMessageSchema, type ContactMessageInput } from "@/lib/validations";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 import { sendContactMessageNotification } from "@/lib/email";
+import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 
 interface SubmitArgs extends ContactMessageInput {
   honeypot?: string;
@@ -21,6 +22,8 @@ export async function submitContactMessage(input: SubmitArgs) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Please check your details" };
   }
   const { name, email, message } = parsed.data;
+
+  if (await isOverLimit("contact")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   if (await isRateLimited("contact_messages", "email", email)) {
     return { ok: false, error: "You've sent several messages recently — please wait a bit before sending another." };
