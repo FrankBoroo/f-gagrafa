@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { confirmPaymentByReference } from "@/lib/booking-payment";
+import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
 import { serverEnv } from "@/lib/env.server";
 import { log } from "@/lib/logger";
 

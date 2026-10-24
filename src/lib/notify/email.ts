@@ -2,7 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { portalMagicLink } from "@/lib/portal-session";
 import { serverEnv } from "@/lib/env.server";
-import { bookedPriceSuffix } from "@/lib/pricing";
+import { bookedPriceSuffix } from "@/lib/booking/pricing";
 import { log } from "@/lib/logger";
 import { takeToken } from "@/lib/rate-limit";
 

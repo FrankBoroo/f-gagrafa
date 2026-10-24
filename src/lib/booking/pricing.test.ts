@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookedPriceSuffix, pricingFromSettings, toChargeAmount } from "@/lib/pricing";
+import { bookedPriceSuffix, pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { formatCurrency } from "@/lib/utils";
 
 describe("pricingFromSettings", () => {

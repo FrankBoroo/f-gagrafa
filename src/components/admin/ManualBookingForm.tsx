@@ -4,11 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { calculateNights } from "@/lib/types";
-import { defaultCheckOut } from "@/lib/dates";
+import { calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
-import { toChargeAmount, type Pricing } from "@/lib/pricing";
+import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
 
 export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: Pricing }) {
   const [isPending, startTransition] = useTransition();

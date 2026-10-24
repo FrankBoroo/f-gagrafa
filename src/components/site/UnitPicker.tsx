@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import type { PriceCurrency } from "@/lib/pricing";
+import type { PriceCurrency } from "@/lib/booking/pricing";
 import type { Unit } from "@/lib/types";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";

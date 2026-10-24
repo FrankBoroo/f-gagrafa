@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { updateBookingStatus } from "@/app/admin/bookings/actions";
 import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
-import type { Pricing } from "@/lib/pricing";
+import type { Pricing } from "@/lib/booking/pricing";
 
 const statusColor: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",

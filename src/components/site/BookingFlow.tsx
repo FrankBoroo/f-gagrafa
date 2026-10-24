@@ -8,11 +8,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { calculateNights } from "@/lib/types";
 import type { Unit } from "@/lib/types";
-import { addDays, defaultCheckOut } from "@/lib/dates";
-import { canOfferDeposit, depositAmount } from "@/lib/deposit";
-import { toChargeAmount, type Pricing } from "@/lib/pricing";
+import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
+import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
+import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
 import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
 import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
 

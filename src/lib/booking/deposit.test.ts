@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canOfferDeposit, depositAmount, DEPOSIT_MIN_DAYS_BEFORE_CHECKIN } from "@/lib/deposit";
+import { canOfferDeposit, depositAmount, DEPOSIT_MIN_DAYS_BEFORE_CHECKIN } from "@/lib/booking/deposit";
 
 const NOW = new Date("2026-11-01T09:00:00Z");
 

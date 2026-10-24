@@ -1,7 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import { GHS_PRICING, pricingFromSettings, type Pricing } from "@/lib/pricing";
+import { GHS_PRICING, pricingFromSettings, type Pricing } from "@/lib/booking/pricing";
 
 // Only the details that are fine for anyone to see. Wi-Fi passwords, entry
 // instructions and the like live in the same table but are NEVER returned here —

@@ -25,7 +25,7 @@ Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they 
 - `npx tsc --noEmit` : type check. **Run before every push.**
 - `npm run build` : production build. **Run before every push.** Vercel fails on type errors.
 - `npm run lint` : ESLint (`next lint`, config in `.eslintrc.json`).
-- `npm test` : Vitest unit tests (`src/**/*.test.ts`). Single file: `npx vitest run src/lib/deposit.test.ts`; by name: `npx vitest run -t "deposit"`. **Run before every push.**
+- `npm test` : Vitest unit tests (`src/**/*.test.ts`). Single file: `npx vitest run src/lib/booking/deposit.test.ts`; by name: `npx vitest run -t "deposit"`. **Run before every push.**
 - `npm run build` type-checks app code only, not test files, so keep running `npx tsc --noEmit` too.
 - `npm run db:types` : regenerate `src/types/database.ts` from `supabase/*.sql` (PGlite, no Docker or login). Run after any migration change; new migration files must be added to `SQL_FILES` in `scripts/gen-db-types.mjs`.
 - On Windows, if the build fails with `Debug Failure. Expected ...\.tsbuildinfo`, delete `.next/cache/.tsbuildinfo` and rebuild.
@@ -46,15 +46,15 @@ Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they 
 ## Architecture notes
 - **Access gates**: `src/middleware.ts` only guards `/admin/:path*` (signed in + role staff/admin). Pages and actions still re-check with `isStaff()` / `isAdmin()`; the guest portal has its own cookie check, not middleware.
 - **Server actions** live in `src/app/**/actions.ts`. Client code wraps results with `asResult()` from `src/lib/action-result.ts`.
-- **Payments**: `confirmPaymentByReference` in `src/lib/booking-payment.ts` is shared by the success page and the Paystack webhook and is idempotent. The booking code is the Paystack reference. It returns `paid | failed | needs_review | closed`, handles payment after expiry, and never revives cancelled/refunded bookings.
+- **Payments**: `confirmPaymentByReference` in `src/lib/payments/booking-payment.ts` is shared by the success page and the Paystack webhook and is idempotent. The booking code is the Paystack reference. It returns `paid | failed | needs_review | closed`, handles payment after expiry, and never revives cancelled/refunded bookings.
 - **Double-booking protection**: `is_unit_available()` ignores unpaid pending holds older than 30 min; `expire_stale_pending_bookings()` cancels them; GiST exclusion constraint `bookings_no_overlap` blocks overlaps (Postgres error 23P01).
 - **Guest portal**: booking code + email/phone check, per-booking HMAC-signed HttpOnly cookie (`src/lib/portal-session.ts`), email magic links, failed attempts throttled 8 per 15 min (`portal_access_attempts`). Wi-Fi / door code / entry details only for confirmed stays, from the day before check-in until check-out.
-- **Cancellation tiers** (`src/lib/cancellation-policy.ts`): 100% refund at 7+ days before check-in, 50% at 2-6 days, 0% otherwise.
+- **Cancellation tiers** (`src/lib/booking/cancellation-policy.ts`): 100% refund at 7+ days before check-in, 50% at 2-6 days, 0% otherwise.
 - **Refunds**: stored as negative `payments` rows with status `refunded`. Net paid = sum of `success` + `refunded` rows. Only admins refund; staff can cancel.
 - **Roles**: guest | staff | admin. Admin-only pages: Reports, Promo Codes, Payments, Settings, Team, Audit Log.
 - **Settings** are cached with `unstable_cache` (tag `"settings"`); revalidate the tag after changing them.
 - **Uploads**: unit photos (`unit-images` bucket) and Tour photos (`gallery-images` bucket) go browser to Supabase Storage via signed upload URL (avoids Vercel's ~4.5 MB body limit). Images are shrunk client-side first (`src/lib/image-prepare.ts`).
-- **Deposits** (`src/lib/deposit.ts`): when check-in is 7+ days away, guests may pay a deposit share (default 50%, set in Settings; 0 disables). The server re-checks the rules; staff record the balance with "Record payment".
+- **Deposits** (`src/lib/booking/deposit.ts`): when check-in is 7+ days away, guests may pay a deposit share (default 50%, set in Settings; 0 disables). The server re-checks the rules; staff record the balance with "Record payment".
 - **Tour**: public `/tour` page; property and neighbourhood photos managed in Admin → Tour (`TourManager`), residence photos come from unit galleries.
 
 ## Database

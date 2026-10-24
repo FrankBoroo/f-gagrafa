@@ -6,14 +6,14 @@ description: Use when touching booking creation, Paystack payments, webhooks, re
 # Gagrafa payments and booking flow
 
 ## Core invariants
-- `confirmPaymentByReference` (`src/lib/booking-payment.ts`) is the single place that confirms a payment. The success page and the Paystack webhook both call it. It must stay **idempotent**.
+- `confirmPaymentByReference` (`src/lib/payments/booking-payment.ts`) is the single place that confirms a payment. The success page and the Paystack webhook both call it. It must stay **idempotent**.
 - Result states: `paid | failed | needs_review | closed`. Paid-after-expiry goes to `needs_review`; a cancelled or refunded booking is never revived.
 - Booking code = Paystack reference.
 - Verify the amount and currency from Paystack against the booking before marking paid. Verify the webhook signature (HMAC SHA-512 with the secret key) before trusting any payload.
 - Prices and totals are computed on the server only; never accept an amount from the client.
 
 ## Refunds and cancellation
-- Tiers (`src/lib/cancellation-policy.ts`): 100% refund at 7+ days before check-in, 50% at 2-6 days, 0% otherwise.
+- Tiers (`src/lib/booking/cancellation-policy.ts`): 100% refund at 7+ days before check-in, 50% at 2-6 days, 0% otherwise.
 - Refunds are stored as negative `payments` rows with status `refunded`. Net paid = sum of `success` + `refunded` rows.
 - Only admins refund; staff can cancel. Both log to the audit log.
 
@@ -23,7 +23,7 @@ description: Use when touching booking creation, Paystack payments, webhooks, re
 
 ## Deposits (when adopted)
 - Default deposit is 50% of the total (confirmed by Frank). Booking is confirmed once the deposit is paid; remaining balance tracked and shown in portal/admin.
-- Use `lib/deposit.ts` for all deposit maths; test it.
+- Use `lib/booking/deposit.ts` for all deposit maths; test it.
 
 ## Notifications
 - Email (Resend) and WhatsApp (Twilio) are best-effort: wrap in try/catch and never fail or block the booking. Log failures without personal data.

@@ -2,13 +2,15 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { createBookingSchema, type CreateBookingInput } from "@/lib/validations";
-import { generateBookingCode } from "@/lib/types";
-import { initializePaystackTransaction } from "@/lib/paystack";
-import { sendAdminNewBookingNotification, sendAdminSystemAlert } from "@/lib/email";
+import { generateBookingCode } from "@/lib/booking/codes";
+import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
+import { calculateNights } from "@/lib/booking/dates";
+import { initializePaystackTransaction } from "@/lib/payments/paystack";
+import { sendAdminNewBookingNotification, sendAdminSystemAlert } from "@/lib/notify/email";
 import { log } from "@/lib/logger";
-import { checkPromoCode } from "@/lib/promo";
-import { canOfferDeposit, depositAmount } from "@/lib/deposit";
-import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
+import { checkPromoCode } from "@/lib/booking/promo";
+import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
+import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 import { siteUrl } from "@/lib/env";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
@@ -59,14 +61,10 @@ export async function checkUnitsAvailability(
 
   const entries = await Promise.all(
     (units ?? []).map(async (u: { id: string }) => {
-      const { data, error } = await supabase.rpc("is_unit_available", {
-        p_unit_id: u.id,
-        p_check_in: checkIn,
-        p_check_out: checkOut,
-      });
+      const available = await isUnitAvailable(supabase, { unitId: u.id, checkIn, checkOut });
       // Fail open: if the lookup itself errors, don't wrongly grey a unit out.
       // The payment-time check is the one that actually decides.
-      return [u.id, error ? true : Boolean(data)] as [string, boolean];
+      return [u.id, available ?? true] as [string, boolean];
     })
   );
 
@@ -122,21 +120,19 @@ export async function createBookingAndInitializePayment(
   }
 
   // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
-  await supabase.rpc("expire_stale_pending_bookings");
+  await releaseStaleHolds(supabase);
 
-  const { data: available } = await supabase.rpc("is_unit_available", {
-    p_unit_id: data.unit_id,
-    p_check_in: data.check_in,
-    p_check_out: data.check_out,
+  const available = await isUnitAvailable(supabase, {
+    unitId: data.unit_id,
+    checkIn: data.check_in,
+    checkOut: data.check_out,
   });
 
   if (!available) {
     return { ok: false, error: "This residence is not available for the selected dates" };
   }
 
-  const nights = Math.round(
-    (new Date(data.check_out).getTime() - new Date(data.check_in).getTime()) / 86_400_000
-  );
+  const nights = calculateNights(data.check_in, data.check_out);
   // Prices (and fixed promo amounts) are in the Settings price currency. Read fresh here,
   // so the exchange rate is the one in force at the moment of booking.
   const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();

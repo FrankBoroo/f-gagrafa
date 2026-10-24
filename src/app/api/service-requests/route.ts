@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sendServiceRequestNotification } from "@/lib/email";
+import { sendServiceRequestNotification } from "@/lib/notify/email";
 import { hasPortalAccess } from "@/lib/portal-session";
 import { isOverLimit, RATE_LIMITED_MESSAGE, RATE_LIMITS } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";

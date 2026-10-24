@@ -1,4 +1,4 @@
-import { daysUntilCheckIn } from "@/lib/cancellation-policy";
+import { daysUntilCheckIn } from "@/lib/booking/cancellation-policy";
 
 // Deposit rules in one place, used by the booking page (to show the option) and by the
 // server action (to enforce it). Pure functions, safe to import from client code.

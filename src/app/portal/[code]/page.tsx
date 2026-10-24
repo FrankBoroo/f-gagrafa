@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
-import { bookedPriceSuffix } from "@/lib/pricing";
+import { bookedPriceSuffix } from "@/lib/booking/pricing";
 import { hasPortalAccess } from "@/lib/portal-session";
-import { REFUND_TIERS, refundPercentFor } from "@/lib/cancellation-policy";
+import { REFUND_TIERS, refundPercentFor } from "@/lib/booking/cancellation-policy";
 import { ServiceRequestForm } from "@/components/site/ServiceRequestForm";
 import { ReviewForm } from "@/components/site/ReviewForm";
 import { CancellationRequest } from "@/components/site/CancellationRequest";

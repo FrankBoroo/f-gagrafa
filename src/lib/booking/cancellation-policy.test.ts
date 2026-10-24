@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/cancellation-policy";
+import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/booking/cancellation-policy";
 
 const NOW = new Date("2026-11-01T15:30:00Z");
 

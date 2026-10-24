@@ -6,10 +6,9 @@ import { toast } from "sonner";
 import { Modal } from "@/components/admin/Modal";
 import { formatCurrency } from "@/lib/utils";
 import { asResult } from "@/lib/action-result";
-import { calculateNights } from "@/lib/types";
-import { addDays } from "@/lib/dates";
-import { toChargeAmount, type Pricing } from "@/lib/pricing";
-import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/cancellation-policy";
+import { addDays, calculateNights } from "@/lib/booking/dates";
+import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
+import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/booking/cancellation-policy";
 import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
 
 interface DialogProps {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { isStaff, UNAUTHORIZED } from "@/lib/auth";
+import { isUnitAvailable } from "@/lib/booking/availability";
 
 const blockSchema = z.object({
   unit_id: z.string().uuid(),
@@ -27,10 +28,10 @@ export async function addBlockedDate(input: z.infer<typeof blockSchema>) {
 
   // Reuse the same availability function bookings rely on, so an admin
   // can't block dates that overlap an existing confirmed stay unnoticed.
-  const { data: available } = await supabase.rpc("is_unit_available", {
-    p_unit_id: parsed.data.unit_id,
-    p_check_in: parsed.data.start_date,
-    p_check_out: parsed.data.end_date,
+  const available = await isUnitAvailable(supabase, {
+    unitId: parsed.data.unit_id,
+    checkIn: parsed.data.start_date,
+    checkOut: parsed.data.end_date,
   });
 
   if (!available) {

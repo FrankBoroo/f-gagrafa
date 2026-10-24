@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { sendStaffInviteEmail } from "@/lib/email";
+import { sendStaffInviteEmail } from "@/lib/notify/email";
 import { inviteTeamMemberSchema, type InviteTeamMemberInput } from "@/lib/validations";
 import { publicEnv } from "@/lib/env";
 import { serverEnv } from "@/lib/env.server";

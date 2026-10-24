@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   env: { PAYSTACK_SECRET_KEY: "sk_test_secret" } as Record<string, string | undefined>,
 }));
 
-vi.mock("@/lib/booking-payment", () => ({ confirmPaymentByReference: mocks.confirm }));
+vi.mock("@/lib/payments/booking-payment", () => ({ confirmPaymentByReference: mocks.confirm }));
 vi.mock("@/lib/env.server", () => ({ serverEnv: mocks.env }));
 
 import { POST } from "./route";

@@ -1,8 +1,8 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
-import { verifyPaystackTransaction } from "@/lib/paystack";
-import { sendBookingConfirmationEmail, sendAdminPaymentConflictAlert } from "@/lib/email";
-import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
+import { verifyPaystackTransaction } from "@/lib/payments/paystack";
+import { sendBookingConfirmationEmail, sendAdminPaymentConflictAlert } from "@/lib/notify/email";
+import { sendBookingConfirmationWhatsApp } from "@/lib/notify/whatsapp";
 import { log } from "@/lib/logger";
 
 export type PaymentConfirmationResult =

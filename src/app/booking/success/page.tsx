@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle } from "lucide-react";
-import { confirmPaymentByReference } from "@/lib/booking-payment";
+import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
 import { formatCurrency } from "@/lib/utils";
 
 // Paystack redirects here with ?reference=<our booking code>&trxref=<same>.

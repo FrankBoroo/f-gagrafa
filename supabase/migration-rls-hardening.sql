@@ -50,7 +50,7 @@ drop policy if exists "bookings: staff update" on bookings;
 create policy "bookings: staff update" on bookings for update using (is_staff()) with check (is_staff());
 
 -- 3. PROMO CODES: "public read active" let anyone list every active code. Codes are checked
---    on the server (src/lib/promo.ts) with the service key.
+--    on the server (src/lib/booking/promo.ts) with the service key.
 drop policy if exists "promo_codes: public read active" on promo_codes;
 
 -- 4. CONTACT MESSAGES: direct inserts skipped the spam and rate-limit checks in

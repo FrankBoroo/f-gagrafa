@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, defaultCheckOut } from "@/lib/dates";
+import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 
 describe("addDays", () => {
   it("moves across month and year ends", () => {
@@ -26,5 +26,14 @@ describe("defaultCheckOut", () => {
 
   it("leaves check-out alone when check-in is cleared", () => {
     expect(defaultCheckOut("", "2026-11-14")).toBe("2026-11-14");
+  });
+});
+
+describe("calculateNights", () => {
+  it("counts nights between two dates", () => {
+    expect(calculateNights("2026-11-10", "2026-11-11")).toBe(1);
+    expect(calculateNights("2026-12-30", "2027-01-02")).toBe(3);
+    expect(calculateNights("2026-11-10", "2026-11-10")).toBe(0);
+    expect(calculateNights("2026-11-10", "2026-11-08")).toBe(-2);
   });
 });

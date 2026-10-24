@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
 import type { Unit } from "@/lib/types";
-import type { PriceCurrency } from "@/lib/pricing";
+import type { PriceCurrency } from "@/lib/booking/pricing";
 
 export function UnitCard({ unit, currency = "GHS" }: { unit: Unit; currency?: PriceCurrency }) {
   return (

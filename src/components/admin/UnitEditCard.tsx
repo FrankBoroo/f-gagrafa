@@ -8,7 +8,7 @@ import { Pencil, Check, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { updateUnit, toggleUnitActive } from "@/app/admin/units/actions";
 import type { Unit } from "@/lib/types";
-import type { PriceCurrency } from "@/lib/pricing";
+import type { PriceCurrency } from "@/lib/booking/pricing";
 
 export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCurrency }) {
   const [editing, setEditing] = useState(false);

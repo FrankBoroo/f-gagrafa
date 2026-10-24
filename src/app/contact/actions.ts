@@ -3,7 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { contactMessageSchema, type ContactMessageInput } from "@/lib/validations";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
-import { sendContactMessageNotification } from "@/lib/email";
+import { sendContactMessageNotification } from "@/lib/notify/email";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 

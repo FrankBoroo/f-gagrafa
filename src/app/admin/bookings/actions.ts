@@ -8,10 +8,12 @@ import {
   bookingStatusSchema, guestDetailsSchema, cancelRefundSchema, bookingDatesSchema, recordPaymentSchema,
   type CancelRefundInput, type BookingDatesInput, type RecordPaymentInput,
 } from "@/lib/validations";
-import { refundPaystackTransaction } from "@/lib/paystack";
-import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/email";
-import { generateBookingCode } from "@/lib/types";
-import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
+import { refundPaystackTransaction } from "@/lib/payments/paystack";
+import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify/email";
+import { generateBookingCode } from "@/lib/booking/codes";
+import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
+import { calculateNights } from "@/lib/booking/dates";
+import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { logAudit } from "@/lib/audit";
 import { isStaff, isAdmin, UNAUTHORIZED } from "@/lib/auth";
 import type { TablesUpdate } from "@/types/database";
@@ -74,18 +76,16 @@ export async function createManualBooking(input: ManualBookingInput) {
   if (!unit) return { ok: false, error: "Residence not found" };
 
   // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
-  await supabase.rpc("expire_stale_pending_bookings");
+  await releaseStaleHolds(supabase);
 
-  const { data: available } = await supabase.rpc("is_unit_available", {
-    p_unit_id: data.unit_id,
-    p_check_in: data.check_in,
-    p_check_out: data.check_out,
+  const available = await isUnitAvailable(supabase, {
+    unitId: data.unit_id,
+    checkIn: data.check_in,
+    checkOut: data.check_out,
   });
   if (!available) return { ok: false, error: "Not available for the selected dates" };
 
-  const nights = Math.round(
-    (new Date(data.check_out).getTime() - new Date(data.check_in).getTime()) / 86_400_000
-  );
+  const nights = calculateNights(data.check_in, data.check_out);
   // Same rule as online bookings: price in the Settings currency, store and charge cedis.
   const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
   const pricing = pricingFromSettings(settingsRow);
@@ -329,12 +329,12 @@ export async function updateBookingDates(input: BookingDatesInput) {
     return { ok: false, error: "Nothing has changed." };
   }
 
-  await supabase.rpc("expire_stale_pending_bookings");
-  const { data: available } = await supabase.rpc("is_unit_available", {
-    p_unit_id: booking.unit_id,
-    p_check_in: check_in,
-    p_check_out: check_out,
-    p_exclude_booking_id: booking.id, // don't let the booking clash with itself
+  await releaseStaleHolds(supabase);
+  const available = await isUnitAvailable(supabase, {
+    unitId: booking.unit_id,
+    checkIn: check_in,
+    checkOut: check_out,
+    excludeBookingId: booking.id, // don't let the booking clash with itself
   });
   if (!available) return { ok: false, error: "Those dates aren't available for this residence." };
 

@@ -31,7 +31,7 @@ what's ready to run and what's next:
 - Payment verification: the success page (`/booking/success`) verifies the
   transaction server-side against Paystack before showing a confirmation,
   and the webhook does the same server-to-server as a backup — both share
-  `src/lib/booking-payment.ts`, so a booking is only ever marked paid once,
+  `src/lib/payments/booking-payment.ts`, so a booking is only ever marked paid once,
   and a confirmation email + WhatsApp message fire exactly once, on the
   first successful confirmation
 - Guest portal: booking-code lookup, stay summary, check-in/Wi-Fi/house-rules
@@ -65,11 +65,11 @@ what's ready to run and what's next:
 - Contact page: form (name/email/message) that saves to `contact_messages`
   and best-effort emails the team via Resend if `RESEND_API_KEY` is set,
   plus contact details and a success state
-- Email notifications (`src/lib/email.ts`, via Resend): guest booking
+- Email notifications (`src/lib/notify/email.ts`, via Resend): guest booking
   confirmation, admin new-booking alert, admin service-request alert — all
   best-effort (a missing/misconfigured `RESEND_API_KEY` just logs a warning
   and skips, never blocks the underlying action)
-- WhatsApp notifications (`src/lib/whatsapp.ts`, via Twilio's REST API):
+- WhatsApp notifications (`src/lib/notify/whatsapp.ts`, via Twilio's REST API):
   guest booking confirmation, same best-effort guarding as email
 
 **Beyond the original brief, added on request**
@@ -162,10 +162,12 @@ src/app/api/                  Service requests, Paystack webhook
 src/components/admin/         Admin-only components (booking/unit cards, filters)
 src/components/site/          Public + guest-portal components
 src/lib/supabase/             Browser, server, and service-role clients
-src/lib/paystack.ts           Paystack initialize/verify wrapper
-src/lib/booking-payment.ts    Shared payment confirmation logic
+src/lib/booking/              Availability, pricing, deposits, promo codes, cancellation tiers, booking codes, dates
+src/lib/payments/             Paystack wrapper and shared payment confirmation
+src/lib/notify/               Email (Resend) and WhatsApp (Twilio)
 src/lib/validations.ts        Zod schemas (booking, contact, unit edits)
-src/lib/types.ts              Shared types + booking code/nights helpers
+src/lib/types.ts              Domain types derived from the generated src/types/database.ts
+src/types/database.ts         Generated Supabase types (npm run db:types)
 src/middleware.ts             Guards /admin/* by profiles.role
 supabase/schema.sql           Full schema, RLS policies, seed data
 ```
@@ -221,7 +223,7 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
   bucket is created automatically on first upload), and are shrunk in the browser first.
   Door codes are stored in their own locked table, never on the public `units` table.
 - **Cancellations & refunds** follow the tiers on the FAQ/Terms pages
-  (`src/lib/cancellation-policy.ts`). Only admins can refund; refunds can go back through
+  (`src/lib/booking/cancellation-policy.ts`). Only admins can refund; refunds can go back through
   Paystack or be recorded as paid out by hand. Guests can *request* a cancellation from the portal.
 - **Team** (`/admin/team`, admin only) creates invite links on your own domain, so no Supabase
   redirect settings are needed. The link is always shown for you to copy, since email may not
@@ -237,7 +239,7 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
 - **Deposits**: when check-in is at least 7 days away, guests can reserve by paying a share of
   the total now (50% by default, change it in Admin → Settings; 0 turns it off) and pay the rest
   at check-in. Staff record the balance with "Record payment" on the booking. The rules live in
-  `src/lib/deposit.ts`, and the server re-checks them whatever the browser sends. Refunds apply
+  `src/lib/booking/deposit.ts`, and the server re-checks them whatever the browser sends. Refunds apply
   the usual cancellation tiers to whatever has actually been paid.
 
 ### Next.js 15 notes

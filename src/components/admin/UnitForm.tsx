@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { createUnit, updateUnitDetails } from "@/app/admin/units/actions";
 import { asResult } from "@/lib/action-result";
 import type { UnitType } from "@/lib/types";
-import type { PriceCurrency } from "@/lib/pricing";
+import type { PriceCurrency } from "@/lib/booking/pricing";
 
 export interface UnitFormValues {
   name: string;

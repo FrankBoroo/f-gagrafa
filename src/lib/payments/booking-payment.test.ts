@@ -59,14 +59,14 @@ vi.mock("@/lib/supabase/server", () => ({
     rpc: (name: string, params: unknown) => mocks.db.rpc(name, params),
   }),
 }));
-vi.mock("@/lib/paystack", () => ({ verifyPaystackTransaction: mocks.verify }));
-vi.mock("@/lib/email", () => ({
+vi.mock("@/lib/payments/paystack", () => ({ verifyPaystackTransaction: mocks.verify }));
+vi.mock("@/lib/notify/email", () => ({
   sendBookingConfirmationEmail: mocks.sendEmail,
   sendAdminPaymentConflictAlert: mocks.sendConflictAlert,
 }));
-vi.mock("@/lib/whatsapp", () => ({ sendBookingConfirmationWhatsApp: mocks.sendWhatsApp }));
+vi.mock("@/lib/notify/whatsapp", () => ({ sendBookingConfirmationWhatsApp: mocks.sendWhatsApp }));
 
-const { confirmPaymentByReference } = await import("@/lib/booking-payment");
+const { confirmPaymentByReference } = await import("@/lib/payments/booking-payment");
 
 const REF = "GAG-2026-ABCDEF";
 

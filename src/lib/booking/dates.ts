@@ -11,3 +11,10 @@ export function defaultCheckOut(checkIn: string, currentCheckOut: string): strin
   if (!checkIn) return currentCheckOut;
   return currentCheckOut && currentCheckOut > checkIn ? currentCheckOut : addDays(checkIn, 1);
 }
+
+// Nights between two "YYYY-MM-DD" dates (negative when check-out is before check-in).
+export function calculateNights(checkIn: string, checkOut: string): number {
+  const inDate = new Date(checkIn);
+  const outDate = new Date(checkOut);
+  return Math.round((outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60 * 24));
+}

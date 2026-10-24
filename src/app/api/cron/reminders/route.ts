@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sendPreArrivalReminder, sendPostStayReviewRequest } from "@/lib/email";
+import { sendPreArrivalReminder, sendPostStayReviewRequest } from "@/lib/notify/email";
 import { serverEnv } from "@/lib/env.server";
 
 function dateKey(d: Date) {

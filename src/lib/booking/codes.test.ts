@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateNights, generateBookingCode } from "@/lib/types";
+import { generateBookingCode } from "@/lib/booking/codes";
 
 describe("generateBookingCode", () => {
   it("has the GAG-year-XXXXXX shape with no look-alike characters", () => {
@@ -19,14 +19,5 @@ describe("generateBookingCode", () => {
   it("rarely repeats across many codes", () => {
     const codes = new Set(Array.from({ length: 20_000 }, () => generateBookingCode()));
     expect(20_000 - codes.size).toBeLessThanOrEqual(3);
-  });
-});
-
-describe("calculateNights", () => {
-  it("counts nights between two dates", () => {
-    expect(calculateNights("2026-11-10", "2026-11-11")).toBe(1);
-    expect(calculateNights("2026-12-30", "2027-01-02")).toBe(3);
-    expect(calculateNights("2026-11-10", "2026-11-10")).toBe(0);
-    expect(calculateNights("2026-11-10", "2026-11-08")).toBe(-2);
   });
 });

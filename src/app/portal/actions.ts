@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { grantPortalAccess, hasPortalAccess } from "@/lib/portal-session";
-import { sendCancellationRequestAlert } from "@/lib/email";
+import { sendCancellationRequestAlert } from "@/lib/notify/email";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 

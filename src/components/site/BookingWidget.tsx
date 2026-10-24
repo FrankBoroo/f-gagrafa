@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
-import { calculateNights } from "@/lib/types";
-import { addDays, defaultCheckOut } from "@/lib/dates";
+import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import type { Unit } from "@/lib/types";
-import type { PriceCurrency } from "@/lib/pricing";
+import type { PriceCurrency } from "@/lib/booking/pricing";
 
 export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency?: PriceCurrency }) {
   const router = useRouter();

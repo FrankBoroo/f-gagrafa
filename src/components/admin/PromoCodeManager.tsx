@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createPromoCode, togglePromoCodeActive } from "@/app/admin/promo-codes/actions";
-import type { PriceCurrency } from "@/lib/pricing";
+import type { PriceCurrency } from "@/lib/booking/pricing";
 import type { Tables } from "@/types/database";
 
 type PromoCode = Omit<Tables<"promo_codes">, "created_at">;
