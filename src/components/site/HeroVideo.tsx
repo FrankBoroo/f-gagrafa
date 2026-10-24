@@ -63,7 +63,7 @@ export function HeroVideo() {
   return (
     <section
       ref={section}
-      className="relative flex h-[calc(100svh-5rem)] min-h-[560px] items-end overflow-hidden bg-navy"
+      className="relative -mt-20 flex h-[100svh] min-h-[600px] items-end overflow-hidden bg-navy"
     >
       {/* Over-sized so the parallax never shows an edge. */}
       <div ref={media} className="absolute inset-x-0 -bottom-[10%] -top-[10%] will-change-transform" aria-hidden="true">
@@ -94,6 +94,8 @@ export function HeroVideo() {
         )}
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/40 to-navy/25" aria-hidden="true" />
+      {/* Extra shade under the see-through header so its links stay legible on bright frames. */}
+      <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-navy/60 to-transparent" aria-hidden="true" />
 
       <div ref={content} className="container-gagrafa relative z-10 pb-20 text-ivory md:pb-28">
         <p className="text-xs uppercase tracking-[0.3em] text-champagne-light">Spintex, Accra</p>

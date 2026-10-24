@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { UnitCard } from "@/components/site/UnitCard";
 import { MapEmbed } from "@/components/site/MapEmbed";
 import { HeroVideo } from "@/components/site/HeroVideo";
+import { Reveal } from "@/components/site/Reveal";
 import { getPublicSettings } from "@/lib/site-settings";
 import type { Unit } from "@/lib/types";
 
@@ -40,31 +41,37 @@ export default async function HomePage() {
       {/* About */}
       <section id="welcome" className="container-gagrafa scroll-mt-20 py-28">
         <div className="grid gap-12 md:grid-cols-2">
-          <h2 className="text-3xl md:text-4xl">
-            A residence built for the way you actually live.
-          </h2>
-          <p className="self-center text-navy/70">
-            The Gagrafa sits quietly on Community 20 in Spintex — close enough to
-            Accra&rsquo;s business districts to be convenient, far enough to feel calm.
-            Each residence is furnished with the same care as a well-kept home:
-            considered materials, dependable utilities, and service that
-            anticipates rather than intrudes.
-          </p>
+          <Reveal>
+            <h2 className="text-3xl md:text-4xl">
+              A residence built for the way you actually live.
+            </h2>
+          </Reveal>
+          <Reveal delay={100} className="self-center">
+            <p className="text-navy/70">
+              The Gagrafa sits quietly on Community 20 in Spintex — close enough to
+              Accra&rsquo;s business districts to be convenient, far enough to feel calm.
+              Each residence is furnished with the same care as a well-kept home:
+              considered materials, dependable utilities, and service that
+              anticipates rather than intrudes.
+            </p>
+          </Reveal>
         </div>
       </section>
 
       {/* Featured units */}
       <section className="bg-sand py-28">
         <div className="container-gagrafa">
-          <div className="flex items-end justify-between">
+          <Reveal className="flex items-end justify-between">
             <h2 className="text-3xl md:text-4xl">Residences</h2>
             <Link href="/units" className="hidden text-sm text-navy/60 hover:text-navy md:block">
               View all residences →
             </Link>
-          </div>
+          </Reveal>
           <div className="mt-12 grid gap-8 md:grid-cols-3">
-            {(units as Unit[] | null)?.map((unit) => (
-              <UnitCard key={unit.id} unit={unit} currency={settings.pricing.currency} />
+            {(units as Unit[] | null)?.map((unit: Unit, i: number) => (
+              <Reveal key={unit.id} delay={i * 100}>
+                <UnitCard unit={unit} currency={settings.pricing.currency} />
+              </Reveal>
             ))}
           </div>
         </div>
@@ -72,20 +79,22 @@ export default async function HomePage() {
 
       {/* Amenities */}
       <section className="container-gagrafa py-28">
-        <h2 className="text-3xl md:text-4xl">On the property</h2>
+        <Reveal>
+          <h2 className="text-3xl md:text-4xl">On the property</h2>
+        </Reveal>
         <div className="mt-12 grid gap-x-8 gap-y-12 sm:grid-cols-2 md:grid-cols-3">
-          {amenities.map((a) => (
-            <div key={a.name} className="border-l border-champagne pl-5">
+          {amenities.map((a, i: number) => (
+            <Reveal key={a.name} delay={(i % 3) * 100} className="border-l border-champagne pl-5">
               <p className="text-lg">{a.name}</p>
               <p className="mt-1 text-sm text-navy/60">{a.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* Testimonial */}
       <section className="bg-navy py-28 text-ivory">
-        <div className="container-gagrafa max-w-2xl">
+        <Reveal className="container-gagrafa max-w-2xl">
           <p className="font-display text-2xl leading-relaxed text-ivory/90">
             {featuredReview?.comment
               ? `"${featuredReview.comment}"`
@@ -98,13 +107,13 @@ export default async function HomePage() {
               ? `${(featuredReview.bookings as any)?.guest_name ?? "Guest"} · ${featuredReview.rating}/5`
               : "Guest review, forthcoming"}
           </p>
-        </div>
+        </Reveal>
       </section>
 
       {/* Location & contact */}
       <section className="container-gagrafa py-28">
         <div className="grid gap-12 md:grid-cols-2">
-          <div>
+          <Reveal>
             <h2 className="text-3xl md:text-4xl">Find us</h2>
             <p className="mt-4 text-navy/70">{settings.address}</p>
             {(settings.contact_email || settings.contact_phone) && (
@@ -112,7 +121,7 @@ export default async function HomePage() {
                 {[settings.contact_email, settings.contact_phone].filter(Boolean).join(" · ")}
               </p>
             )}
-          </div>
+          </Reveal>
           <div className="h-[280px] overflow-hidden rounded-xl border border-navy/10">
             <MapEmbed />
           </div>

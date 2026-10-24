@@ -4,7 +4,7 @@ import { getPublicSettings } from "@/lib/site-settings";
 export async function SiteFooter() {
   const settings = await getPublicSettings();
   return (
-    <footer className="border-t border-navy/10 bg-navy text-ivory">
+    <footer data-hide-floating-book className="border-t border-navy/10 bg-navy text-ivory">
       <div className="container-gagrafa grid gap-10 py-16 md:grid-cols-4">
         <div>
           <p className="font-display text-xl">The Gagrafa</p>

@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { FloatingBookButton } from "@/components/site/FloatingBookButton";
 import { Toaster } from "sonner";
 import { siteUrl } from "@/lib/env";
 
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main>{children}</main>
         <SiteFooter />
+        <FloatingBookButton />
         <Toaster position="top-center" richColors />
       </body>
     </html>

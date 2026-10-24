@@ -44,7 +44,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
   }
 
   return (
-    <div className="card sticky top-28 p-6">
+    <div data-hide-floating-book className="card sticky top-28 p-6">
       <p className="text-2xl">
         {formatCurrency(unit.base_price_per_night, currency)}
         <span className="text-sm text-navy/50"> / night</span>
