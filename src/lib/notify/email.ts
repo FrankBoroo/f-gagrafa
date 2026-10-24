@@ -71,7 +71,9 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
   const balance = Math.max(total - paid, 0);
   const money = (n: number) => formatMoney(n, booking.currency);
   const paymentLines =
-    balance > 0.005
+    total <= 0.005 && booking.promo_code
+      ? `<strong>Total:</strong> ${money(0)}, covered in full by promo code ${esc(booking.promo_code)}`
+      : balance > 0.005
       ? `<strong>Deposit paid:</strong> ${money(paid)}<br/><strong>Balance due at check-in:</strong> ${money(balance)}`
       : `<strong>Total paid:</strong> ${money(total)}`;
   const bookedAt = bookedPriceSuffix(booking)
@@ -111,6 +113,7 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
         <strong>Total:</strong> ${formatMoney(Number(booking.total_amount), booking.currency)}${bookedPriceSuffix(booking)}<br/>
         <strong>Payment status:</strong> ${booking.payment_status}
+        ${booking.promo_code ? `<br/><strong>Promo code:</strong> ${esc(booking.promo_code)} (−${formatMoney(Number(booking.discount_amount ?? 0), booking.currency)})${Number(booking.total_amount) <= 0.005 ? ", free stay, confirmed without payment" : ""}` : ""}
         ${booking.deposit_amount ? `<br/><strong>Deposit due now:</strong> ${formatMoney(Number(booking.deposit_amount), booking.currency)} (balance at check-in)` : ""}
       </p>
     `,

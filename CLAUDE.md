@@ -55,6 +55,7 @@ Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they 
 - **Roles**: guest | staff | admin. Admin-only pages: Reports, Promo Codes, Payments, Settings, Team, Audit Log.
 - **Settings** are cached with `unstable_cache` (tag `"settings"`); revalidate the tag after changing them.
 - **Uploads**: unit photos (`unit-images` bucket) and Tour photos (`gallery-images` bucket) go browser to Supabase Storage via signed upload URL (avoids Vercel's ~4.5 MB body limit). Images are shrunk client-side first (`src/lib/image-prepare.ts`).
+- **Free stays** (`src/lib/booking/free-booking.ts`): a promo that brings the charge to 0 skips Paystack; the booking is inserted confirmed/paid with no payments row, an audit entry `booking.free_confirmed` and an admin note. The promo use is claimed before the insert with a compare-and-set on `used_count` (`claimPromoUse`), released if the insert fails. A 0 total without a promo is refused.
 - **Deposits** (`src/lib/booking/deposit.ts`): when check-in is 7+ days away, guests may pay a deposit share (default 50%, set in Settings; 0 disables). The server re-checks the rules; staff record the balance with "Record payment".
 - **Tour**: public `/tour` page; property and neighbourhood photos managed in Admin → Tour (`TourManager`), residence photos come from unit galleries.
 
@@ -77,7 +78,6 @@ See `.env.example`. Needed on Vercel too: Supabase URL / anon / service-role key
 
 ## Pending / deferred work
 - **Homepage design extras (optional, desktop only)**: magnetic buttons, custom cursor, grain, diagonal section. Done: video hero with parallax, see-through header, scroll reveals, floating "Book Your Stay" on phones.
-- **100%-off promo codes**: Paystack rejects a zero amount, so the booking is auto-cancelled with a generic error. Needs a "no payment needed" path that confirms the booking directly.
 - Replace placeholder Terms / Privacy text and contact details; verify a Resend domain.
 
 ## Not yet verified against live services

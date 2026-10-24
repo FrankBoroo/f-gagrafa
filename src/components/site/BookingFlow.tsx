@@ -81,6 +81,8 @@ export function BookingFlow({
   const chargeDueNow =
     chargeTotal === null ? null : payingDeposit ? depositAmount(chargeTotal, depositPercent) : chargeTotal;
   const convertsToCedis = currency === "USD" && chargeDueNow !== null;
+  // A promo covering the whole stay: no Paystack step, the server confirms it directly.
+  const isFreeStay = Boolean(promoStatus.applied) && chargeTotal === 0;
   const money = (amount: number) => formatMoney(amount, currency);
 
   // `min` for the date inputs. Set after mount so server and client markup match.
@@ -192,15 +194,17 @@ export function BookingFlow({
         ...guestDetails,
       });
 
-      if (!result.ok || !result.authorization_url) {
+      const next = result.authorization_url ?? result.redirect_url;
+      if (!result.ok || !next) {
         toast.error(result.error ?? "Could not start payment");
         setSubmitting(false);
         return;
       }
 
       // Hand off to Paystack's hosted checkout (card, Mobile Money, bank transfer).
-      // It redirects back to /booking/success, which verifies the transaction.
-      window.location.href = result.authorization_url;
+      // It redirects back to /booking/success, which verifies the transaction. A free
+      // stay is already confirmed and goes straight to the success page.
+      window.location.href = next;
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");
       setSubmitting(false);
@@ -414,8 +418,9 @@ export function BookingFlow({
             )}
           </div>
           <p className="mt-4 text-xs text-navy/50">
-            Paystack checkout (card, Mobile Money, Vodafone Cash) opens on submit. Payment
-            confirmation triggers your booking confirmation email and WhatsApp message.
+            {isFreeStay
+              ? "Your promo code covers the full stay, so there's nothing to pay. Your booking is confirmed straight away, with a confirmation email and WhatsApp message."
+              : "Paystack checkout (card, Mobile Money, Vodafone Cash) opens on submit. Payment confirmation triggers your booking confirmation email and WhatsApp message."}
           </p>
           <div className="mt-6 flex gap-4">
             <button className="btn-secondary w-full" onClick={() => setStep(2)}>Back</button>
@@ -426,7 +431,9 @@ export function BookingFlow({
             >
               {submitting
                 ? "Processing…"
-                : convertsToCedis
+                : isFreeStay
+                  ? "Confirm booking"
+                  : convertsToCedis
                   ? `Pay ${formatMoney(chargeDueNow ?? 0)} (${money(dueNow)})${payingDeposit ? " now" : ""}`
                   : `Pay ${money(dueNow)}${payingDeposit ? " now" : ""}`}
             </button>

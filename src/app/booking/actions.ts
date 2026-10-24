@@ -8,7 +8,8 @@ import { calculateNights } from "@/lib/booking/dates";
 import { initializePaystackTransaction } from "@/lib/payments/paystack";
 import { sendAdminNewBookingNotification, sendAdminSystemAlert } from "@/lib/notify/email";
 import { log } from "@/lib/logger";
-import { checkPromoCode } from "@/lib/booking/promo";
+import { checkPromoCode, claimPromoUse, releasePromoUse } from "@/lib/booking/promo";
+import { checkFreeStay, freeStayNote, sendFreeStayConfirmations } from "@/lib/booking/free-booking";
 import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
 import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
@@ -75,6 +76,7 @@ interface ActionResult {
   ok: boolean;
   error?: string;
   authorization_url?: string;
+  redirect_url?: string; // free stays: straight to the success page, no Paystack
   booking_code?: string;
 }
 
@@ -161,12 +163,25 @@ export async function createBookingAndInitializePayment(
   }
   const chargeDiscount = toChargeAmount(discountAmount, pricing) ?? 0;
 
+  // 100% off: nothing to charge, and Paystack rejects a zero amount. The booking is confirmed
+  // on creation instead, once a use of the code is claimed (atomically, so a single-use code
+  // can't give two free stays).
+  const freeStay = checkFreeStay(chargeTotal, appliedPromoCode);
+  if (freeStay === "invalid") {
+    return { ok: false, error: "This residence can't be booked online right now. Please contact us to book." };
+  }
+  const freePromo = freeStay === "free" ? appliedPromoCode : null;
+  const isFree = freePromo !== null;
+  if (freePromo && !(await claimPromoUse(freePromo))) {
+    return { ok: false, error: "This code has reached its usage limit" };
+  }
+
   // Optional deposit: pay part now, the rest at check-in. Decided here on the server, never
   // trusted from the browser: the percentage comes from Settings, and it's only offered when
   // check-in is far enough away.
   let amountDueNow = chargeTotal;
   let depositDue: number | null = null;
-  if (data.payment_option === "deposit") {
+  if (data.payment_option === "deposit" && !isFree) {
     const percent = Number(settingsRow?.deposit_percent ?? 0);
     if (!canOfferDeposit(data.check_in, percent)) {
       return { ok: false, error: "A deposit isn't available for these dates. Please pay in full." };
@@ -195,8 +210,9 @@ export async function createBookingAndInitializePayment(
       special_requests: data.special_requests,
       total_amount: chargeTotal,
       currency: "GHS",
-      status: "pending",
-      payment_status: "unpaid",
+      status: isFree ? "confirmed" : "pending",
+      payment_status: isFree ? "paid" : "unpaid",
+      ...(freePromo ? { admin_notes: freeStayNote(freePromo) } : {}),
       promo_code: appliedPromoCode,
       discount_amount: chargeDiscount,
       ...(depositDue !== null ? { deposit_amount: depositDue } : {}),
@@ -209,6 +225,7 @@ export async function createBookingAndInitializePayment(
     .single();
 
   if (error || !booking) {
+    if (freePromo) await releasePromoUse(freePromo);
     // 23P01 = the database's double-booking guard: another guest took these dates a moment ago.
     if (error?.code === "23P01") {
       return { ok: false, error: "Sorry — those dates were just taken by another guest. Please choose different dates." };
@@ -231,6 +248,11 @@ export async function createBookingAndInitializePayment(
   // Fire this now (booking created), not on payment success — admin wants
   // to know about pending reservations too, not just paid ones.
   await sendAdminNewBookingNotification(booking, unit.name);
+
+  if (isFree) {
+    await sendFreeStayConfirmations(booking, unit.name);
+    return { ok: true, redirect_url: `/booking/success?reference=${bookingCode}`, booking_code: bookingCode };
+  }
 
   // Booking code doubles as the Paystack reference — one less thing to track,
   // and it's what the success page and webhook both look bookings up by.

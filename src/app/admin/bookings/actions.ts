@@ -337,13 +337,14 @@ export async function updateBookingDates(input: BookingDatesInput) {
 
   const { data: payments } = await supabase.from("payments").select("amount, status").eq("booking_id", bookingId);
   const paid = netPaid(payments);
+  // Covered first, so a free stay (total 0, nothing paid) stays "paid".
   const paymentStatus =
     booking.payment_status === "refunded"
       ? "refunded"
-      : paid <= 0
-        ? "unpaid"
-        : paid + 0.005 >= total_amount
-          ? "paid"
+      : paid + 0.005 >= total_amount
+        ? "paid"
+        : paid <= 0
+          ? "unpaid"
           : "partial";
 
   const { data: updated, error } = await supabase
