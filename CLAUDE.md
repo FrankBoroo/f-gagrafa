@@ -28,6 +28,7 @@ Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they 
 - `npm test` : Vitest unit tests (`src/**/*.test.ts`). Single file: `npx vitest run src/lib/booking/deposit.test.ts`; by name: `npx vitest run -t "deposit"`. **Run before every push.**
 - `npm run build` type-checks app code only, not test files, so keep running `npx tsc --noEmit` too.
 - `npm run db:types` : regenerate `src/types/database.ts` from `supabase/*.sql` (PGlite, no Docker or login). Run after any migration change; new migration files must be added to `SQL_FILES` in `scripts/gen-db-types.mjs`.
+- `npm run check:imports` : every `@/` import and `vi.mock()` name must be a real export (tsc doesn't check mock factories).
 - On Windows, if the build fails with `Debug Failure. Expected ...\.tsbuildinfo`, delete `.next/cache/.tsbuildinfo` and rebuild.
 - `/api/health` returns `{ ok: true }` when the app can reach the database (503 otherwise).
 
