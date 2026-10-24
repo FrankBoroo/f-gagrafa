@@ -70,10 +70,10 @@ export async function verifyPortalAccess(rawCode: string, contact: string) {
     .eq("booking_code", code)
     .maybeSingle();
 
-  const matched = Boolean(booking) && contactMatches(contact, booking);
+  const matched = booking ? contactMatches(contact, booking) : false;
   await supabase.from("portal_access_attempts").insert({ booking_code: code, succeeded: matched }); // best-effort
 
-  if (!matched) {
+  if (!booking || !matched) {
     return {
       ok: false as const,
       error: "We couldn't match those details to a booking. Check your booking code and the email or phone you booked with.",
@@ -81,7 +81,7 @@ export async function verifyPortalAccess(rawCode: string, contact: string) {
   }
 
   await grantPortalAccess(booking.booking_code);
-  return { ok: true as const, code: booking.booking_code as string };
+  return { ok: true as const, code: booking.booking_code };
 }
 
 // Guest portal access is by booking code, not Supabase auth, so this runs

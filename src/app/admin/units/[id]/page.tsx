@@ -6,6 +6,7 @@ import { UnitForm, type UnitFormValues } from "@/components/admin/UnitForm";
 import { UnitPhotoManager } from "@/components/admin/UnitPhotoManager";
 import { DeleteUnitButton } from "@/components/admin/DeleteUnitButton";
 import { getPublicSettings } from "@/lib/site-settings";
+import { stringList } from "@/lib/db-values";
 
 export default async function EditUnitPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,7 +30,7 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
     bedrooms: unit.bedrooms,
     bathrooms: Number(unit.bathrooms),
     size_sqm: unit.size_sqm === null ? null : Number(unit.size_sqm),
-    amenities: Array.isArray(unit.amenities) ? unit.amenities : [],
+    amenities: stringList(unit.amenities),
     access_code: codeRow?.access_code ?? "",
     is_active: unit.is_active,
   };
@@ -42,7 +43,7 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
 
       <div className="mt-8 max-w-5xl space-y-8">
         <div id="photos" className="scroll-mt-24">
-          <UnitPhotoManager unitId={unit.id} images={Array.isArray(unit.images) ? unit.images : []} />
+          <UnitPhotoManager unitId={unit.id} images={stringList(unit.images)} />
         </div>
         <div className="grid gap-8 lg:grid-cols-2">
           <UnitForm unitId={unit.id} initial={initial} currency={pricing.currency} />

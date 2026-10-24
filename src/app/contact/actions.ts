@@ -26,7 +26,7 @@ export async function submitContactMessage(input: SubmitArgs) {
 
   if (await isOverLimit("contact")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
-  if (await isRateLimited("contact_messages", "email", email)) {
+  if (await isRateLimited("contact_messages", email)) {
     return { ok: false, error: "You've sent several messages recently — please wait a bit before sending another." };
   }
 

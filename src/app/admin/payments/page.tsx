@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/utils";
 import { isAdmin } from "@/lib/auth";
+import { oneOf } from "@/lib/db-values";
+import { Constants } from "@/types/database";
 
 const methodLabel: Record<string, string> = {
   paystack: "Paystack",
@@ -38,7 +40,8 @@ export default async function AdminPaymentsPage({
     .select("*, bookings(booking_code, guest_name)")
     .order("created_at", { ascending: false });
 
-  if (params.method) query = query.eq("method", params.method);
+  const method = oneOf(Constants.public.Enums.payment_method, params.method);
+  if (method) query = query.eq("method", method);
 
   const { data: payments } = await query.limit(200);
 

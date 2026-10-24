@@ -29,7 +29,7 @@ Never tell anyone to re-run all of `schema.sql` on an existing database (it fail
 
 ## Client code
 - `await createClient()` (async) in server code; browser client only in client components.
-- Generate types with `supabase gen types typescript` into `src/types/` instead of hand-writing row types.
+- Row types come from `src/types/database.ts`, generated from the SQL files by `npm run db:types` (`scripts/gen-db-types.mjs`, runs them in PGlite). After adding a migration, add it to `SQL_FILES` in that script, regenerate, and commit the result. Never hand-write row types; use `Tables<"x">`, `TablesInsert`, `TablesUpdate`, `Enums` and `Constants`.
 - Photo uploads: browser → Supabase Storage via signed upload URL (avoids Vercel's ~4.5 MB body limit).
 
 ## Verify

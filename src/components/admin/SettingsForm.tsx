@@ -3,26 +3,9 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { updatePropertySettings } from "@/app/admin/settings/actions";
+import type { Tables } from "@/types/database";
 
-interface Settings {
-  id: string;
-  property_name: string;
-  tagline: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
-  address: string | null;
-  admin_notification_email: string | null;
-  whatsapp_number: string | null;
-  reception_hours?: string | null;
-  wifi_network?: string | null;
-  wifi_password?: string | null;
-  entry_instructions?: string | null;
-  house_rules?: string | null;
-  emergency_contact?: string | null;
-  deposit_percent?: number | null;
-  price_currency?: string | null;
-  usd_to_ghs_rate?: number | string | null;
-}
+type Settings = Tables<"property_settings">;
 
 export function SettingsForm({ settings }: { settings: Settings }) {
   const [form, setForm] = useState({

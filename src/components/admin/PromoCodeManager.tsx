@@ -4,18 +4,9 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createPromoCode, togglePromoCodeActive } from "@/app/admin/promo-codes/actions";
 import type { PriceCurrency } from "@/lib/pricing";
+import type { Tables } from "@/types/database";
 
-interface PromoCode {
-  id: string;
-  code: string;
-  discount_type: "percent" | "fixed";
-  discount_value: number;
-  max_uses: number | null;
-  used_count: number;
-  valid_from: string | null;
-  valid_until: string | null;
-  is_active: boolean;
-}
+type PromoCode = Omit<Tables<"promo_codes">, "created_at">;
 
 export function PromoCodeManager({ codes, currency }: { codes: PromoCode[]; currency: PriceCurrency }) {
   const [isPending, startTransition] = useTransition();

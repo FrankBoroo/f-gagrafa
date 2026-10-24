@@ -4,6 +4,8 @@ import { isAdmin } from "@/lib/auth";
 import { BookingFilters } from "@/components/admin/BookingFilters";
 import { BookingCard } from "@/components/admin/BookingCard";
 import { getPublicSettings } from "@/lib/site-settings";
+import { oneOf } from "@/lib/db-values";
+import { Constants } from "@/types/database";
 
 export default async function AdminBookingsPage({
   searchParams,
@@ -19,8 +21,10 @@ export default async function AdminBookingsPage({
     .select("*, units(name, base_price_per_night), payments(amount, status, method, paystack_reference)")
     .order("created_at", { ascending: false });
 
-  if (params.status) query = query.eq("status", params.status);
-  if (params.payment_status) query = query.eq("payment_status", params.payment_status);
+  const status = oneOf(Constants.public.Enums.booking_status, params.status);
+  const paymentStatus = oneOf(Constants.public.Enums.payment_status, params.payment_status);
+  if (status) query = query.eq("status", status);
+  if (paymentStatus) query = query.eq("payment_status", paymentStatus);
   if (params.q) {
     const term = params.q.replace(/[%,]/g, "");
     query = query.or(

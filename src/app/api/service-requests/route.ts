@@ -4,8 +4,9 @@ import { sendServiceRequestNotification } from "@/lib/email";
 import { hasPortalAccess } from "@/lib/portal-session";
 import { isOverLimit, RATE_LIMITED_MESSAGE, RATE_LIMITS } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
+import { oneOf } from "@/lib/db-values";
+import { Constants } from "@/types/database";
 
-const TYPES = ["cleaning", "towels", "maintenance", "other"];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
@@ -17,8 +18,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  const { booking_id, type, description } = (body ?? {}) as Record<string, unknown>;
-  if (typeof booking_id !== "string" || !UUID_RE.test(booking_id) || typeof type !== "string" || !TYPES.includes(type)) {
+  const { booking_id, type: rawType, description } = (body ?? {}) as Record<string, unknown>;
+  const type = typeof rawType === "string" ? oneOf(Constants.public.Enums.service_request_type, rawType) : undefined;
+  if (typeof booking_id !== "string" || !UUID_RE.test(booking_id) || !type) {
     return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
   }
   if (description != null && (typeof description !== "string" || description.length > 1000)) {

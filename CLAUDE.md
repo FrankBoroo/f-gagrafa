@@ -27,6 +27,7 @@ Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they 
 - `npm run lint` : ESLint (`next lint`, config in `.eslintrc.json`).
 - `npm test` : Vitest unit tests (`src/**/*.test.ts`). Single file: `npx vitest run src/lib/deposit.test.ts`; by name: `npx vitest run -t "deposit"`. **Run before every push.**
 - `npm run build` type-checks app code only, not test files, so keep running `npx tsc --noEmit` too.
+- `npm run db:types` : regenerate `src/types/database.ts` from `supabase/*.sql` (PGlite, no Docker or login). Run after any migration change; new migration files must be added to `SQL_FILES` in `scripts/gen-db-types.mjs`.
 - On Windows, if the build fails with `Debug Failure. Expected ...\.tsbuildinfo`, delete `.next/cache/.tsbuildinfo` and rebuild.
 - `/api/health` returns `{ ok: true }` when the app can reach the database (503 otherwise).
 
@@ -67,7 +68,7 @@ Run in this order in the Supabase SQL editor:
 7. `supabase/migration-rate-limits.sql`
 8. `supabase/migration-rls-hardening.sql` (then run the admin/staff check at the bottom of the file)
 
-Migrations are idempotent and each ends with a `-- ROLLBACK` block. Never re-run all of `schema.sql` on an existing database.
+Migrations are idempotent and each ends with a `-- ROLLBACK` block. The Supabase clients are typed with the generated `Database` type, so a query on a column that isn't in the SQL files fails the type check. Never re-run all of `schema.sql` on an existing database.
 RLS rule: the app reads and writes through the service-role client after its own checks; RLS policies are the backstop for the public anon key, so keep them tight (no public inserts, no self-service role changes).
 
 ## Environment variables

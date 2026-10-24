@@ -14,6 +14,7 @@ import { generateBookingCode } from "@/lib/types";
 import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
 import { logAudit } from "@/lib/audit";
 import { isStaff, isAdmin, UNAUTHORIZED } from "@/lib/auth";
+import type { TablesUpdate } from "@/types/database";
 
 export async function updateBookingStatus(bookingId: string, status: string) {
   if (!(await isStaff())) return UNAUTHORIZED;
@@ -230,7 +231,7 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
     const original = (payments ?? []).find(
       (p: any) => p.method === "paystack" && p.status === "success" && p.paystack_reference
     );
-    if (!original) {
+    if (!original || !original.paystack_reference) {
       return { ok: false, error: "There's no Paystack payment on this booking to refund automatically. Record it as a cash, bank or Mobile Money refund instead." };
     }
     try {
@@ -268,7 +269,7 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
     }
   }
 
-  const update: Record<string, unknown> = {};
+  const update: TablesUpdate<"bookings"> = {};
   if (!alreadyClosed) {
     update.status = "cancelled";
     update.cancelled_at = new Date().toISOString();
@@ -402,7 +403,7 @@ export async function recordPayment(input: RecordPaymentInput) {
   if (paymentError) return { ok: false, error: paymentError.message };
 
   const fullyPaid = outstanding - amount <= 0.005;
-  const update: Record<string, unknown> = { payment_status: fullyPaid ? "paid" : "partial" };
+  const update: TablesUpdate<"bookings"> = { payment_status: fullyPaid ? "paid" : "partial" };
   if (fullyPaid && booking.status === "pending") update.status = "confirmed";
 
   const { error } = await supabase.from("bookings").update(update).eq("id", bookingId);

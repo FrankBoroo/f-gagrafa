@@ -5,6 +5,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { FilmStrip } from "@/components/site/FilmStrip";
 import { Reveal } from "@/components/site/Reveal";
 import { INTERIOR_PHOTOS, TOUR_HERO, type StripPhoto } from "@/lib/tour-photos";
+import { stringList } from "@/lib/db-values";
+import type { Json } from "@/types/database";
 
 export const metadata = {
   title: "Tour — The Gagrafa",
@@ -29,8 +31,8 @@ export default async function TourPage() {
     supabase.from("gallery_items").select("*").order("sort_order", { ascending: true }),
   ]);
 
-  const residences: StripPhoto[] = (units ?? []).flatMap((u: { name: string; images: string[] | null }) =>
-    (u.images ?? [])
+  const residences: StripPhoto[] = (units ?? []).flatMap((u: { name: string; images: Json }) =>
+    stringList(u.images)
       .filter((src: string) => !isPlaceholder(src))
       .slice(0, PHOTOS_PER_RESIDENCE)
       .map((src: string, i: number) => ({ src, alt: `${u.name}, photo ${i + 1}`, caption: u.name }))

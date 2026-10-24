@@ -21,7 +21,6 @@ export function isSubmittedTooFast(renderedAt: number | undefined, minMs = 2500)
 // using the table's own data rather than external infra.
 export async function isRateLimited(
   table: "contact_messages" | "bookings",
-  emailColumn: "email" | "guest_email",
   email: string,
   windowMinutes = 10,
   maxCount = 3
@@ -29,11 +28,10 @@ export async function isRateLimited(
   const supabase = createServiceClient();
   const since = new Date(Date.now() - windowMinutes * 60_000).toISOString();
 
-  const { count } = await supabase
-    .from(table)
-    .select("id", { count: "exact", head: true })
-    .eq(emailColumn, email)
-    .gte("created_at", since);
+  const counted = { count: "exact", head: true } as const;
+  const { count } = await (table === "bookings"
+    ? supabase.from("bookings").select("id", counted).eq("guest_email", email).gte("created_at", since)
+    : supabase.from("contact_messages").select("id", counted).eq("email", email).gte("created_at", since));
 
   return (count ?? 0) >= maxCount;
 }

@@ -1,63 +1,21 @@
-export type UnitType = "studio" | "1bed_standard" | "1bed_executive" | "2bed" | "penthouse";
-export type BookingStatus = "pending" | "confirmed" | "checked_in" | "checked_out" | "cancelled" | "no_show";
-export type PaymentStatus = "unpaid" | "paid" | "partial" | "refunded";
-export type PaymentMethod = "paystack" | "momo" | "cash" | "bank";
-export type ServiceRequestType = "cleaning" | "towels" | "maintenance" | "other";
-export type ServiceRequestStatus = "pending" | "in_progress" | "completed" | "cancelled";
-export type Currency = "GHS" | "USD";
-export type UserRole = "guest" | "admin" | "staff";
+import type { Enums, Tables } from "@/types/database";
 
-export interface Unit {
-  id: string;
-  name: string;
-  slug: string;
-  type: UnitType;
-  description: string | null;
-  short_description: string | null;
-  base_price_per_night: number;
-  max_guests: number;
-  bedrooms: number;
-  bathrooms: number;
-  size_sqm: number | null;
-  amenities: string[];
-  images: string[];
-  is_active: boolean;
-  sort_order: number;
-}
+// Row and enum types come from the generated src/types/database.ts (`npm run db:types`).
+export type UnitType = Enums<"unit_type">;
+export type BookingStatus = Enums<"booking_status">;
+export type PaymentStatus = Enums<"payment_status">;
+export type PaymentMethod = Enums<"payment_method">;
+export type ServiceRequestType = Enums<"service_request_type">;
+export type ServiceRequestStatus = Enums<"service_request_status">;
+export type Currency = Enums<"booking_currency">;
+export type UserRole = Enums<"user_role">;
 
-export interface Booking {
-  id: string;
-  booking_code: string;
-  unit_id: string;
-  guest_id: string | null;
-  guest_name: string;
-  guest_email: string;
-  guest_phone: string | null;
-  check_in: string;
-  check_out: string;
-  nights: number;
-  adults: number;
-  children: number;
-  total_amount: number;
-  currency: Currency;
-  status: BookingStatus;
-  payment_status: PaymentStatus;
-  special_requests: string | null;
-  admin_notes: string | null;
-  // Set only for bookings made with USD prices (migration-usd-pricing.sql); totals above stay in cedis.
-  display_currency?: string | null;
-  display_total?: number | null;
-  exchange_rate?: number | null;
-}
-
-export interface ServiceRequest {
-  id: string;
-  booking_id: string;
-  type: ServiceRequestType;
-  description: string | null;
-  status: ServiceRequestStatus;
-  created_at: string;
-}
+// amenities and images are jsonb columns that always hold lists of strings.
+export type Unit = Omit<Tables<"units">, "amenities" | "images"> & { amenities: string[]; images: string[] };
+// Totals are in cedis; display_currency / display_total / exchange_rate are set only for
+// bookings made with USD prices (migration-usd-pricing.sql).
+export type Booking = Tables<"bookings">;
+export type ServiceRequest = Tables<"service_requests">;
 
 // No 0/O or 1/I, so guests can read the code back over the phone. 32 symbols divide 256
 // evenly, so every symbol is equally likely.

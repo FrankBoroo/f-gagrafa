@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import type { Json } from "@/types/database";
 
 // Fire-and-forget: a failed audit write should never block the action it's
 // logging. Call this from server actions, after the real write succeeds.
@@ -9,7 +10,7 @@ export async function logAudit(
   action: string,
   entityType: string,
   entityId: string | null,
-  details?: Record<string, unknown>
+  details?: Record<string, Json | undefined>
 ) {
   try {
     const profile = await getCurrentProfile();

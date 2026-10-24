@@ -117,7 +117,7 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: "This residence is no longer available" };
   }
 
-  if (await isRateLimited("bookings", "guest_email", data.guest_email)) {
+  if (await isRateLimited("bookings", data.guest_email)) {
     return { ok: false, error: "Too many booking attempts from this email recently — please try again shortly, or contact us for help." };
   }
 

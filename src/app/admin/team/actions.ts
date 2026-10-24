@@ -8,6 +8,7 @@ import { sendStaffInviteEmail } from "@/lib/email";
 import { inviteTeamMemberSchema, type InviteTeamMemberInput } from "@/lib/validations";
 import { publicEnv } from "@/lib/env";
 import { serverEnv } from "@/lib/env.server";
+import type { TablesInsert } from "@/types/database";
 
 // Everything here is admin-only, and checked inside each action (not just on the page).
 async function requireAdmin() {
@@ -65,7 +66,7 @@ export async function inviteTeamMember(input: InviteTeamMemberInput) {
     return { ok: false, error: `${email} is already on the team as ${existing.role}. Change their role in the list below.` };
   }
 
-  const profile: Record<string, unknown> = { id: userId, role };
+  const profile: TablesInsert<"profiles"> = { id: userId, role };
   if (fullName) profile.full_name = fullName;
   const { error } = await supabase.from("profiles").upsert(profile, { onConflict: "id" });
   if (error) return { ok: false, error: error.message };

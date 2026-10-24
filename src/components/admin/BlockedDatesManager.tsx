@@ -5,14 +5,9 @@ import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { addBlockedDate, removeBlockedDate } from "@/app/admin/availability/actions";
 import type { Unit } from "@/lib/types";
+import type { Tables } from "@/types/database";
 
-interface BlockedDate {
-  id: string;
-  unit_id: string;
-  start_date: string;
-  end_date: string;
-  reason: string | null;
-}
+type BlockedDate = Tables<"blocked_dates">;
 
 export function BlockedDatesManager({ units, blocks }: { units: Unit[]; blocks: BlockedDate[] }) {
   const [unitId, setUnitId] = useState(units[0]?.id ?? "");

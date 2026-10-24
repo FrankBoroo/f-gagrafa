@@ -85,7 +85,7 @@ export async function confirmPaymentByReference(
     const { error: insertError } = await supabase.from("payments").insert({
       booking_id: booking.id,
       amount: verification.amount / 100,
-      currency: verification.currency,
+      currency: booking.currency, // same as Paystack's: a mismatch returned above
       method: "paystack",
       paystack_reference: reference,
       status: "success",

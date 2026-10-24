@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { isStaff, UNAUTHORIZED } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { IMAGE_TYPES, ensurePublicBucket, pathInBucket } from "@/lib/storage";
+import type { TablesUpdate } from "@/types/database";
 
 const BUCKET = "gallery-images";
 const MAX_ITEMS = 120;
@@ -93,7 +94,7 @@ export async function updateGalleryItem(id: string, caption: string, category: s
   const { data: existing } = await supabase.from("gallery_items").select("category").eq("id", id).maybeSingle();
   if (!existing) return { ok: false, error: "Photo not found" };
 
-  const update: Record<string, unknown> = { caption: cleanCaption || null };
+  const update: TablesUpdate<"gallery_items"> = { caption: cleanCaption || null };
   if (existing.category !== cat.data) {
     const { data: last } = await supabase
       .from("gallery_items")
