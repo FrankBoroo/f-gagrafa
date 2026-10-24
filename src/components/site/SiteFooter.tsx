@@ -35,7 +35,7 @@ export async function SiteFooter() {
           {settings.contact_phone && <p className="mt-1 text-sm text-ivory/70">{settings.contact_phone}</p>}
         </div>
       </div>
-      <div className="border-t border-ivory/10 py-6 text-center text-xs text-ivory/40">
+      <div className="border-t border-ivory/10 py-6 text-center text-xs text-ivory/60">
         © {new Date().getFullYear()} The Gagrafa. All rights reserved.
       </div>
     </footer>

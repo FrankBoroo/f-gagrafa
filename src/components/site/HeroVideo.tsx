@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { preload } from "react-dom";
 import Link from "next/link";
 import { getImageProps } from "next/image";
 import { ChevronDown } from "lucide-react";
@@ -40,12 +41,30 @@ export function HeroVideo() {
   const [sources, setSources] = useState<{ webm: string; mp4: string } | null>(null);
   const [playing, setPlaying] = useState(false);
 
+  // The <picture> sits deep in the streamed body; announce each poster in <head> so the LCP
+  // image starts loading with the CSS. Media-scoped, so a device fetches only its own poster.
+  preload(desktopPoster.src, { as: "image", imageSrcSet: mobilePoster, imageSizes: "100vw", fetchPriority: "high", media: "(max-width: 767px)" });
+  preload(desktopPoster.src, { as: "image", imageSrcSet: desktopPoster.srcSet, imageSizes: "100vw", fetchPriority: "high", media: "(min-width: 768px)" });
+
   useParallax(section, media, content);
 
   // Decide after mount (needs the browser), so server and client render the same poster.
+  // Wait for the page to finish loading and go idle first: the poster is the LCP, and the
+  // video shouldn't compete with scripts and images on a slow connection.
   useEffect(() => {
     if (!shouldPlayVideo()) return;
-    setSources(window.matchMedia("(max-width: 767px)").matches ? VIDEO.mobile : VIDEO.desktop);
+    let idle = 0;
+    const start = () => {
+      const run = () => setSources(window.matchMedia("(max-width: 767px)").matches ? VIDEO.mobile : VIDEO.desktop);
+      idle = typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(run, { timeout: 3000 }) : window.setTimeout(run, 1000);
+    };
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
+    return () => {
+      window.removeEventListener("load", start);
+      if (typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
+    };
   }, []);
 
   // Play only while the hero is on screen, to save battery and data.
@@ -99,10 +118,11 @@ export function HeroVideo() {
 
       <div ref={content} className="container-gagrafa relative z-10 pb-20 text-ivory md:pb-28">
         <p className="text-xs uppercase tracking-[0.3em] text-champagne-light">Spintex, Accra</p>
-        <h1 className="mt-6 max-w-3xl text-5xl leading-[1.05] md:text-7xl">
-          Live Luxuriously,
-          <br />
-          Stay Serenely.
+        {/* Two fixed lines, sized to fit the phone width (the longer line is about 8 em wide), so
+            the heading never wraps differently when Playfair replaces the fallback font (CLS). */}
+        <h1 className="mt-6 max-w-3xl text-[min(3rem,calc((100vw_-_3rem)/8))] leading-[1.05] md:text-7xl">
+          <span className="block whitespace-nowrap">Live Luxuriously,</span>
+          <span className="block whitespace-nowrap">Stay Serenely.</span>
         </h1>
         <p className="mt-6 max-w-md text-lg text-ivory/80">
           Serviced residences on Community 20, where quiet design and attentive service meet, for a
