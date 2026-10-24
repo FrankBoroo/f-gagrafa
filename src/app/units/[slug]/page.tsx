@@ -4,6 +4,7 @@ import type { Unit } from "@/lib/types";
 import { BookingWidget } from "@/components/site/BookingWidget";
 import { UnitGallery } from "@/components/site/UnitGallery";
 import { siteUrl } from "@/lib/env";
+import { jsonLd } from "@/lib/json-ld";
 import { getPublicSettings } from "@/lib/site-settings";
 
 export default async function UnitDetailPage({
@@ -43,7 +44,7 @@ export default async function UnitDetailPage({
     <div>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(unitJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(unitJsonLd) }}
       />
       <div className="container-gagrafa pt-8">
         <UnitGallery images={unit.images ?? []} name={unit.name} />

@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { UnitEditCard } from "@/components/admin/UnitEditCard";
 import type { Unit } from "@/lib/types";
 import { getPublicSettings } from "@/lib/site-settings";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { BedDouble } from "lucide-react";
 
 export default async function AdminUnitsPage() {
   const supabase = createServiceClient();
@@ -29,6 +31,14 @@ export default async function AdminUnitsPage() {
           <UnitEditCard key={unit.id} unit={unit} currency={pricing.currency} />
         ))}
       </div>
+      {!units?.length && (
+        <EmptyState
+          icon={BedDouble}
+          title="No residences yet"
+          description="Add your first residence to show it on the website and open it for booking."
+          action={{ href: "/admin/units/new", label: "+ New residence" }}
+        />
+      )}
     </div>
   );
 }

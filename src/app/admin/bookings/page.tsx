@@ -4,8 +4,10 @@ import { isAdmin } from "@/lib/auth";
 import { BookingFilters } from "@/components/admin/BookingFilters";
 import { BookingCard } from "@/components/admin/BookingCard";
 import { getPublicSettings } from "@/lib/site-settings";
-import { oneOf } from "@/lib/db-values";
+import { oneOf, searchTerm } from "@/lib/db-values";
 import { Constants } from "@/types/database";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { CalendarDays, SearchX } from "lucide-react";
 
 export default async function AdminBookingsPage({
   searchParams,
@@ -25,8 +27,8 @@ export default async function AdminBookingsPage({
   const paymentStatus = oneOf(Constants.public.Enums.payment_status, params.payment_status);
   if (status) query = query.eq("status", status);
   if (paymentStatus) query = query.eq("payment_status", paymentStatus);
-  if (params.q) {
-    const term = params.q.replace(/[%,]/g, "");
+  const term = searchTerm(params.q);
+  if (term) {
     query = query.or(
       `guest_name.ilike.%${term}%,guest_email.ilike.%${term}%,booking_code.ilike.%${term}%`
     );
@@ -70,9 +72,22 @@ export default async function AdminBookingsPage({
         ))}
       </div>
 
-      {!bookings?.length && (
-        <p className="mt-14 text-center text-navy/40">No bookings match these filters.</p>
-      )}
+      {!bookings.length &&
+        (term || status || paymentStatus ? (
+          <EmptyState
+            icon={SearchX}
+            title="No bookings match these filters"
+            description="Try a different name, email or booking code, or clear the filters."
+            action={{ href: "/admin/bookings", label: "Clear filters" }}
+          />
+        ) : (
+          <EmptyState
+            icon={CalendarDays}
+            title="No bookings yet"
+            description="Bookings made on the website appear here as soon as the guest starts checkout."
+            action={{ href: "/admin/bookings/new", label: "Add a booking by hand" }}
+          />
+        ))}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { ServiceRequestCard } from "@/components/admin/ServiceRequestCard";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ConciergeBell } from "lucide-react";
 
 export default async function AdminServiceRequestsPage() {
   const supabase = createServiceClient();
@@ -14,7 +16,13 @@ export default async function AdminServiceRequestsPage() {
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {requests?.map((r: any) => <ServiceRequestCard key={r.id} request={r} />)}
       </div>
-      {!requests?.length && <p className="mt-14 text-center text-navy/40">No service requests yet.</p>}
+      {!requests?.length && (
+        <EmptyState
+          icon={ConciergeBell}
+          title="No service requests yet"
+          description="When guests ask for cleaning, maintenance or anything else from the portal, it lands here."
+        />
+      )}
     </div>
   );
 }

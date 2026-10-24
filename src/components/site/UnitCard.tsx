@@ -19,7 +19,7 @@ export function UnitCard({ unit, currency = "GHS" }: { unit: Unit; currency?: Pr
         <h3 className="text-xl">{unit.name}</h3>
         <p className="mt-1 text-sm text-navy/60">{unit.short_description}</p>
         <div className="mt-4 flex items-center justify-between text-sm text-navy/70">
-          <span>{unit.max_guests} guests · {unit.bedrooms} bed · {unit.bathrooms} bath</span>
+          <span>{unit.max_guests} guests · {unit.bedrooms === 0 ? "Studio" : `${unit.bedrooms} bed`} · {unit.bathrooms} bath</span>
         </div>
         <div className="mt-4 flex items-baseline justify-between border-t border-navy/10 pt-4">
           <span className="text-xs uppercase tracking-widest text-navy/50">From</span>

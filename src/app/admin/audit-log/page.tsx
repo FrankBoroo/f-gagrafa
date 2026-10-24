@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { History } from "lucide-react";
 
 export default async function AuditLogPage() {
   const admin = await isAdmin();
@@ -50,7 +52,7 @@ export default async function AuditLogPage() {
             ))}
           </tbody>
         </table>
-        {!entries?.length && <p className="p-8 text-center text-navy/40">No activity logged yet.</p>}
+        {!entries?.length && <EmptyState compact icon={History} title="No activity logged yet" description="Staff actions such as cancellations, refunds and settings changes are recorded here." className="m-5" />}
       </div>
     </div>
   );

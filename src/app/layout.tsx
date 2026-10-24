@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { FloatingBookButton } from "@/components/site/FloatingBookButton";
 import { Toaster } from "sonner";
 import { siteUrl } from "@/lib/env";
+import { jsonLd } from "@/lib/json-ld";
 
 const display = Playfair_Display({
   subsets: ["latin"],
@@ -49,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
         <SiteHeader />
         <main>{children}</main>

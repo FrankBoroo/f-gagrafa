@@ -7,6 +7,7 @@ import { Star, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { asResult } from "@/lib/action-result";
 import { prepareImage } from "@/lib/image-prepare";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   createUnitImageUpload, registerUnitImage, removeUnitImage, setPrimaryUnitImage,
 } from "@/app/admin/units/actions";
@@ -121,9 +122,7 @@ export function UnitPhotoManager({ unitId, images: initialImages }: { unitId: st
       </div>
 
       {images.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-navy/20 p-8 text-center text-sm text-navy/50">
-          No photos yet. Cards currently show a placeholder image.
-        </p>
+        <EmptyState compact title="No photos yet" description="Cards currently show a placeholder image." className="mt-6" />
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
           {images.map((url: string, i: number) => (

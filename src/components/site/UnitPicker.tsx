@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 import type { Unit } from "@/lib/types";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";
 
@@ -34,7 +35,14 @@ export function UnitPicker({
   availability: Record<string, boolean> | null;
 }) {
   if (!units.length) {
-    return <p className="text-sm text-navy/50">No residences are available to book right now.</p>;
+    return (
+      <EmptyState
+        compact
+        title="No residences are open for booking right now"
+        description="Get in touch and we'll help you find dates."
+        action={{ href: "/contact", label: "Contact us" }}
+      />
+    );
   }
 
   return (

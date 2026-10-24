@@ -6,6 +6,7 @@ import { HeroVideo } from "@/components/site/HeroVideo";
 import { Reveal } from "@/components/site/Reveal";
 import { getPublicSettings } from "@/lib/site-settings";
 import type { Unit } from "@/lib/types";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const amenities = [
   { name: "Infinity Pool", desc: "A quiet rooftop escape above the city." },
@@ -67,6 +68,14 @@ export default async function HomePage() {
               View all residences →
             </Link>
           </Reveal>
+          {!units?.length && (
+            <EmptyState
+              className="mt-12"
+              title="Residences coming soon"
+              description="We're putting the finishing touches on our listings. Get in touch to plan your stay."
+              action={{ href: "/contact", label: "Contact us" }}
+            />
+          )}
           <div className="mt-12 grid gap-8 md:grid-cols-3">
             {(units as Unit[] | null)?.map((unit: Unit, i: number) => (
               <Reveal key={unit.id} delay={i * 100}>

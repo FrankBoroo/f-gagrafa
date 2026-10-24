@@ -3,6 +3,8 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { isAdmin } from "@/lib/auth";
 import { oneOf } from "@/lib/db-values";
 import { Constants } from "@/types/database";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Wallet } from "lucide-react";
 
 const methodLabel: Record<string, string> = {
   paystack: "Paystack",
@@ -108,7 +110,9 @@ export default async function AdminPaymentsPage({
             ))}
           </tbody>
         </table>
-        {!payments?.length && <p className="p-8 text-center text-navy/40">No payments yet.</p>}
+        {!payments?.length && (
+          <EmptyState compact icon={Wallet} title="No payments yet" description="Paystack payments, recorded cash or MoMo payments and refunds all show up here." className="m-5" />
+        )}
       </div>
     </div>
   );

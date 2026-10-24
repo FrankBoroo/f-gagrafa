@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { UnitCard } from "@/components/site/UnitCard";
 import type { Unit } from "@/lib/types";
 import { getPublicSettings } from "@/lib/site-settings";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { BedDouble } from "lucide-react";
 
 export const metadata = { title: "Residences — The Gagrafa" };
 
@@ -30,9 +32,12 @@ export default async function UnitsPage() {
       </div>
 
       {!units?.length && (
-        <p className="mt-14 text-navy/50">
-          No residences are published yet — add units from the admin dashboard.
-        </p>
+        <EmptyState
+          icon={BedDouble}
+          title="Our residences are being prepared"
+          description="New photos and details are on their way. Get in touch and we'll help you plan your stay."
+          action={{ href: "/contact", label: "Contact us" }}
+        />
       )}
     </div>
   );

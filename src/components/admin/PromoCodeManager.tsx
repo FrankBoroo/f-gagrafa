@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { createPromoCode, togglePromoCodeActive } from "@/app/admin/promo-codes/actions";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 import type { Tables } from "@/types/database";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type PromoCode = Omit<Tables<"promo_codes">, "created_at">;
 
@@ -130,7 +131,7 @@ export function PromoCodeManager({ codes, currency }: { codes: PromoCode[]; curr
               </p>
             </div>
           ))}
-          {!codes.length && <p className="text-sm text-navy/40">No promo codes yet.</p>}
+          {!codes.length && <EmptyState compact title="No promo codes yet" description="Create one with the form to offer a discount." />}
         </div>
       </div>
     </div>

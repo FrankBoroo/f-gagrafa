@@ -1,6 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
+import { searchTerm } from "@/lib/db-values";
 import { GuestSearch } from "@/components/admin/GuestSearch";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SearchX, Users } from "lucide-react";
 
 interface GuestSummary {
   guest_name: string;
@@ -25,8 +28,8 @@ export default async function AdminGuestsPage({
     .select("guest_name, guest_email, guest_phone, total_amount, currency, check_in, status, payment_status")
     .order("check_in", { ascending: false });
 
-  if (params.q) {
-    const term = params.q.replace(/[%,]/g, "");
+  const term = searchTerm(params.q);
+  if (term) {
     query = query.or(`guest_name.ilike.%${term}%,guest_email.ilike.%${term}%`);
   }
 
@@ -96,7 +99,11 @@ export default async function AdminGuestsPage({
             ))}
           </tbody>
         </table>
-        {!guests.length && <p className="p-8 text-center text-navy/40">No guests yet.</p>}
+        {!guests.length && (term ? (
+          <EmptyState compact icon={SearchX} title="No guests match that search" action={{ href: "/admin/guests", label: "Clear search" }} className="m-5" />
+        ) : (
+          <EmptyState compact icon={Users} title="No guests yet" description="Everyone who books appears here, grouped by email." className="m-5" />
+        ))}
       </div>
     </div>
   );

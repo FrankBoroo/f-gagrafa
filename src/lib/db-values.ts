@@ -10,3 +10,9 @@ export function stringList(value: Json | undefined): string[] {
 export function oneOf<T extends string>(allowed: readonly T[], value: string | null | undefined): T | undefined {
   return allowed.find((v: T) => v === value);
 }
+
+// Free text from a search box, made safe to put inside a PostgREST `.or()` / `ilike` filter:
+// commas, parentheses, quotes and backslashes are filter syntax, and % / _ / * are wildcards.
+export function searchTerm(raw: string | undefined, maxLength = 80): string {
+  return (raw ?? "").replace(/[%_*,()"\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}

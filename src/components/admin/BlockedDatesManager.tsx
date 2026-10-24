@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { addBlockedDate, removeBlockedDate } from "@/app/admin/availability/actions";
 import type { Unit } from "@/lib/types";
 import type { Tables } from "@/types/database";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type BlockedDate = Tables<"blocked_dates">;
 
@@ -95,7 +96,7 @@ export function BlockedDatesManager({ units, blocks }: { units: Unit[]; blocks: 
               </button>
             </div>
           ))}
-          {!blocks.length && <p className="text-sm text-navy/40">No blocked dates.</p>}
+          {!blocks.length && <EmptyState compact title="No blocked dates" description="Every residence is open for booking." />}
         </div>
       </div>
     </div>

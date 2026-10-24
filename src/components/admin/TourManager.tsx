@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { asResult } from "@/lib/action-result";
 import { prepareImage } from "@/lib/image-prepare";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   createGalleryUpload, registerGalleryItem, updateGalleryItem, moveGalleryItem, deleteGalleryItem,
 } from "@/app/admin/tour/actions";
@@ -211,9 +212,7 @@ export function TourManager({ initialItems }: { initialItems: GalleryRow[] }) {
             <p className="mt-1 text-sm text-navy/50">{section.hint}</p>
 
             {sectionItems.length === 0 ? (
-              <p className="mt-4 rounded-lg border border-dashed border-navy/20 p-8 text-center text-sm text-navy/50">
-                No photos in this section yet.
-              </p>
+              <EmptyState compact title="No photos in this section yet" className="mt-4" />
             ) : (
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {sectionItems.map((item: GalleryRow, position: number) => (
