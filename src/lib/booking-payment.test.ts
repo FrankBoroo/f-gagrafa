@@ -145,16 +145,30 @@ describe("confirmPaymentByReference", () => {
     expect(mocks.sendEmail).not.toHaveBeenCalled();
   });
 
-  it("fails when less than the expected amount was charged", async () => {
+  it("fails when less than the expected amount was charged, and flags it for the admin", async () => {
     mocks.verify.mockResolvedValue(paystackSuccess(2000));
     expect(await confirmPaymentByReference(REF)).toMatchObject({ outcome: "failed", reason: "amount_mismatch" });
-    expect(mocks.db.writes).toHaveLength(0);
+    expect(paymentInserts()).toHaveLength(0);
+    expect(bookingUpdates()).toHaveLength(1);
+    expect(bookingUpdates()[0].payload).toEqual({ admin_notes: expect.stringContaining("PAYMENT MISMATCH (amount_mismatch)") });
+    expect(bookingUpdates()[0].payload).not.toHaveProperty("status");
+    expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
   });
 
   it("fails when the charge is in a different currency from the booking", async () => {
     mocks.verify.mockResolvedValue(paystackSuccess(2400, "USD"));
     expect(await confirmPaymentByReference(REF)).toMatchObject({ outcome: "failed", reason: "currency_mismatch" });
+    expect(paymentInserts()).toHaveLength(0);
+    expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+  });
+
+  it("alerts about a mismatch only once (webhook and success page both arrive)", async () => {
+    mocks.verify.mockResolvedValue(paystackSuccess(2000));
+    mocks.db.booking = pendingBooking({ admin_notes: "PAYMENT MISMATCH (amount_mismatch): already flagged" });
+    expect(await confirmPaymentByReference(REF)).toMatchObject({ outcome: "failed", reason: "amount_mismatch" });
     expect(mocks.db.writes).toHaveLength(0);
+    expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
   });
 
   it("does nothing more for a booking that is already paid (duplicate webhook)", async () => {

@@ -1,6 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 // Fire-and-forget: a failed audit write should never block the action it's
 // logging. Call this from server actions, after the real write succeeds.
@@ -22,6 +23,6 @@ export async function logAudit(
       details: details ?? null,
     });
   } catch (err) {
-    console.error("Audit log write failed:", err);
+    log.error("audit.write_failed", { action, entity_type: entityType, entity_id: entityId }, err);
   }
 }

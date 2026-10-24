@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { grantPortalAccess, hasPortalAccess } from "@/lib/portal-session";
 import { sendCancellationRequestAlert } from "@/lib/email";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
+import { log } from "@/lib/logger";
 
 const reviewSchema = z.object({
   booking_id: z.string().uuid(),
@@ -122,7 +123,7 @@ export async function submitReview(input: z.infer<typeof reviewSchema>) {
     is_published: false,
   });
   if (error) {
-    console.error("review insert failed", error);
+    log.error("review.insert_failed", { booking_id: booking.id }, error);
     return { ok: false, error: "We couldn't save your review. Please try again." };
   }
 
@@ -165,7 +166,7 @@ export async function requestCancellation(bookingId: string, reason: string) {
     description: `CANCELLATION REQUEST${cleanReason ? `: ${cleanReason}` : ""}`,
   });
   if (error) {
-    console.error("cancellation request insert failed", error);
+    log.error("cancellation_request.insert_failed", { booking_id: bookingId }, error);
     return { ok: false, error: "We couldn't send your request. Please try again or contact us." };
   }
 

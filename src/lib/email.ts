@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { portalMagicLink } from "@/lib/portal-session";
 import { serverEnv } from "@/lib/env.server";
 import { bookedPriceSuffix } from "@/lib/pricing";
+import { log } from "@/lib/logger";
+import { takeToken } from "@/lib/rate-limit";
 
 // Every send here is best-effort: guarded by RESEND_API_KEY, wrapped in
 // try/catch, and never thrown back to the caller. A missing or bad key
@@ -31,9 +33,20 @@ async function adminAddress(): Promise<string> {
   return serverEnv.ADMIN_NOTIFICATION_EMAIL || serverEnv.RESEND_FROM_EMAIL || "reservations@thegagrafa.com";
 }
 
+// Anything a guest typed (names, messages, request details) is escaped before it goes into
+// an email, so it can't inject links or markup into the admin's or a guest's inbox.
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function send(args: { to: string; subject: string; html: string; replyTo?: string }) {
   if (!serverEnv.RESEND_API_KEY) {
-    console.warn(`Resend not configured — skipped email "${args.subject}" to ${args.to}`);
+    log.warn("email.skipped_not_configured", { subject: args.subject });
     return;
   }
   try {
@@ -47,7 +60,7 @@ async function send(args: { to: string; subject: string; html: string; replyTo?:
       html: args.html,
     });
   } catch (err) {
-    console.error(`Resend send failed ("${args.subject}"):`, err);
+    log.error("email.send_failed", { subject: args.subject }, err);
   }
 }
 
@@ -68,11 +81,11 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
     to: booking.guest_email,
     subject: `Booking confirmed — ${booking.booking_code}`,
     html: `
-      <p>Hi ${booking.guest_name},</p>
+      <p>Hi ${esc(booking.guest_name)},</p>
       <p>Your stay at <strong>The Gagrafa</strong> is confirmed.</p>
       <p>
         <strong>Booking code:</strong> ${booking.booking_code}<br/>
-        <strong>Residence:</strong> ${unitName}<br/>
+        <strong>Residence:</strong> ${esc(unitName)}<br/>
         <strong>Check-in:</strong> ${booking.check_in}<br/>
         <strong>Check-out:</strong> ${booking.check_out}<br/>
         ${paymentLines}${bookedAt}
@@ -86,14 +99,14 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
 export async function sendAdminNewBookingNotification(booking: any, unitName: string) {
   await send({
     to: await adminAddress(),
-    subject: `New booking: ${booking.booking_code} (${unitName})`,
+    subject: `New booking: ${booking.booking_code} (${esc(unitName)})`,
     replyTo: booking.guest_email,
     html: `
       <p>A new booking was just started.</p>
       <p>
         <strong>Code:</strong> ${booking.booking_code}<br/>
-        <strong>Guest:</strong> ${booking.guest_name} (${booking.guest_email}, ${booking.guest_phone ?? "no phone"})<br/>
-        <strong>Residence:</strong> ${unitName}<br/>
+        <strong>Guest:</strong> ${esc(booking.guest_name)} (${esc(booking.guest_email)}, ${esc(booking.guest_phone ?? "no phone")})<br/>
+        <strong>Residence:</strong> ${esc(unitName)}<br/>
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
         <strong>Total:</strong> ${booking.currency} ${Number(booking.total_amount).toLocaleString()}${bookedPriceSuffix(booking)}<br/>
         <strong>Payment status:</strong> ${booking.payment_status}
@@ -110,11 +123,11 @@ export async function sendAdminPaymentConflictAlert(booking: any, unitName: stri
     subject: `ACTION NEEDED: paid booking ${booking.booking_code} needs attention`,
     html: `
       <p><strong>A guest has paid, but the booking could not be confirmed automatically.</strong></p>
-      <p>${reason}</p>
+      <p>${esc(reason)}</p>
       <p>
         <strong>Code:</strong> ${booking.booking_code}<br/>
-        <strong>Guest:</strong> ${booking.guest_name} (${booking.guest_email}, ${booking.guest_phone ?? "no phone"})<br/>
-        <strong>Residence:</strong> ${unitName}<br/>
+        <strong>Guest:</strong> ${esc(booking.guest_name)} (${esc(booking.guest_email)}, ${esc(booking.guest_phone ?? "no phone")})<br/>
+        <strong>Residence:</strong> ${esc(unitName)}<br/>
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}
       </p>
       <p>Please contact the guest to offer other dates or a full refund.</p>
@@ -144,8 +157,8 @@ export async function sendBookingCancelledEmail(
     to: booking.guest_email,
     subject: `Your booking ${booking.booking_code} has been cancelled`,
     html: `
-      <p>Hi ${booking.guest_name},</p>
-      <p>Your booking <strong>${booking.booking_code}</strong> for ${unitName} (${booking.check_in} → ${booking.check_out}) has been cancelled.</p>
+      <p>Hi ${esc(booking.guest_name)},</p>
+      <p>Your booking <strong>${booking.booking_code}</strong> for ${esc(unitName)} (${booking.check_in} → ${booking.check_out}) has been cancelled.</p>
       ${refundLine}
       <p>If you have any questions, just reply to this email.</p>
       <p>— The Gagrafa</p>
@@ -158,8 +171,8 @@ export async function sendBookingChangedEmail(booking: any, unitName: string) {
     to: booking.guest_email,
     subject: `Your booking ${booking.booking_code} has been updated`,
     html: `
-      <p>Hi ${booking.guest_name},</p>
-      <p>The dates for your stay at <strong>${unitName}</strong> have been updated:</p>
+      <p>Hi ${esc(booking.guest_name)},</p>
+      <p>The dates for your stay at <strong>${esc(unitName)}</strong> have been updated:</p>
       <p>
         <strong>Check-in:</strong> ${booking.check_in}<br/>
         <strong>Check-out:</strong> ${booking.check_out}<br/>
@@ -179,9 +192,9 @@ export async function sendCancellationRequestAlert(booking: any, reason: string)
       <p>A guest has asked to cancel their booking.</p>
       <p>
         <strong>Code:</strong> ${booking.booking_code}<br/>
-        <strong>Guest:</strong> ${booking.guest_name}<br/>
+        <strong>Guest:</strong> ${esc(booking.guest_name)}<br/>
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
-        <strong>Reason:</strong> ${reason || "—"}
+        <strong>Reason:</strong> ${esc(reason || "—")}
       </p>
       <p>Review it under Admin → Service Requests, then cancel (and refund if due) from Bookings.</p>
     `,
@@ -193,7 +206,7 @@ export async function sendStaffInviteEmail(email: string, name: string, role: st
     to: email,
     subject: "You've been invited to The Gagrafa admin",
     html: `
-      <p>Hi ${name || "there"},</p>
+      <p>Hi ${esc(name || "there")},</p>
       <p>You've been invited to join The Gagrafa team as <strong>${role}</strong>.</p>
       <p><a href="${link}">Accept the invitation and set your password</a></p>
       <p>This link works once and expires soon. If it has expired, ask an admin to send you a new one.</p>
@@ -207,8 +220,8 @@ export async function sendPreArrivalReminder(booking: any, unitName: string, bal
     to: booking.guest_email,
     subject: `See you soon at The Gagrafa — ${booking.booking_code}`,
     html: `
-      <p>Hi ${booking.guest_name},</p>
-      <p>Your stay at <strong>${unitName}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
+      <p>Hi ${esc(booking.guest_name)},</p>
+      <p>Your stay at <strong>${esc(unitName)}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
       ${balanceDue > 0.005 ? `<p><strong>Balance due on arrival:</strong> ${booking.currency} ${balanceDue.toLocaleString()}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
       <p>Check-in is from 2:00 PM. Your digital access code and Wi-Fi details will be ready in your Guest Portal:</p>
       <p><a href="${portalMagicLink(booking.booking_code)}">View your stay details</a></p>
@@ -222,7 +235,7 @@ export async function sendPostStayReviewRequest(booking: any) {
     to: booking.guest_email,
     subject: "How was your stay at The Gagrafa?",
     html: `
-      <p>Hi ${booking.guest_name},</p>
+      <p>Hi ${esc(booking.guest_name)},</p>
       <p>Thank you for staying with us. We'd love to hear how it went — it takes less than a minute.</p>
       <p><a href="${portalMagicLink(booking.booking_code)}">Leave a review</a></p>
       <p>— The Gagrafa</p>
@@ -235,7 +248,7 @@ export async function sendContactMessageNotification(name: string, email: string
     to: await adminAddress(),
     replyTo: email,
     subject: `New contact message from ${name}`,
-    html: `<p>From: ${name} (${email})</p><p>${message.replace(/\n/g, "<br/>")}</p>`,
+    html: `<p>From: ${esc(name)} (${esc(email)})</p><p>${esc(message).replace(/\n/g, "<br/>")}</p>`,
   });
 }
 
@@ -247,10 +260,28 @@ export async function sendServiceRequestNotification(serviceRequest: any, bookin
       <p>A guest submitted a service request.</p>
       <p>
         <strong>Booking:</strong> ${booking?.booking_code ?? "unknown"}<br/>
-        <strong>Guest:</strong> ${booking?.guest_name ?? "unknown"}<br/>
-        <strong>Type:</strong> ${serviceRequest.type}<br/>
-        <strong>Details:</strong> ${serviceRequest.description ?? "—"}
+        <strong>Guest:</strong> ${esc(booking?.guest_name ?? "unknown")}<br/>
+        <strong>Type:</strong> ${esc(serviceRequest.type)}<br/>
+        <strong>Details:</strong> ${esc(serviceRequest.description ?? "—")}
       </p>
+    `,
+  });
+}
+
+// Something broke that a person should look at (a booking or payment failed on our side).
+// Capped at 3 per hour per kind, so an outage can't flood the inbox; the logs keep every case.
+export async function sendAdminSystemAlert(kind: string, summary: string, details: Record<string, string | number | null | undefined>) {
+  if (!(await takeToken("admin-alert", kind, 3, 60 * 60))) return;
+  const rows = Object.entries(details)
+    .map(([k, v]: [string, string | number | null | undefined]) => `<strong>${esc(k)}:</strong> ${esc(v ?? "—")}`)
+    .join("<br/>");
+  await send({
+    to: await adminAddress(),
+    subject: `ALERT: ${summary}`,
+    html: `
+      <p><strong>${esc(summary)}</strong></p>
+      <p>${rows}</p>
+      <p>Search the Vercel logs for "${esc(kind)}" to see every occurrence.</p>
     `,
   });
 }

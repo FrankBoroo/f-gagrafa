@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { verifyPaystackTransaction } from "@/lib/paystack";
 import { sendBookingConfirmationEmail, sendAdminPaymentConflictAlert } from "@/lib/email";
 import { sendBookingConfirmationWhatsApp } from "@/lib/whatsapp";
+import { log } from "@/lib/logger";
 
 export type PaymentConfirmationResult =
   | { outcome: "paid"; booking: any }
@@ -48,11 +49,25 @@ export async function confirmPaymentByReference(
   // the deposit if the guest chose to reserve with a deposit.
   const expected = Number(booking.deposit_amount ?? booking.total_amount);
   const charged = verification.amount / 100;
-  if (charged + 0.005 < expected) {
-    return { outcome: "failed", booking, reason: "amount_mismatch" };
-  }
-  if (booking.currency && verification.currency !== booking.currency) {
-    return { outcome: "failed", booking, reason: "currency_mismatch" };
+  const mismatch =
+    charged + 0.005 < expected
+      ? "amount_mismatch"
+      : booking.currency && verification.currency !== booking.currency
+        ? "currency_mismatch"
+        : null;
+  if (mismatch) {
+    // Paystack took money that doesn't match this booking: a bug or a tampered checkout.
+    // Never confirm it; flag it once for a person (the webhook and success page both land here).
+    const note = `PAYMENT MISMATCH (${mismatch}): expected ${booking.currency} ${expected}, Paystack reported ${verification.currency} ${charged}.`;
+    log.error("payment.mismatch", { booking_code: reference, mismatch, expected, charged, charged_currency: verification.currency });
+    if (!String(booking.admin_notes ?? "").includes("PAYMENT MISMATCH")) {
+      await supabase
+        .from("bookings")
+        .update({ admin_notes: [booking.admin_notes, note].filter(Boolean).join("\n") })
+        .eq("id", booking.id);
+      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", `${note} Do not confirm this booking; check the payment in Paystack and refund or contact the guest.`);
+    }
+    return { outcome: "failed", booking, reason: mismatch };
   }
   const paidInFull = charged + 0.005 >= Number(booking.total_amount);
 
@@ -102,6 +117,7 @@ export async function confirmPaymentByReference(
         admin_notes: [booking.admin_notes, reason].filter(Boolean).join("\n"),
       })
       .eq("id", booking.id);
+    log.error("payment.paid_not_confirmed", { booking_code: reference, first: firstConfirmation }, updateError);
     if (firstConfirmation) {
       await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", reason);
     }

@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { headers } from "next/headers";
 import { createServiceClient } from "@/lib/supabase/server";
 import { serverEnv } from "@/lib/env.server";
+import { log } from "@/lib/logger";
 
 // Per-visitor limits for public actions, counted in Postgres (`rate_limit_hit`,
 // supabase/migration-rate-limits.sql) so they hold across Vercel's many instances.
@@ -33,15 +34,10 @@ export function hashVisitor(ip: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(`rate-limit:${ip}`).digest("hex").slice(0, 32);
 }
 
-// True when this visitor has used up the bucket. Fails open: if the database call
-// errors (migration not run, outage) the request goes through, because locking real
-// guests out of booking is worse than a missed limit.
-export async function isOverLimit(bucket: RateLimitBucket): Promise<boolean> {
-  const secret = serverEnv.PORTAL_SESSION_SECRET || serverEnv.SUPABASE_SERVICE_ROLE_KEY;
-  if (!secret) return false;
-  const key = hashVisitor(clientIpFrom(await headers()), secret);
-  const { max, windowSeconds } = RATE_LIMITS[bucket];
-
+// Records one use of (bucket, key) and says whether it was within the limit. Fails open:
+// if the database call errors (migration not run, outage) it answers "allowed", because
+// locking real guests out of booking is worse than a missed limit.
+export async function takeToken(bucket: string, key: string, max: number, windowSeconds: number): Promise<boolean> {
   try {
     const { data, error } = await createServiceClient().rpc("rate_limit_hit", {
       p_bucket: bucket,
@@ -50,12 +46,21 @@ export async function isOverLimit(bucket: RateLimitBucket): Promise<boolean> {
       p_window_seconds: windowSeconds,
     });
     if (error) {
-      console.error("rate limit check failed", { bucket, code: error.code });
-      return false;
+      log.warn("rate_limit.check_failed", { bucket }, error);
+      return true;
     }
-    return data === false;
-  } catch {
-    console.error("rate limit check failed", { bucket });
-    return false;
+    return data !== false;
+  } catch (err) {
+    log.warn("rate_limit.check_failed", { bucket }, err);
+    return true;
   }
+}
+
+// True when this visitor has used up the bucket.
+export async function isOverLimit(bucket: RateLimitBucket): Promise<boolean> {
+  const secret = serverEnv.PORTAL_SESSION_SECRET || serverEnv.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) return false;
+  const key = hashVisitor(clientIpFrom(await headers()), secret);
+  const { max, windowSeconds } = RATE_LIMITS[bucket];
+  return !(await takeToken(bucket, key, max, windowSeconds));
 }

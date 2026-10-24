@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sendServiceRequestNotification } from "@/lib/email";
 import { hasPortalAccess } from "@/lib/portal-session";
 import { isOverLimit, RATE_LIMITED_MESSAGE, RATE_LIMITS } from "@/lib/rate-limit";
+import { log } from "@/lib/logger";
 
 const TYPES = ["cleaning", "towels", "maintenance", "other"];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    console.error("service request insert failed", error);
+    log.error("service_request.insert_failed", { booking_id, type }, error);
     return NextResponse.json({ error: "We couldn't send your request. Please try again." }, { status: 500 });
   }
 

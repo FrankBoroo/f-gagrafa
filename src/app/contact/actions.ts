@@ -5,6 +5,7 @@ import { contactMessageSchema, type ContactMessageInput } from "@/lib/validation
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 import { sendContactMessageNotification } from "@/lib/email";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
+import { log } from "@/lib/logger";
 
 interface SubmitArgs extends ContactMessageInput {
   honeypot?: string;
@@ -32,7 +33,7 @@ export async function submitContactMessage(input: SubmitArgs) {
   const supabase = createServiceClient();
   const { error } = await supabase.from("contact_messages").insert({ name, email, message });
   if (error) {
-    console.error("contact message insert failed", error);
+    log.error("contact.insert_failed", undefined, error);
     return { ok: false, error: "We couldn't send your message. Please try again or email us directly." };
   }
 

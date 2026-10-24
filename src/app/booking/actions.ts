@@ -4,7 +4,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { createBookingSchema, type CreateBookingInput } from "@/lib/validations";
 import { generateBookingCode } from "@/lib/types";
 import { initializePaystackTransaction } from "@/lib/paystack";
-import { sendAdminNewBookingNotification } from "@/lib/email";
+import { sendAdminNewBookingNotification, sendAdminSystemAlert } from "@/lib/email";
+import { log } from "@/lib/logger";
 import { checkPromoCode } from "@/lib/promo";
 import { canOfferDeposit, depositAmount } from "@/lib/deposit";
 import { pricingFromSettings, toChargeAmount } from "@/lib/pricing";
@@ -222,7 +223,12 @@ export async function createBookingAndInitializePayment(
     if (pricing.currency === "USD" && (error?.code === "42703" || error?.code === "PGRST204")) {
       return { ok: false, error: "Online booking is paused while we update our rates. Please contact us to book." };
     }
-    console.error("booking insert failed", error);
+    log.error("booking.insert_failed", { unit_id: data.unit_id, check_in: data.check_in, check_out: data.check_out }, error);
+    await sendAdminSystemAlert("booking.insert_failed", "A guest could not create a booking", {
+      Residence: unit.name,
+      Dates: `${data.check_in} → ${data.check_out}`,
+      "Database error": error?.code ?? "no row returned",
+    });
     return { ok: false, error: "We couldn't create your booking. Please try again or contact us." };
   }
 
@@ -253,7 +259,13 @@ export async function createBookingAndInitializePayment(
   } catch (err: any) {
     // Nothing was charged and there is nothing to pay, so release the dates right
     // away; otherwise the guest's own retry would be blocked by this dead hold.
-    console.error("Paystack initialization failed:", err);
+    log.error("payment.init_failed", { booking_code: bookingCode, amount: amountDueNow }, err);
+    await sendAdminSystemAlert("payment.init_failed", "Paystack checkout could not be started", {
+      "Booking code": bookingCode,
+      Residence: unit.name,
+      Amount: `GHS ${amountDueNow}`,
+      Note: "The booking was auto-cancelled. If this repeats, check the Paystack keys and status.",
+    });
     await supabase
       .from("bookings")
       .update({ status: "cancelled", admin_notes: "Auto-cancelled: payment could not be started" })

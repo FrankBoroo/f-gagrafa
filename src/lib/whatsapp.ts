@@ -1,5 +1,6 @@
 import "server-only";
 import { serverEnv } from "@/lib/env.server";
+import { log } from "@/lib/logger";
 
 // Sends via Twilio's WhatsApp API using plain fetch (no SDK dependency).
 // Best-effort like email.ts: guarded, never throws back to the caller.
@@ -25,7 +26,7 @@ function toWhatsAppAddress(phone: string) {
 
 export async function sendWhatsAppMessage(toPhone: string, body: string) {
   if (!isConfigured()) {
-    console.warn(`WhatsApp not configured — skipped message to ${toPhone}`);
+    log.warn("whatsapp.skipped_not_configured");
     return;
   }
 
@@ -47,10 +48,10 @@ export async function sendWhatsAppMessage(toPhone: string, body: string) {
     });
 
     if (!res.ok) {
-      console.error("Twilio WhatsApp send failed:", await res.text());
+      log.error("whatsapp.send_failed", { status: res.status, body: await res.text() });
     }
   } catch (err) {
-    console.error("Twilio WhatsApp send failed:", err);
+    log.error("whatsapp.send_failed", undefined, err);
   }
 }
 

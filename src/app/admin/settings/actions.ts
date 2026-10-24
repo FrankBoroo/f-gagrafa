@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
 import { isAdmin } from "@/lib/auth";
+import { log } from "@/lib/logger";
 
 const settingsSchema = z.object({
   id: z.string().uuid(),
@@ -55,7 +56,7 @@ export async function updatePropertySettings(input: z.infer<typeof settingsSchem
     if (error.code === "42703" || error.code === "PGRST204") {
       return { ok: false, error: "The database is missing some settings columns. Run the migrations listed in the README in the Supabase SQL Editor, then try again." };
     }
-    console.error("settings update failed", error);
+    log.error("settings.update_failed", undefined, error);
     return { ok: false, error: "Could not save settings. Please try again." };
   }
 
