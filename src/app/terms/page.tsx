@@ -1,11 +1,25 @@
+import { REFUND_TIERS } from "@/lib/booking/cancellation-policy";
+import { formatDate } from "@/lib/format";
+import { getPublicSettings } from "@/lib/site-settings";
+
 export const metadata = { title: "Terms & Conditions — The Gagrafa" };
 
-export default function TermsPage() {
+// Change this whenever the wording below changes.
+const LAST_UPDATED = "2026-10-24";
+
+function refundText(percent: number): string {
+  if (percent >= 100) return "full refund";
+  if (percent <= 0) return "non-refundable";
+  return `${percent}% refund`;
+}
+
+export default async function TermsPage() {
+  const { contact_email, pricing } = await getPublicSettings();
   return (
     <div className="container-gagrafa max-w-3xl py-24">
       <p className="text-xs uppercase tracking-[0.3em] text-champagne">Legal</p>
       <h1 className="mt-3 text-4xl md:text-5xl">Terms & Conditions</h1>
-      <p className="mt-4 text-sm text-navy/50">Last updated: {new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}</p>
+      <p className="mt-4 text-sm text-navy/50">Last updated: {formatDate(LAST_UPDATED)}</p>
 
       <div className="prose-gagrafa mt-12 space-y-10 text-navy/70">
         <Section title="1. Bookings">
@@ -19,9 +33,12 @@ export default function TermsPage() {
 
         <Section title="2. Cancellations & Refunds">
           <ul className="list-disc space-y-2 pl-5">
-            <li>7+ days before check-in: full refund.</li>
-            <li>48 hours–7 days before check-in: 50% refund.</li>
-            <li>Within 48 hours of check-in, no-shows, or after check-in: non-refundable.</li>
+            {REFUND_TIERS.map((tier) => (
+              <li key={tier.label}>
+                {tier.label}: {refundText(tier.percent)}.
+              </li>
+            ))}
+            <li>No-shows: non-refundable.</li>
           </ul>
           <p className="mt-3">
             Refund percentages apply to the amount you have actually paid, including any
@@ -36,8 +53,10 @@ export default function TermsPage() {
             processed securely through Paystack (card, Mobile Money) or, for bookings
             made directly with our team, by cash or bank transfer. Where check-in is at
             least 7 days away you may instead reserve with a deposit, shown at checkout,
-            and pay the remaining balance at check-in. Rates are quoted in Ghanaian
-            Cedis (GHS) unless otherwise stated.
+            and pay the remaining balance at check-in.{" "}
+            {pricing.currency === "USD"
+              ? "Rates are shown in US dollars (USD). Online payments are charged in Ghana cedis (GHS) at the exchange rate shown at checkout."
+              : "Rates are quoted in Ghana cedis (GHS)."}
           </p>
         </Section>
 
@@ -68,11 +87,17 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="7. Contact">
+        <Section title="7. Governing Law">
+          <p>
+            These terms are governed by the laws of the Republic of Ghana.
+          </p>
+        </Section>
+
+        <Section title="8. Contact">
           <p>
             Questions about these terms can be sent to{" "}
-            <a href="mailto:reservations@thegagrafa.com" className="text-champagne-dark underline">
-              reservations@thegagrafa.com
+            <a href={`mailto:${contact_email}`} className="text-champagne-dark underline">
+              {contact_email}
             </a>.
           </p>
         </Section>

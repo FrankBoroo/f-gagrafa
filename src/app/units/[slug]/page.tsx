@@ -101,6 +101,15 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: unit } = await supabase.from("units").select("name, short_description").eq("slug", slug).single();
-  return { title: unit ? `${unit.name} — The Gagrafa` : "The Gagrafa" };
+  const { data: unit } = await supabase.from("units").select("name, short_description, images").eq("slug", slug).single<Pick<Unit, "name" | "short_description" | "images">>();
+  if (!unit) return { title: "The Gagrafa" };
+  const title = `${unit.name} — The Gagrafa`;
+  const description = unit.short_description ?? undefined;
+  const image = unit.images?.[0];
+  return {
+    title,
+    description,
+    // Share previews use the unit's main photo; without one the site-wide image applies.
+    openGraph: { title, description, url: `/units/${slug}`, ...(image ? { images: [image] } : {}) },
+  };
 }

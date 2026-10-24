@@ -1,11 +1,22 @@
+import { formatDate } from "@/lib/format";
+import { getPublicSettings } from "@/lib/site-settings";
+
 export const metadata = { title: "Privacy Policy — The Gagrafa" };
 
-export default function PrivacyPage() {
+// Change this whenever the wording below changes.
+const LAST_UPDATED = "2026-10-24";
+
+export default async function PrivacyPage() {
+  const { contact_email } = await getPublicSettings();
   return (
     <div className="container-gagrafa max-w-3xl py-24">
       <p className="text-xs uppercase tracking-[0.3em] text-champagne">Legal</p>
       <h1 className="mt-3 text-4xl md:text-5xl">Privacy Policy</h1>
-      <p className="mt-4 text-sm text-navy/50">Last updated: {new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}</p>
+      <p className="mt-4 text-sm text-navy/50">Last updated: {formatDate(LAST_UPDATED)}</p>
+      <p className="mt-6 text-navy/70">
+        The Gagrafa handles your personal data in line with Ghana&rsquo;s Data Protection Act,
+        2012 (Act 843).
+      </p>
 
       <div className="mt-12 space-y-10 text-navy/70">
         <Section title="1. What we collect">
@@ -34,6 +45,7 @@ export default function PrivacyPage() {
             <li><strong>Supabase</strong> — our database and authentication provider, which stores your booking and account data securely</li>
             <li><strong>Resend</strong> — to deliver booking confirmation and notification emails</li>
             <li><strong>Twilio (WhatsApp)</strong> — to deliver booking confirmations by WhatsApp, where applicable</li>
+            <li><strong>Vercel</strong> — hosts this website; to limit abuse we keep a one-way hash of your IP address, never the address itself</li>
           </ul>
           <p className="mt-3">
             We do not sell guest data, and we don&rsquo;t share it with anyone beyond what&rsquo;s
@@ -54,9 +66,10 @@ export default function PrivacyPage() {
             You can request a copy of the personal data we hold about you, ask us to
             correct it, or ask us to delete it where we&rsquo;re not required to keep it, by
             emailing{" "}
-            <a href="mailto:reservations@thegagrafa.com" className="text-champagne-dark underline">
-              reservations@thegagrafa.com
-            </a>.
+            <a href={`mailto:${contact_email}`} className="text-champagne-dark underline">
+              {contact_email}
+            </a>. If you&rsquo;re not satisfied with our response, you can complain to the
+            Data Protection Commission of Ghana.
           </p>
         </Section>
 

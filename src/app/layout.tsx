@@ -19,7 +19,9 @@ const body = Inter({
   variable: "--font-body",
 });
 
+// metadataBase makes the Open Graph image (app/opengraph-image.jpg) URL absolute.
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: "The Gagrafa — Live Luxuriously, Stay Serenely",
   description:
     "Luxury serviced apartments in Spintex, Accra. Studios, one and two bedroom residences, and a signature penthouse — book direct at The Gagrafa.",
@@ -27,7 +29,10 @@ export const metadata: Metadata = {
     title: "The Gagrafa",
     description: "Live Luxuriously, Stay Serenely. Luxury serviced apartments in Spintex, Accra.",
     type: "website",
+    siteName: "The Gagrafa",
+    locale: "en_GH",
   },
+  twitter: { card: "summary_large_image" },
 };
 
 const organizationJsonLd = {
