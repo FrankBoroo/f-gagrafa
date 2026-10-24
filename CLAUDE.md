@@ -65,8 +65,10 @@ Run in this order in the Supabase SQL editor:
 5. `supabase/migration-deposits.sql`
 6. `supabase/migration-usd-pricing.sql`
 7. `supabase/migration-rate-limits.sql`
+8. `supabase/migration-rls-hardening.sql` (then run the admin/staff check at the bottom of the file)
 
-Migrations are idempotent. Never re-run all of `schema.sql` on an existing database.
+Migrations are idempotent and each ends with a `-- ROLLBACK` block. Never re-run all of `schema.sql` on an existing database.
+RLS rule: the app reads and writes through the service-role client after its own checks; RLS policies are the backstop for the public anon key, so keep them tight (no public inserts, no self-service role changes).
 
 ## Environment variables
 See `.env.example`. Needed on Vercel too: Supabase URL / anon / service-role keys, Paystack public + secret keys, Resend key and `RESEND_FROM_EMAIL` (verified domain required), Twilio (optional), `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET` (the cron route refuses to run without it), `ADMIN_NOTIFICATION_EMAIL`, `PORTAL_SESSION_SECRET` (falls back to the service-role key if unset). Add the Paystack webhook URL `/api/webhooks/paystack` in the Paystack dashboard. Vercel reads env vars at build time, so redeploy after changing them.

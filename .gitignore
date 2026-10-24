@@ -3,3 +3,6 @@ node_modules
 .env.local
 .env
 tsconfig.tsbuildinfo
+
+# Playwright MCP screenshots and logs from local browser checks
+.playwright-mcp/

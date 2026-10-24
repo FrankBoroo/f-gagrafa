@@ -85,3 +85,13 @@ alter table bookings add constraint bookings_no_overlap
     unit_id with =,
     daterange(check_in, check_out) with &&
   ) where (status <> 'cancelled' and status <> 'no_show');
+
+-- ROLLBACK
+-- This migration only adds things, so the previous app version keeps working with it in
+-- place: to undo a bad deploy, roll back the app in Vercel and leave the database alone.
+-- Only run the statements below if the schema itself must go, after rolling back the app.
+-- Removing the overlap guard re-opens double booking; prefer fixing forward.
+-- alter table bookings drop constraint if exists bookings_no_overlap;
+-- drop function if exists expire_stale_pending_bookings();
+-- Then re-create the original is_unit_available() from supabase/schema.sql (the version
+-- without the 30-minute pending-hold rule).

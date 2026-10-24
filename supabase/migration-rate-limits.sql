@@ -54,6 +54,7 @@ $$;
 
 -- Server only. Supabase grants new functions to anon/authenticated by default.
 revoke execute on function rate_limit_hit(text, text, integer, integer) from public, anon, authenticated;
+grant execute on function rate_limit_hit(text, text, integer, integer) to service_role;
 
 -- Housekeeping, called by the daily cron: no limit window is longer than a day.
 create or replace function purge_rate_limit_hits() returns integer
@@ -66,6 +67,7 @@ as $$
   select count(*)::integer from deleted;
 $$;
 revoke execute on function purge_rate_limit_hits() from public, anon, authenticated;
+grant execute on function purge_rate_limit_hits() to service_role;
 
 -- ROLLBACK (the app keeps working without these; limits simply stop applying):
 -- drop function if exists purge_rate_limit_hits();

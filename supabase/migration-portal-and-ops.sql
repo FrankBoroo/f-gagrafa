@@ -36,3 +36,17 @@ alter table unit_access_codes enable row level security;
 alter table bookings add column if not exists cancelled_at timestamptz;
 alter table bookings add column if not exists cancellation_reason text;
 alter table bookings add column if not exists refunded_amount numeric(10,2) not null default 0;
+
+-- ROLLBACK
+-- This migration only adds things, so the previous app version keeps working with it in
+-- place: to undo a bad deploy, roll back the app in Vercel and leave the database alone.
+-- Only run the statements below if the schema itself must go, after rolling back the app.
+-- DATA LOSS: drops the attempt log, door codes, Wi-Fi/house-rule settings and
+-- cancellation/refund details. Export them first.
+-- drop table if exists unit_access_codes;
+-- drop table if exists portal_access_attempts;
+-- alter table property_settings drop column if exists wifi_network, drop column if exists wifi_password,
+--   drop column if exists entry_instructions, drop column if exists house_rules,
+--   drop column if exists emergency_contact, drop column if exists reception_hours;
+-- alter table bookings drop column if exists cancelled_at, drop column if exists cancellation_reason,
+--   drop column if exists refunded_amount;

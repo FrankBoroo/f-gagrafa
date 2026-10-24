@@ -207,6 +207,10 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
 6. `supabase/migration-rate-limits.sql` — limits how often one visitor can book, check dates,
    try promo codes, send contact messages, open the guest portal or raise service requests.
    Safe to re-run. Until it is run the site works normally, just without these limits.
+7. `supabase/migration-rls-hardening.sql` — **security fix, run as soon as possible.** Stops
+   anyone who signs up from giving themselves the admin role, and closes direct database writes
+   to bookings and contact messages. Safe to re-run. Afterwards, run the check at the bottom of the
+   file and make sure only your own team has the admin or staff role.
 
 ### Guest portal, units, refunds and team
 

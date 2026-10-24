@@ -21,3 +21,10 @@ alter table gallery_items enable row level security;
 -- policies: only the server's service key (used by the admin) can add, edit or remove photos.
 drop policy if exists "gallery_items: public read" on gallery_items;
 create policy "gallery_items: public read" on gallery_items for select using (true);
+
+-- ROLLBACK
+-- This migration only adds things, so the previous app version keeps working with it in
+-- place: to undo a bad deploy, roll back the app in Vercel and leave the database alone.
+-- Only run the statements below if the schema itself must go, after rolling back the app.
+-- DATA LOSS: drops every Tour photo record (the files stay in the gallery-images bucket).
+-- drop table if exists gallery_items;
