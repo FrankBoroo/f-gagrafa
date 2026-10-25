@@ -94,6 +94,26 @@ export async function confirmPaymentByReference(
     firstConfirmation = insertError?.code !== "23505";
   }
 
+  // Cancelled by a person (staff, or on the guest's request) while the guest still had
+  // Paystack open. `cancelled_at` is only set by a person, never by the 30-minute hold
+  // expiry, so this never brings back a booking someone chose to cancel. Keep the money
+  // on record and leave the refund to a person.
+  if (booking.cancelled_at) {
+    const reason = "PAID AFTER CANCELLATION — the booking was cancelled before this payment arrived. Refund the guest in full, or rebook them if they still want to stay.";
+    await supabase
+      .from("bookings")
+      .update({
+        payment_status: paidInFull ? "paid" : "partial",
+        admin_notes: [booking.admin_notes, reason].filter(Boolean).join("\n"),
+      })
+      .eq("id", booking.id);
+    log.error("payment.paid_after_cancellation", { booking_code: reference, first: firstConfirmation });
+    if (firstConfirmation) {
+      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", reason);
+    }
+    return { outcome: "needs_review", booking };
+  }
+
   const { data: updatedBooking, error: updateError } = await supabase
     .from("bookings")
     .update({ status: "confirmed", payment_status: paidInFull ? "paid" : "partial" })

@@ -56,7 +56,11 @@ export default async function BookingSuccessPage({
       <StatusScreen
         icon={<HelpCircle className="text-champagne" size={48} />}
         title="Payment received — we need to confirm your dates"
-        body="Your payment went through, but your dates were released while it was processing and have since been booked. Our team has been alerted and will contact you shortly with other dates or a full refund. Please keep your booking code."
+        body={
+          result.booking.cancelled_at
+            ? "Your payment went through, but this booking had already been cancelled. Our team has been alerted and will contact you shortly to refund you in full or help you rebook. Please keep your booking code."
+            : "Your payment went through, but your dates were released while it was processing and have since been booked. Our team has been alerted and will contact you shortly with other dates or a full refund. Please keep your booking code."
+        }
         code={result.booking.booking_code}
         ctaHref="/contact"
         ctaLabel="Contact us"

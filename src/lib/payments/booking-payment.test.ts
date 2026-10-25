@@ -195,6 +195,36 @@ describe("confirmPaymentByReference", () => {
     expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
   });
 
+  it("records but never confirms a payment for a booking staff cancelled before it was paid", async () => {
+    mocks.db.booking = pendingBooking({ status: "cancelled", cancelled_at: "2026-11-02T00:00:00Z" });
+
+    expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+    expect(paymentInserts()).toHaveLength(1);
+    expect(bookingUpdates()).toHaveLength(1);
+    const flag = bookingUpdates()[0].payload;
+    expect(flag).not.toHaveProperty("status");
+    expect(flag.payment_status).toBe("paid");
+    expect(String(flag.admin_notes)).toContain("PAID AFTER CANCELLATION");
+    expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.sendWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("alerts about a payment after cancellation only once (webhook and success page race)", async () => {
+    mocks.db.booking = pendingBooking({ status: "cancelled", cancelled_at: "2026-11-02T00:00:00Z" });
+    mocks.db.insertError = { code: "23505", message: "duplicate key value" };
+
+    expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+    expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
+  });
+
+  it("still confirms a hold that only expired (auto-cancelled, dates still free)", async () => {
+    mocks.db.booking = pendingBooking({ status: "cancelled", cancelled_at: null });
+
+    expect((await confirmPaymentByReference(REF)).outcome).toBe("paid");
+    expect(bookingUpdates()[0].payload).toEqual({ status: "confirmed", payment_status: "paid" });
+  });
+
   it("does not notify twice when the payment row already exists", async () => {
     mocks.db.existingPayment = { id: "payment-1" };
 

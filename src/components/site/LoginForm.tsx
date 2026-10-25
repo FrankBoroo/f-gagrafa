@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 export function LoginForm() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export function LoginForm() {
       toast.error(error.message);
       return;
     }
-    router.push(params.get("next") ?? "/admin");
+    router.push(safeNextPath(params.get("next")));
     router.refresh();
   }
 
