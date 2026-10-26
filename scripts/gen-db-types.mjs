@@ -24,6 +24,7 @@ const SQL_FILES = [
   "migration-usd-pricing.sql",
   "migration-rate-limits.sql",
   "migration-rls-hardening.sql",
+  "migration-admin-only-writes.sql",
 ];
 
 // The pieces of Supabase that the SQL files lean on.

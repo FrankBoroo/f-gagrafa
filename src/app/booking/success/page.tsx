@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
 import { formatMoney } from "@/lib/format";
+import { isOverLimit } from "@/lib/rate-limit";
 
 // Paystack redirects here with ?reference=<our booking code>&trxref=<same>.
 // We verify server-side (never trust the redirect alone) before showing success.
@@ -21,6 +22,25 @@ export default async function BookingSuccessPage({
         body="If you completed a payment, check your email for confirmation, or look up your stay in the Guest Portal using your booking code."
         ctaHref="/portal"
         ctaLabel="Go to Guest Portal"
+      />
+    );
+  }
+
+  // Every visit costs a database lookup and a Paystack call, so junk references and
+  // repeated reloads stop here. The webhook still confirms a real payment either way.
+  const malformed = reference.length > 40 || !/^[A-Za-z0-9-]+$/.test(reference);
+  if (malformed || (await isOverLimit("paymentCheck"))) {
+    return (
+      <StatusScreen
+        icon={<HelpCircle className="text-navy/40" size={48} />}
+        title={malformed ? "Booking not found" : "Please wait a moment"}
+        body={
+          malformed
+            ? "We couldn't find a booking matching this reference. Contact us if you believe a payment was taken."
+            : "We've had a lot of requests from you just now. If you completed a payment it is still being confirmed, and a confirmation will reach your email. You can also look up your stay in the Guest Portal in a few minutes."
+        }
+        ctaHref={malformed ? "/contact" : "/portal"}
+        ctaLabel={malformed ? "Contact us" : "Go to Guest Portal"}
       />
     );
   }

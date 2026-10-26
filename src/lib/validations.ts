@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 export const guestDetailsSchema = z.object({
-  guest_name: z.string().min(2, "Enter your full name"),
-  guest_email: z.string().email("Enter a valid email"),
-  guest_phone: z.string().min(9, "Enter a valid phone number"),
+  guest_name: z.string().trim().min(2, "Enter your full name").max(100, "Name is too long"),
+  guest_email: z.string().trim().max(254, "Email is too long").email("Enter a valid email"),
+  guest_phone: z.string().trim().min(9, "Enter a valid phone number").max(30, "Enter a valid phone number"),
   special_requests: z.string().max(1000).optional(),
 });
 export type GuestDetails = z.infer<typeof guestDetailsSchema>;
@@ -12,9 +12,10 @@ export const createBookingSchema = guestDetailsSchema.extend({
   unit_id: z.string().uuid("Select a residence"),
   check_in: z.string().min(1, "Select a check-in date"),
   check_out: z.string().min(1, "Select a check-out date"),
-  adults: z.coerce.number().int().min(1, "At least 1 adult"),
-  children: z.coerce.number().int().min(0).default(0),
-  promo_code: z.string().optional(),
+  // The residence's own max_guests is checked in the booking action; 30 is the most any can sleep.
+  adults: z.coerce.number().int().min(1, "At least 1 adult").max(30),
+  children: z.coerce.number().int().min(0).max(30).default(0),
+  promo_code: z.string().max(40).optional(),
   payment_option: z.enum(["full", "deposit"]).default("full"),
   honeypot: z.string().optional(),
   renderedAt: z.number().optional(),

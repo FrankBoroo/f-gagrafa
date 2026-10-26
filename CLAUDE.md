@@ -69,6 +69,7 @@ Run in this order in the Supabase SQL editor:
 6. `supabase/migration-usd-pricing.sql`
 7. `supabase/migration-rate-limits.sql`
 8. `supabase/migration-rls-hardening.sql` (then run the admin/staff check at the bottom of the file)
+9. `supabase/migration-admin-only-writes.sql` (promo codes, settings, payments: staff read, admin write)
 
 Migrations are idempotent and each ends with a `-- ROLLBACK` block. The Supabase clients are typed with the generated `Database` type, so a query on a column that isn't in the SQL files fails the type check. Never re-run all of `schema.sql` on an existing database.
 RLS rule: the app reads and writes through the service-role client after its own checks; RLS policies are the backstop for the public anon key, so keep them tight (no public inserts, no self-service role changes).

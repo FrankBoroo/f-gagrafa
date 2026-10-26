@@ -16,6 +16,8 @@ export const RATE_LIMITS = {
   contact: { max: 5, windowSeconds: 10 * 60 },
   portal: { max: 20, windowSeconds: 15 * 60 },
   serviceRequest: { max: 10, windowSeconds: 60 * 60 },
+  // The booking success page asks Paystack about the payment on every visit.
+  paymentCheck: { max: 30, windowSeconds: 10 * 60 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

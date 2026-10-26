@@ -213,6 +213,9 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
    anyone who signs up from giving themselves the admin role, and closes direct database writes
    to bookings and contact messages. Safe to re-run. Afterwards, run the check at the bottom of the
    file and make sure only your own team has the admin or staff role.
+8. `supabase/migration-admin-only-writes.sql` — security fix: only admins can change promo codes,
+   Settings and payment records directly in the database (staff can still view them, and staff
+   "Record payment" keeps working). Safe to re-run.
 
 ### Guest portal, units, refunds and team
 

@@ -15,6 +15,7 @@ import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam-protection";
 import { siteUrl } from "@/lib/env";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
+import { guestCountError, stayDatesError } from "@/lib/booking/stay-limits";
 
 // Preview only: the booking itself recomputes the discount from server-side prices.
 export async function previewPromoCode(code: string, subtotal: number) {
@@ -37,24 +38,11 @@ export async function checkUnitsAvailability(
   checkIn: string,
   checkOut: string
 ): Promise<AvailabilityResult> {
-  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRe.test(checkIn) || !dateRe.test(checkOut)) {
+  if (typeof checkIn !== "string" || typeof checkOut !== "string") {
     return { ok: false, error: "Choose valid dates" };
   }
-
-  const start = new Date(checkIn);
-  const end = new Date(checkOut);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return { ok: false, error: "Choose valid dates" };
-  }
-  if (end <= start) return { ok: false, error: "Check-out must be after check-in" };
-  if (checkIn < new Date().toISOString().slice(0, 10)) {
-    return { ok: false, error: "Check-in can't be in the past" };
-  }
-  const nights = Math.round((end.getTime() - start.getTime()) / 86_400_000);
-  if (nights > 365) {
-    return { ok: false, error: "Online bookings are limited to 365 nights — contact us for longer stays" };
-  }
+  const datesError = stayDatesError(checkIn, checkOut);
+  if (datesError) return { ok: false, error: datesError };
   if (await isOverLimit("availability")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const supabase = createServiceClient();
@@ -101,21 +89,22 @@ export async function createBookingAndInitializePayment(
 
   if (await isOverLimit("booking")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
-  if (data.check_in < new Date().toISOString().slice(0, 10)) {
-    return { ok: false, error: "Check-in can't be in the past" };
-  }
+  const datesError = stayDatesError(data.check_in, data.check_out);
+  if (datesError) return { ok: false, error: datesError };
 
   const supabase = createServiceClient();
 
   const { data: unit } = await supabase
     .from("units")
-    .select("id, name, base_price_per_night, is_active")
+    .select("id, name, base_price_per_night, is_active, max_guests")
     .eq("id", data.unit_id)
     .single();
 
   if (!unit || !unit.is_active) {
     return { ok: false, error: "This residence is no longer available" };
   }
+  const guestsError = guestCountError(data.adults, data.children, unit.max_guests);
+  if (guestsError) return { ok: false, error: guestsError };
 
   if (await isRateLimited("bookings", data.guest_email)) {
     return { ok: false, error: "Too many booking attempts from this email recently — please try again shortly, or contact us for help." };
