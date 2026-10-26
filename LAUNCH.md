@@ -4,7 +4,7 @@ Steps that live in dashboards, not in the code. Tick each one off before pointin
 
 ## 1. Domain and site URL
 - [ ] Pick the production domain and add it in Vercel → Project → Settings → Domains.
-- [ ] Set `NEXT_PUBLIC_SITE_URL` to the full **https** URL, no trailing slash (e.g. `https://www.thegagrafa.com`). On 2026-10-24 production served `Sitemap: http://my-gagrafa.vercel.app/sitemap.xml`, so the variable is currently set with `http://`. It feeds the Paystack callback, magic links, sitemap and share previews.
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to the full **https** URL, no trailing slash (e.g. `https://www.thegagrafa.com`). Fixed for the Vercel URL on 2026-10-25 (robots.txt shows `https://my-gagrafa.vercel.app/sitemap.xml`); set it again for the real domain. It feeds the Paystack callback, magic links, sitemap and share previews.
 - [ ] Redeploy after any env change (Vercel reads them at build time).
 
 ## 2. Email (Resend)
@@ -35,4 +35,7 @@ Every name in `.env.example` that applies: Supabase URL / anon / service-role ke
 - **Database:** each migration in `supabase/` ends with a `-- ROLLBACK` block. Migrations are additive, so the previous app version keeps working against the new schema; roll the app back first and the database only if needed.
 
 ## 9. Checklist items left open in CLAUDE.md
-#2 reset link expiry, #5 Supabase sign-in rate limits, #8 uptime monitor on `/api/health` and Vercel error alerts.
+- [x] #2 reset link expiry (done 2026-10-26)
+- [x] #5 Supabase sign-in rate limits (done 2026-10-26, 429 confirmed)
+- [x] #8 uptime monitor on `/api/health` (done 2026-10-26). Vercel error alerts need the Pro plan; on Hobby we rely on the uptime monitor plus the app's admin alert emails.
+- [ ] When the real domain goes live, point the uptime monitor at it.

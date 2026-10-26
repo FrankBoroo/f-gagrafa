@@ -7,11 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Luxury serviced apartments, Spintex / Community 20, Accra. Tagline: "Live Luxuriously, Stay Serenely".
 Three parts in one Next.js app: public direct-booking site, guest portal, admin/property dashboard.
 
-## Open pre-deployment items (owner to check in dashboards)
-Left open on 2026-10-23 when Phase 0 shipped. They are not in the code, so they can't be verified from the repo; ask the owner before marking them Pass.
-- [ ] **#2 Password reset**: Supabase → Authentication → Email: set link (OTP) expiry to 1800 s or less. Invite/recovery links are made only by admins in `src/app/admin/team/actions.ts`.
-- [ ] **#5 Rate limiting**: Supabase → Authentication → Rate Limits: confirm sign-in limits are on (login is `signInWithPassword` in `src/components/site/LoginForm.tsx`). Public actions (booking, availability, promo, contact, portal, service requests) are limited per visitor in `src/lib/rate-limit.ts` once `migration-rate-limits.sql` has been run.
-- [ ] **#8 Monitoring**: add an uptime monitor (UptimeRobot / Better Stack) on `/api/health`, and Vercel error alerts. In code: payment mismatches, paid-but-unconfirmed bookings, failed booking inserts and failed Paystack checkouts email the admin (`sendAdminSystemAlert` / `sendAdminPaymentConflictAlert`, needs a working Resend key), and every failure is a JSON line in the Vercel logs via `src/lib/logger.ts`. Server down still needs the external monitor.
+## Pre-deployment dashboard items (owner-confirmed 2026-10-26)
+These live in the Supabase / Vercel dashboards, not the code. The owner confirmed them on 2026-10-26.
+- [x] **#2 Password reset**: Supabase → Authentication → Email: Email OTP expiration set to 1800 s or less (this also applies to Team invite links). Invite/recovery links are made only by admins in `src/app/admin/team/actions.ts`.
+- [x] **#5 Rate limiting**: Supabase → Authentication → Rate Limits is on. Tested 2026-10-26: repeated wrong logins from one IP got `429 over_request_rate_limit` at the 45th attempt (Supabase enforces somewhat above the dashboard number; supabase/auth#2333). `LoginForm.tsx` shows the message as a toast. Public actions (booking, availability, promo, contact, portal, service requests, payment check) are limited per visitor in `src/lib/rate-limit.ts`.
+- [x] **#8 Monitoring**: external uptime monitor on `/api/health` (owner set up). Vercel is on Hobby, so Vercel Alerts (Pro only) aren't available; accepted gap, covered by the uptime monitor plus the app's own alerts: payment mismatches, paid-but-unconfirmed bookings, failed booking inserts and failed Paystack checkouts email the admin (`sendAdminSystemAlert` / `sendAdminPaymentConflictAlert`, needs a working Resend key), and every failure is a JSON line in the Vercel logs via `src/lib/logger.ts`. Move the monitor to the real domain when it goes live.
 
 ## Stack
 - Next.js 15.5 App Router, TypeScript (strict), Tailwind (navy / champagne / ivory / sand palette), Playfair Display + Inter
