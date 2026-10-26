@@ -16,6 +16,7 @@ import { isHoneypotTripped, isSubmittedTooFast, isRateLimited } from "@/lib/spam
 import { siteUrl } from "@/lib/env";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { guestCountError, stayDatesError } from "@/lib/booking/stay-limits";
+import { rememberCheckout } from "@/lib/checkout-session";
 
 // Preview only: the booking itself recomputes the discount from server-side prices.
 export async function previewPromoCode(code: string, subtotal: number) {
@@ -259,9 +260,12 @@ export async function createBookingAndInitializePayment(
         unit_name: unit.name,
         payment_option: data.payment_option,
         amount_due_now: amountDueNow,
+        // Where Paystack sends the guest who closes the checkout: frees their dates at once.
+        cancel_action: `${site}/booking/cancelled?reference=${bookingCode}`,
       },
     });
 
+    await rememberCheckout(bookingCode);
     return { ok: true, authorization_url: transaction.authorization_url, booking_code: bookingCode };
   } catch (err: any) {
     // Nothing was charged and there is nothing to pay, so release the dates right

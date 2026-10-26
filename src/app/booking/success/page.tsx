@@ -1,8 +1,10 @@
-import Link from "next/link";
+import { BookingStatusScreen } from "@/components/site/BookingStatusScreen";
 import { CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
 import { formatMoney } from "@/lib/format";
 import { isOverLimit } from "@/lib/rate-limit";
+import { isOwnCheckout } from "@/lib/checkout-session";
+import { rebookHref, releaseUnpaidHold } from "@/lib/payments/release-hold";
 
 // Paystack redirects here with ?reference=<our booking code>&trxref=<same>.
 // We verify server-side (never trust the redirect alone) before showing success.
@@ -16,7 +18,7 @@ export default async function BookingSuccessPage({
 
   if (!reference) {
     return (
-      <StatusScreen
+      <BookingStatusScreen
         icon={<HelpCircle className="text-navy/40" size={48} />}
         title="No booking reference found"
         body="If you completed a payment, check your email for confirmation, or look up your stay in the Guest Portal using your booking code."
@@ -31,7 +33,7 @@ export default async function BookingSuccessPage({
   const malformed = reference.length > 40 || !/^[A-Za-z0-9-]+$/.test(reference);
   if (malformed || (await isOverLimit("paymentCheck"))) {
     return (
-      <StatusScreen
+      <BookingStatusScreen
         icon={<HelpCircle className="text-navy/40" size={48} />}
         title={malformed ? "Booking not found" : "Please wait a moment"}
         body={
@@ -49,7 +51,7 @@ export default async function BookingSuccessPage({
 
   if (result.outcome === "not_found") {
     return (
-      <StatusScreen
+      <BookingStatusScreen
         icon={<XCircle className="text-red-500" size={48} />}
         title="Booking not found"
         body="We couldn't find a booking matching this reference. Contact us if you believe a payment was taken."
@@ -60,20 +62,26 @@ export default async function BookingSuccessPage({
   }
 
   if (result.outcome === "failed") {
+    // The guest's own browser: free the dates now so they can try again straight away.
+    const release = (await isOwnCheckout(reference)) ? await releaseUnpaidHold(reference) : null;
     return (
-      <StatusScreen
+      <BookingStatusScreen
         icon={<XCircle className="text-red-500" size={48} />}
         title="Payment not completed"
-        body="Your payment wasn't completed, so you haven't been charged. We hold your dates for about 30 minutes, then release them. You're welcome to start a new booking whenever you're ready."
-        ctaHref="/booking"
-        ctaLabel="Start a new booking"
+        body={
+          release?.outcome === "released"
+            ? "Your payment wasn't completed, so you haven't been charged. You can try again with the same dates now, or choose different ones."
+            : "Your payment wasn't completed, so you haven't been charged. We hold your dates for about 30 minutes, then release them. You're welcome to start a new booking whenever you're ready."
+        }
+        ctaHref={release?.outcome === "released" ? rebookHref(release.booking) : "/booking"}
+        ctaLabel={release?.outcome === "released" ? "Try again" : "Start a new booking"}
       />
     );
   }
 
   if (result.outcome === "needs_review") {
     return (
-      <StatusScreen
+      <BookingStatusScreen
         icon={<HelpCircle className="text-champagne" size={48} />}
         title="Payment received — we need to confirm your dates"
         body={
@@ -90,7 +98,7 @@ export default async function BookingSuccessPage({
 
   if (result.outcome === "closed") {
     return (
-      <StatusScreen
+      <BookingStatusScreen
         icon={<HelpCircle className="text-navy/40" size={48} />}
         title="This booking has been cancelled"
         body="This booking was cancelled, so there's nothing more to pay. If you were refunded, it can take 5–10 business days to appear. Contact us if you have any questions."
@@ -106,7 +114,7 @@ export default async function BookingSuccessPage({
   const balance = Math.max(Number(booking.total_amount) - (deposit || Number(booking.total_amount)), 0);
 
   return (
-    <StatusScreen
+    <BookingStatusScreen
       icon={<CheckCircle2 className="text-champagne" size={48} />}
       title={isDeposit ? "Reservation Confirmed" : "Booking Confirmed"}
       body={
@@ -118,32 +126,5 @@ export default async function BookingSuccessPage({
       ctaHref={`/portal?code=${result.booking.booking_code}`}
       ctaLabel="Go to Guest Portal"
     />
-  );
-}
-
-function StatusScreen({
-  icon, title, body, code, ctaHref, ctaLabel,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  code?: string;
-  ctaHref: string;
-  ctaLabel: string;
-}) {
-  return (
-    <div className="container-gagrafa flex min-h-[70vh] max-w-xl flex-col items-center py-24 text-center">
-      {icon}
-      <h1 className="mt-6 text-3xl">{title}</h1>
-      <p className="mt-4 text-navy/60">{body}</p>
-      {code && (
-        <p className="mt-6 rounded-full border border-champagne/40 bg-champagne/10 px-6 py-3 font-display text-xl tracking-wide">
-          {code}
-        </p>
-      )}
-      <Link href={ctaHref} className="btn-primary mt-10">
-        {ctaLabel}
-      </Link>
-    </div>
   );
 }

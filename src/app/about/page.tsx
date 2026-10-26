@@ -22,7 +22,7 @@ export default function AboutPage() {
     <div>
       <section className="relative h-[50vh] w-full">
         <Image
-          src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c"
+          src="/tour/open-plan-living.jpg"
           alt="The Gagrafa residence interior"
           fill
           priority
