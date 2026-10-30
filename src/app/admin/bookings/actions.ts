@@ -11,14 +11,15 @@ import {
 import { refundPaystackTransaction } from "@/lib/payments/paystack";
 import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify/email";
 import { generateBookingCode } from "@/lib/booking/codes";
-import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
+import { releaseStaleHolds } from "@/lib/booking/availability";
+import { chooseRoomForNewDates, freeRoomsForType, tryRoomsInOrder } from "@/lib/booking/rooms";
 import { calculateNights } from "@/lib/booking/dates";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { formatMoney } from "@/lib/format";
 import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { logAudit } from "@/lib/audit";
 import { isStaff, isAdmin, UNAUTHORIZED } from "@/lib/auth";
-import type { TablesUpdate } from "@/types/database";
+import type { Tables, TablesUpdate } from "@/types/database";
 
 export async function updateBookingStatus(bookingId: string, status: string) {
   if (!(await isStaff())) return UNAUTHORIZED;
@@ -80,12 +81,13 @@ export async function createManualBooking(input: ManualBookingInput) {
   // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
   await releaseStaleHolds(supabase);
 
-  const available = await isUnitAvailable(supabase, {
+  const rooms = await freeRoomsForType(supabase, {
     unitId: data.unit_id,
     checkIn: data.check_in,
     checkOut: data.check_out,
   });
-  if (!available) return { ok: false, error: "Not available for the selected dates" };
+  if (rooms === null) return { ok: false, error: "We couldn't check availability. Please try again." };
+  if (!rooms.length) return { ok: false, error: "Not available for the selected dates" };
 
   const nights = calculateNights(data.check_in, data.check_out);
   // Same rule as online bookings: price in the Settings currency, store and charge cedis.
@@ -98,30 +100,34 @@ export async function createManualBooking(input: ManualBookingInput) {
   }
   const bookingCode = generateBookingCode();
 
-  const { data: booking, error } = await supabase
-    .from("bookings")
-    .insert({
-      booking_code: bookingCode,
-      unit_id: data.unit_id,
-      check_in: data.check_in,
-      check_out: data.check_out,
-      adults: data.adults,
-      children: data.children,
-      guest_name: data.guest_name,
-      guest_email: data.guest_email,
-      guest_phone: data.guest_phone,
-      special_requests: data.special_requests,
-      admin_notes: data.admin_notes,
-      total_amount: totalAmount,
-      currency: "GHS",
-      status: "confirmed",
-      payment_status: data.mark_as_paid ? "paid" : "unpaid",
-      ...(pricing.currency === "USD"
-        ? { display_currency: "USD", display_total: priceTotal, exchange_rate: pricing.usdToGhsRate }
-        : {}),
-    })
-    .select()
-    .single();
+  const { data: booking, error } = await tryRoomsInOrder<Tables<"bookings">>(rooms.map((room) => room.id), (roomId) =>
+    supabase
+      .from("bookings")
+      .insert({
+        booking_code: bookingCode,
+        unit_id: data.unit_id,
+        room_id: roomId,
+        room_confirmed: false,
+        check_in: data.check_in,
+        check_out: data.check_out,
+        adults: data.adults,
+        children: data.children,
+        guest_name: data.guest_name,
+        guest_email: data.guest_email,
+        guest_phone: data.guest_phone,
+        special_requests: data.special_requests,
+        admin_notes: data.admin_notes,
+        total_amount: totalAmount,
+        currency: "GHS",
+        status: "confirmed",
+        payment_status: data.mark_as_paid ? "paid" : "unpaid",
+        ...(pricing.currency === "USD"
+          ? { display_currency: "USD", display_total: priceTotal, exchange_rate: pricing.usdToGhsRate }
+          : {}),
+      })
+      .select()
+      .single()
+  );
 
   if (error || !booking) {
     if (error?.code === "23P01") {
@@ -328,13 +334,15 @@ export async function updateBookingDates(input: BookingDatesInput) {
   }
 
   await releaseStaleHolds(supabase);
-  const available = await isUnitAvailable(supabase, {
+  const rooms = await freeRoomsForType(supabase, {
     unitId: booking.unit_id,
     checkIn: check_in,
     checkOut: check_out,
     excludeBookingId: booking.id, // don't let the booking clash with itself
   });
-  if (!available) return { ok: false, error: "Those dates aren't available for this residence." };
+  if (rooms === null) return { ok: false, error: "We couldn't check availability. Please try again." };
+  const room = chooseRoomForNewDates(rooms, booking.room_id);
+  if (!room) return { ok: false, error: "Those dates aren't available for this residence." };
 
   const { data: payments } = await supabase.from("payments").select("amount, status").eq("booking_id", bookingId);
   const paid = netPaid(payments);
@@ -350,7 +358,14 @@ export async function updateBookingDates(input: BookingDatesInput) {
 
   const { data: updated, error } = await supabase
     .from("bookings")
-    .update({ check_in, check_out, total_amount, payment_status: paymentStatus })
+    .update({
+      check_in,
+      check_out,
+      total_amount,
+      payment_status: paymentStatus,
+      room_id: room.roomId,
+      room_confirmed: room.moved ? false : booking.room_confirmed,
+    })
     .eq("id", bookingId)
     .select("*, units(name)")
     .single();
@@ -362,8 +377,8 @@ export async function updateBookingDates(input: BookingDatesInput) {
   await sendBookingChangedEmail(updated ?? booking, (booking as any).units?.name ?? "your residence");
   await logAudit("booking.dates_changed", "booking", bookingId, {
     booking_code: booking.booking_code,
-    from: { check_in: booking.check_in, check_out: booking.check_out, total: booking.total_amount },
-    to: { check_in, check_out, total: total_amount },
+    from: { check_in: booking.check_in, check_out: booking.check_out, total: booking.total_amount, room: booking.room_id },
+    to: { check_in, check_out, total: total_amount, room: room.roomId },
   });
   refreshBookingPages(booking.booking_code);
   return { ok: true };

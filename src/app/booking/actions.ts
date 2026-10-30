@@ -3,7 +3,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { createBookingSchema, type CreateBookingInput } from "@/lib/validations";
 import { generateBookingCode } from "@/lib/booking/codes";
-import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
+import { releaseStaleHolds } from "@/lib/booking/availability";
+import { freeRoomsForType, tryRoomsInOrder } from "@/lib/booking/rooms";
 import { calculateNights } from "@/lib/booking/dates";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { initializePaystackTransaction } from "@/lib/payments/paystack";
@@ -18,6 +19,7 @@ import { siteUrl } from "@/lib/env";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { guestCountError, stayDatesError } from "@/lib/booking/stay-limits";
 import { rememberCheckout } from "@/lib/checkout-session";
+import type { Tables } from "@/types/database";
 
 // Preview only: the booking itself recomputes the discount from server-side prices.
 export async function previewPromoCode(code: string, subtotal: number) {
@@ -52,10 +54,10 @@ export async function checkUnitsAvailability(
 
   const entries = await Promise.all(
     (units ?? []).map(async (u: { id: string }) => {
-      const available = await isUnitAvailable(supabase, { unitId: u.id, checkIn, checkOut });
+      const rooms = await freeRoomsForType(supabase, { unitId: u.id, checkIn, checkOut });
       // Fail open: if the lookup itself errors, don't wrongly grey a unit out.
       // The payment-time check is the one that actually decides.
-      return [u.id, available ?? true] as [string, boolean];
+      return [u.id, rooms === null || rooms.length > 0] as [string, boolean];
     })
   );
 
@@ -115,13 +117,16 @@ export async function createBookingAndInitializePayment(
   // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
   await releaseStaleHolds(supabase);
 
-  const available = await isUnitAvailable(supabase, {
+  const rooms = await freeRoomsForType(supabase, {
     unitId: data.unit_id,
     checkIn: data.check_in,
     checkOut: data.check_out,
   });
 
-  if (!available) {
+  if (rooms === null) {
+    return { ok: false, error: "We couldn't check availability. Please try again." };
+  }
+  if (!rooms.length) {
     return { ok: false, error: "This residence is not available for the selected dates" };
   }
 
@@ -185,34 +190,38 @@ export async function createBookingAndInitializePayment(
 
   const bookingCode = generateBookingCode();
 
-  const { data: booking, error } = await supabase
-    .from("bookings")
-    .insert({
-      booking_code: bookingCode,
-      unit_id: data.unit_id,
-      check_in: data.check_in,
-      check_out: data.check_out,
-      adults: data.adults,
-      children: data.children,
-      guest_name: data.guest_name,
-      guest_email: data.guest_email,
-      guest_phone: data.guest_phone,
-      special_requests: data.special_requests,
-      total_amount: chargeTotal,
-      currency: "GHS",
-      status: isFree ? "confirmed" : "pending",
-      payment_status: isFree ? "paid" : "unpaid",
-      ...(freePromo ? { admin_notes: freeStayNote(freePromo) } : {}),
-      promo_code: appliedPromoCode,
-      discount_amount: chargeDiscount,
-      ...(depositDue !== null ? { deposit_amount: depositDue } : {}),
-      // Only set for USD pricing, so cedi bookings keep working before migration-usd-pricing.sql runs.
-      ...(pricing.currency === "USD"
-        ? { display_currency: "USD", display_total: totalAmount, exchange_rate: pricing.usdToGhsRate }
-        : {}),
-    })
-    .select()
-    .single();
+  const { data: booking, error } = await tryRoomsInOrder<Tables<"bookings">>(rooms.map((room) => room.id), (roomId) =>
+    supabase
+      .from("bookings")
+      .insert({
+        booking_code: bookingCode,
+        unit_id: data.unit_id,
+        room_id: roomId,
+        room_confirmed: false,
+        check_in: data.check_in,
+        check_out: data.check_out,
+        adults: data.adults,
+        children: data.children,
+        guest_name: data.guest_name,
+        guest_email: data.guest_email,
+        guest_phone: data.guest_phone,
+        special_requests: data.special_requests,
+        total_amount: chargeTotal,
+        currency: "GHS",
+        status: isFree ? "confirmed" : "pending",
+        payment_status: isFree ? "paid" : "unpaid",
+        ...(freePromo ? { admin_notes: freeStayNote(freePromo) } : {}),
+        promo_code: appliedPromoCode,
+        discount_amount: chargeDiscount,
+        ...(depositDue !== null ? { deposit_amount: depositDue } : {}),
+        // Only set for USD pricing, so cedi bookings keep working before migration-usd-pricing.sql runs.
+        ...(pricing.currency === "USD"
+          ? { display_currency: "USD", display_total: totalAmount, exchange_rate: pricing.usdToGhsRate }
+          : {}),
+      })
+      .select()
+      .single()
+  );
 
   if (error || !booking) {
     if (freePromo) await releasePromoUse(freePromo);
