@@ -1,18 +1,16 @@
-// The cancellation tiers promised on the FAQ and Terms pages, in one place so the
-// guest portal estimate and the admin refund dialog can never disagree with them.
+// The cancellation rule promised on the FAQ and Terms pages, in one place so the
+// guest portal estimate and the admin refund dialog can never disagree with it.
 // Pure functions only (no server-only imports): used from server and client code.
 
-export interface RefundTier {
-  minDaysBefore: number;
-  percent: number;
-  label: string;
-}
+export const FREE_CANCELLATION_HOURS = 72;
+export const CHECK_IN_HOUR_UTC = 14; // 2 PM in Ghana, which is UTC+0
 
-export const REFUND_TIERS: RefundTier[] = [
-  { minDaysBefore: 7, percent: 100, label: "7 or more days before check-in" },
-  { minDaysBefore: 2, percent: 50, label: "2 to 6 days before check-in" },
-  { minDaysBefore: -Infinity, percent: 0, label: "Within 48 hours of check-in, or after check-in" },
+export const CANCELLATION_POLICY: string[] = [
+  "Cancel more than 72 hours before check-in (2 PM on your arrival day) for a full refund of what you've paid.",
+  "Cancel within 72 hours of check-in, or don't arrive, and one night is charged; the rest of what you've paid is refunded.",
 ];
+
+const roundToPesewa = (amount: number) => Math.round(amount * 100) / 100;
 
 // Whole days from today until check-in (UTC dates; Ghana is UTC+0). Negative once it has started.
 export function daysUntilCheckIn(checkIn: string, now: Date = new Date()): number {
@@ -22,11 +20,21 @@ export function daysUntilCheckIn(checkIn: string, now: Date = new Date()): numbe
   return Math.round((start - today) / 86_400_000);
 }
 
-export function refundPercentFor(checkIn: string, now: Date = new Date()): number {
-  const days = daysUntilCheckIn(checkIn, now);
-  return (REFUND_TIERS.find((tier) => days >= tier.minDaysBefore) ?? REFUND_TIERS[REFUND_TIERS.length - 1]).percent;
+export function isFreeCancellation(checkIn: string, now: Date = new Date()): boolean {
+  const [y, m, d] = checkIn.split("-").map(Number);
+  const deadline = Date.UTC(y, m - 1, d, CHECK_IN_HOUR_UTC) - FREE_CANCELLATION_HOURS * 3_600_000;
+  return now.getTime() < deadline;
 }
 
-export function suggestedRefund(amountPaid: number, checkIn: string, now: Date = new Date()): number {
-  return Math.round(amountPaid * refundPercentFor(checkIn, now)) / 100;
+export function oneNightCharge(booking: { total_amount: number; nights: number }): number {
+  return roundToPesewa(Number(booking.total_amount) / booking.nights);
+}
+
+export function suggestedRefund(
+  amountPaid: number,
+  booking: { check_in: string; total_amount: number; nights: number },
+  now: Date = new Date()
+): number {
+  if (isFreeCancellation(booking.check_in, now)) return amountPaid;
+  return roundToPesewa(Math.max(amountPaid - oneNightCharge(booking), 0));
 }

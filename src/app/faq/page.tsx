@@ -1,3 +1,5 @@
+import { CANCELLATION_POLICY } from "@/lib/booking/cancellation-policy";
+
 export const metadata = { title: "FAQ — The Gagrafa" };
 
 const faqs = [
@@ -7,7 +9,7 @@ const faqs = [
   },
   {
     q: "What's your cancellation policy?",
-    a: "Cancellations made at least 7 days before check-in receive a full refund. Cancellations within 7 days are refunded 50%, and bookings cancelled within 48 hours of check-in or after check-in are non-refundable. Refunds are returned to the original payment method within 5–10 business days.",
+    a: `${CANCELLATION_POLICY.join(" ")} Refunds are returned to the original payment method within 5–10 business days.`,
   },
   {
     q: "Is parking available?",
@@ -23,11 +25,11 @@ const faqs = [
   },
   {
     q: "Can I reserve with a deposit?",
-    a: "Yes. When your check-in is at least 7 days away you can choose to pay a deposit now (shown at checkout) to reserve your dates, and pay the remaining balance at check-in. If your check-in is sooner than 7 days away, payment in full is required. Refunds follow our cancellation policy and are based on the amount you've actually paid.",
+    a: "Yes. You can choose to pay a down payment now (shown at checkout) to reserve your dates, and pay the rest before or on arrival. Refunds follow our cancellation policy and are based on the amount you've actually paid.",
   },
   {
     q: "Is there a minimum stay?",
-    a: "Most residences have a 2-night minimum. Monthly rates are available for stays of 21 nights or longer — contact us for a quote.",
+    a: "You can book from one night. Monthly rates apply automatically to stays of 30 nights or more, on every apartment except the Studio.",
   },
   {
     q: "Do you offer airport pickup?",

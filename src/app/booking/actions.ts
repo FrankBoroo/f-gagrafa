@@ -168,14 +168,13 @@ export async function createBookingAndInitializePayment(
   }
 
   // Optional deposit: pay part now, the rest at check-in. Decided here on the server, never
-  // trusted from the browser: the percentage comes from Settings, and it's only offered when
-  // check-in is far enough away.
+  // trusted from the browser: the percentage comes from Settings.
   let amountDueNow = chargeTotal;
   let depositDue: number | null = null;
   if (data.payment_option === "deposit" && !isFree) {
     const percent = Number(settingsRow?.deposit_percent ?? 0);
-    if (!canOfferDeposit(data.check_in, percent)) {
-      return { ok: false, error: "A deposit isn't available for these dates. Please pay in full." };
+    if (!canOfferDeposit(percent)) {
+      return { ok: false, error: "A down payment isn't available right now. Please pay in full." };
     }
     depositDue = depositAmount(chargeTotal, percent);
     if (depositDue <= 0 || depositDue >= chargeTotal) {

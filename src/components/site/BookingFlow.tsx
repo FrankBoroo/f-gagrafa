@@ -67,11 +67,10 @@ export function BookingFlow({
   const canContinue =
     Boolean(unit) && nights > 0 && guests >= 1 && !checking && selectedBlockReason === null;
 
-  // Deposit option (shown on step 3, only for stays far enough ahead). The server re-checks
+  // Deposit option (shown on step 3). The server re-checks
   // the same rules from `lib/deposit.ts`, so this only decides what the guest sees.
   const deposit = depositAmount(total, depositPercent);
-  const depositOffered =
-    Boolean(checkIn) && canOfferDeposit(checkIn, depositPercent) && deposit > 0 && deposit < total;
+  const depositOffered = canOfferDeposit(depositPercent) && deposit > 0 && deposit < total;
   const payingDeposit = depositOffered && paymentOption === "deposit";
   const dueNow = payingDeposit ? deposit : total;
 

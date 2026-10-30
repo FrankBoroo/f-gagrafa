@@ -1,4 +1,4 @@
-import { REFUND_TIERS } from "@/lib/booking/cancellation-policy";
+import { CANCELLATION_POLICY } from "@/lib/booking/cancellation-policy";
 import { formatDate } from "@/lib/format";
 import { getPublicSettings } from "@/lib/site-settings";
 
@@ -6,12 +6,6 @@ export const metadata = { title: "Terms & Conditions — The Gagrafa" };
 
 // Change this whenever the wording below changes.
 const LAST_UPDATED = "2026-10-24";
-
-function refundText(percent: number): string {
-  if (percent >= 100) return "full refund";
-  if (percent <= 0) return "non-refundable";
-  return `${percent}% refund`;
-}
 
 export default async function TermsPage() {
   const { contact_email, pricing } = await getPublicSettings();
@@ -33,16 +27,13 @@ export default async function TermsPage() {
 
         <Section title="2. Cancellations & Refunds">
           <ul className="list-disc space-y-2 pl-5">
-            {REFUND_TIERS.map((tier) => (
-              <li key={tier.label}>
-                {tier.label}: {refundText(tier.percent)}.
-              </li>
+            {CANCELLATION_POLICY.map((line) => (
+              <li key={line}>{line}</li>
             ))}
-            <li>No-shows: non-refundable.</li>
           </ul>
           <p className="mt-3">
-            Refund percentages apply to the amount you have actually paid, including any
-            deposit. Refunds are issued to the original payment method and may take 5–10 business
+            Refunds are based on the amount you have actually paid, including any down
+            payment. Refunds are issued to the original payment method and may take 5–10 business
             days to reflect, depending on your bank or Mobile Money provider.
           </p>
         </Section>
@@ -51,9 +42,9 @@ export default async function TermsPage() {
           <p>
             Full payment is required at the time of booking to confirm a reservation,
             processed securely through Paystack (card, Mobile Money) or, for bookings
-            made directly with our team, by cash or bank transfer. Where check-in is at
-            least 7 days away you may instead reserve with a deposit, shown at checkout,
-            and pay the remaining balance at check-in.{" "}
+            made directly with our team, by cash or bank transfer. You may instead reserve
+            with a down payment, shown at checkout, and pay the remaining balance before or
+            on arrival.{" "}
             {pricing.currency === "USD"
               ? "Rates are shown in US dollars (USD). Online payments are charged in Ghana cedis (GHS) at the exchange rate shown at checkout."
               : "Rates are quoted in Ghana cedis (GHS)."}

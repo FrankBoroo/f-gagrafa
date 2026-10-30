@@ -9,7 +9,7 @@ import { asResult } from "@/lib/action-result";
 import { addDays, calculateNights } from "@/lib/booking/dates";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
 import { stayPrice, unitRates, usesMonthlyRate } from "@/lib/booking/stay-price";
-import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/booking/cancellation-policy";
+import { daysUntilCheckIn, isFreeCancellation, suggestedRefund } from "@/lib/booking/cancellation-policy";
 import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
 
 interface DialogProps {
@@ -171,8 +171,9 @@ export function CancelRefundDialog({ booking, open, onClose, isAdmin }: DialogPr
   const payments: any[] = booking.payments ?? [];
   const canUsePaystack = payments.some((p) => p.method === "paystack" && p.status === "success" && p.paystack_reference);
 
-  // Suggest what the published policy gives; for an already-cancelled booking suggest the full balance.
-  const suggestion = alreadyCancelled ? paid : suggestedRefund(paid, booking.check_in);
+  // Suggest what the published policy gives; for a cancelled booking suggest the full balance
+  // (a no-show still pays one night).
+  const suggestion = booking.status === "cancelled" ? paid : suggestedRefund(paid, booking);
   const canRefund = paid > 0 && isAdmin;
 
   const [choice, setChoice] = useState<"none" | "paystack" | "manual">(
@@ -217,7 +218,7 @@ export function CancelRefundDialog({ booking, open, onClose, isAdmin }: DialogPr
         {!alreadyCancelled && paid > 0 && (
           <Row
             label={days >= 0 ? `Policy: ${days} day${days === 1 ? "" : "s"} before check-in` : "Policy: stay has started"}
-            value={`${refundPercentFor(booking.check_in)}% = ${formatMoney(suggestedRefund(paid, booking.check_in), booking.currency)}`}
+            value={`${isFreeCancellation(booking.check_in) ? "Full refund" : "One night kept"} = ${formatMoney(suggestedRefund(paid, booking), booking.currency)}`}
           />
         )}
       </div>

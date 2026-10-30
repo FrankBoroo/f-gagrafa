@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import { bookedPriceSuffix } from "@/lib/booking/pricing";
 import { hasPortalAccess } from "@/lib/portal-session";
-import { REFUND_TIERS, refundPercentFor } from "@/lib/booking/cancellation-policy";
+import { CANCELLATION_POLICY, suggestedRefund } from "@/lib/booking/cancellation-policy";
 import { ServiceRequestForm } from "@/components/site/ServiceRequestForm";
 import { ReviewForm } from "@/components/site/ReviewForm";
 import { CancellationRequest } from "@/components/site/CancellationRequest";
@@ -78,7 +78,7 @@ export default async function PortalDetailPage({
   const cancellationRequested = Boolean(cancelRequests && cancelRequests.length > 0);
 
   const canRequestCancellation = status === "pending" || status === "confirmed";
-  const refundPercent = refundPercentFor(booking.check_in);
+  const refundEstimate = suggestedRefund(paidNet, { ...booking, nights: booking.nights ?? 1 });
   const wasPaid = paidNet > 0.005;
   const refundedAmount = Number(booking.refunded_amount ?? 0);
 
@@ -179,20 +179,15 @@ export default async function PortalDetailPage({
               <h2 className="text-2xl">Need to cancel?</h2>
               <div className="card mt-4 p-6 text-sm text-navy/70">
                 <ul className="space-y-1">
-                  {REFUND_TIERS.map((tier) => (
-                    <li key={tier.label} className="flex justify-between gap-4">
-                      <span>{tier.label}</span>
-                      <span className="shrink-0 text-navy">{tier.percent}% refund</span>
-                    </li>
+                  {CANCELLATION_POLICY.map((line) => (
+                    <li key={line}>{line}</li>
                   ))}
                 </ul>
                 {wasPaid ? (
                   <p className="mt-4 border-t border-navy/10 pt-4">
                     If you cancel today you&rsquo;d be refunded{" "}
-                    <strong>
-                      {formatMoney((paidNet * refundPercent) / 100, booking.currency)}
-                    </strong>{" "}
-                    ({refundPercent}% of the {formatMoney(paidNet, booking.currency)} you&rsquo;ve paid).
+                    <strong>{formatMoney(refundEstimate, booking.currency)}</strong>{" "}
+                    of the {formatMoney(paidNet, booking.currency)} you&rsquo;ve paid.
                   </p>
                 ) : (
                   <p className="mt-4 border-t border-navy/10 pt-4">

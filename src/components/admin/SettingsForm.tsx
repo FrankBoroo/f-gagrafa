@@ -111,9 +111,8 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       <div className="card space-y-4 p-6">
         <h2 className="text-lg">Deposits</h2>
         <p className="text-sm text-navy/50">
-          Guests can reserve by paying this share of the total now and the rest at check-in. It&rsquo;s only
-          offered when check-in is at least 7 days away; closer than that, guests pay in full. Set 0 to
-          turn deposits off.
+          Guests can reserve by paying this share of the total now and the rest at check-in. It&rsquo;s
+          offered on every stay. Set 0 to turn deposits off.
         </p>
         <div>
           <label className="text-sm text-navy/60" htmlFor="deposit-percent">Deposit (% of the total)</label>
