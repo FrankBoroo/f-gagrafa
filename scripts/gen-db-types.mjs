@@ -15,25 +15,10 @@ import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Same order as "Database" in CLAUDE.md.
-const SQL_FILES = [
-  "schema.sql",
-  "migration-booking-safety.sql",
-  "migration-portal-and-ops.sql",
-  "migration-tour-gallery.sql",
-  "migration-deposits.sql",
-  "migration-usd-pricing.sql",
-  "migration-rate-limits.sql",
-  "migration-rls-hardening.sql",
-  "migration-admin-only-writes.sql",
-];
+const SQL_FILES = JSON.parse(readFileSync(join(root, "supabase", "sql-files.json"), "utf8"));
 
 // The pieces of Supabase that the SQL files lean on.
-const SUPABASE_STUB = `
-  create role anon; create role authenticated; create role service_role;
-  create schema auth;
-  create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
-  create function auth.uid() returns uuid language sql stable as 'select null::uuid';
-`;
+const SUPABASE_STUB = readFileSync(join(root, "scripts", "supabase-stub.sql"), "utf8");
 
 const db = new PGlite({ extensions: { btree_gist } });
 await db.exec(SUPABASE_STUB);
@@ -103,6 +88,9 @@ const functions = await rows(`
          p.pronargdefaults as default_count, p.proretset as returns_set,
          array(select t.typname from unnest(p.proargtypes) with ordinality as x(oid, i)
                join pg_type t on t.oid = x.oid order by x.i) as arg_types,
+         array(select a.name || ':' || t.typname
+               from unnest(p.proargnames, p.proargmodes::text[], p.proallargtypes) as a(name, mode, oid)
+               join pg_type t on t.oid = a.oid where a.mode = 't') as table_columns,
          rt.typname as return_type
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
@@ -180,7 +168,11 @@ const functionLines = functions.map((fn) => {
   const names = fn.arg_names ?? [];
   const firstDefault = fn.arg_count - fn.default_count;
   const args = fn.arg_types.map((type, i) => `${key(names[i] ?? `arg${i}`)}${i >= firstDefault ? "?" : ""}: ${tsType(type)}`);
-  const returns = tsType(fn.return_type) + (fn.returns_set ? "[]" : "");
+  // `returns table (...)` reports its return type as "record"; its columns are the 't' arguments.
+  const row = fn.table_columns.length
+    ? `{ ${fn.table_columns.map((c) => { const [name, type] = c.split(":"); return `${key(name)}: ${tsType(type)}`; }).join("; ")} }`
+    : tsType(fn.return_type);
+  const returns = row + (fn.returns_set ? "[]" : "");
   return `${key(fn.name)}: ${block([`Args: ${args.length ? block(args) : "never"}`, `Returns: ${returns}`])}`;
 });
 

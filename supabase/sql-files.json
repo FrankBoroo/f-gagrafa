@@ -1,0 +1,12 @@
+[
+  "schema.sql",
+  "migration-booking-safety.sql",
+  "migration-portal-and-ops.sql",
+  "migration-tour-gallery.sql",
+  "migration-deposits.sql",
+  "migration-usd-pricing.sql",
+  "migration-rate-limits.sql",
+  "migration-rls-hardening.sql",
+  "migration-admin-only-writes.sql",
+  "migration-rooms.sql"
+]

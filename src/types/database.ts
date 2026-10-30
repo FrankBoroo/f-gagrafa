@@ -62,6 +62,7 @@ export type Database = {
           end_date: string
           id: string
           reason: string | null
+          room_id: string | null
           start_date: string
           unit_id: string
         }
@@ -69,6 +70,7 @@ export type Database = {
           end_date: string
           id?: string
           reason?: string | null
+          room_id?: string | null
           start_date: string
           unit_id: string
         }
@@ -76,10 +78,18 @@ export type Database = {
           end_date?: string
           id?: string
           reason?: string | null
+          room_id?: string | null
           start_date?: string
           unit_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "blocked_dates_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "blocked_dates_unit_id_fkey"
             columns: ["unit_id"]
@@ -117,6 +127,8 @@ export type Database = {
           refunded_amount: number
           reminder_sent_at: string | null
           review_request_sent_at: string | null
+          room_confirmed: boolean
+          room_id: string | null
           special_requests: string | null
           status: Database["public"]["Enums"]["booking_status"]
           total_amount: number
@@ -150,6 +162,8 @@ export type Database = {
           refunded_amount?: number
           reminder_sent_at?: string | null
           review_request_sent_at?: string | null
+          room_confirmed?: boolean
+          room_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount: number
@@ -183,6 +197,8 @@ export type Database = {
           refunded_amount?: number
           reminder_sent_at?: string | null
           review_request_sent_at?: string | null
+          room_confirmed?: boolean
+          room_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_amount?: number
@@ -195,6 +211,13 @@ export type Database = {
             columns: ["guest_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
             referencedColumns: ["id"]
           },
           {
@@ -510,6 +533,38 @@ export type Database = {
           },
         ]
       }
+      rooms: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          number: number
+          unit_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          number: number
+          unit_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          number?: number
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_requests: {
         Row: {
           booking_id: string
@@ -586,6 +641,7 @@ export type Database = {
           images: Json
           is_active: boolean
           max_guests: number
+          monthly_price: number | null
           name: string
           short_description: string | null
           size_sqm: number | null
@@ -605,6 +661,7 @@ export type Database = {
           images?: Json
           is_active?: boolean
           max_guests?: number
+          monthly_price?: number | null
           name: string
           short_description?: string | null
           size_sqm?: number | null
@@ -624,6 +681,7 @@ export type Database = {
           images?: Json
           is_active?: boolean
           max_guests?: number
+          monthly_price?: number | null
           name?: string
           short_description?: string | null
           size_sqm?: number | null
@@ -647,11 +705,29 @@ export type Database = {
         Args: never
         Returns: number
       }
+      free_rooms_for_type: {
+        Args: {
+          p_unit_id: string
+          p_check_in: string
+          p_check_out: string
+          p_exclude_booking_id?: string
+        }
+        Returns: { id: string; number: number }[]
+      }
       increment_promo_usage: {
         Args: {
           p_code: string
         }
         Returns: undefined
+      }
+      is_room_available: {
+        Args: {
+          p_room_id: string
+          p_check_in: string
+          p_check_out: string
+          p_exclude_booking_id?: string
+        }
+        Returns: boolean
       }
       is_staff: {
         Args: never
