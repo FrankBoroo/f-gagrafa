@@ -26,6 +26,7 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
     short_description: unit.short_description ?? "",
     description: unit.description ?? "",
     base_price_per_night: Number(unit.base_price_per_night),
+    monthly_price: unit.monthly_price === null ? null : Number(unit.monthly_price),
     max_guests: unit.max_guests,
     bedrooms: unit.bedrooms,
     bathrooms: Number(unit.bathrooms),

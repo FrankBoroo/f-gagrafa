@@ -37,6 +37,11 @@ export const unitUpdateSchema = z.object({
   name: z.string().min(2, "Name is required"),
   short_description: z.string().max(300).optional().nullable(),
   base_price_per_night: z.coerce.number().positive("Price must be greater than 0"),
+  // Blank means this type has no monthly rate.
+  monthly_price: z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.coerce.number().positive("Monthly price must be greater than 0").nullable().optional()
+  ),
   max_guests: z.coerce.number().int().min(1, "At least 1 guest"),
   is_active: z.coerce.boolean(),
 });
@@ -50,6 +55,11 @@ export const unitDetailsSchema = z.object({
   short_description: z.string().trim().max(300),
   description: z.string().trim().max(3000),
   base_price_per_night: z.coerce.number().positive("Price must be greater than 0"),
+  // Blank means this type has no monthly rate.
+  monthly_price: z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.coerce.number().positive("Monthly price must be greater than 0").nullable().optional()
+  ),
   max_guests: z.coerce.number().int().min(1, "At least 1 guest").max(30),
   bedrooms: z.coerce.number().int().min(0).max(20),
   bathrooms: z.coerce.number().min(0).max(20),

@@ -5,6 +5,7 @@ import { createBookingSchema, type CreateBookingInput } from "@/lib/validations"
 import { generateBookingCode } from "@/lib/booking/codes";
 import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
 import { calculateNights } from "@/lib/booking/dates";
+import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { initializePaystackTransaction } from "@/lib/payments/paystack";
 import { sendAdminNewBookingNotification, sendAdminSystemAlert } from "@/lib/notify/email";
 import { log } from "@/lib/logger";
@@ -97,7 +98,7 @@ export async function createBookingAndInitializePayment(
 
   const { data: unit } = await supabase
     .from("units")
-    .select("id, name, base_price_per_night, is_active, max_guests")
+    .select("id, name, base_price_per_night, monthly_price, is_active, max_guests")
     .eq("id", data.unit_id)
     .single();
 
@@ -130,7 +131,7 @@ export async function createBookingAndInitializePayment(
   const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
   const pricing = pricingFromSettings(settingsRow);
 
-  const subtotal = nights * Number(unit.base_price_per_night);
+  const subtotal = stayPrice(nights, unitRates(unit));
 
   let totalAmount = subtotal;
   let appliedPromoCode: string | null = null;

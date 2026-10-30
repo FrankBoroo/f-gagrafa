@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/format";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import type { Unit } from "@/lib/types";
 import type { PriceCurrency } from "@/lib/booking/pricing";
+import { stayPrice, unitRates, usesMonthlyRate } from "@/lib/booking/stay-price";
 
 export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency?: PriceCurrency }) {
   const router = useRouter();
@@ -30,7 +31,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
     return n > 0 ? n : 0;
   }, [checkIn, checkOut]);
 
-  const total = nights * unit.base_price_per_night;
+  const total = stayPrice(nights, unitRates(unit));
 
   function goToBooking() {
     const params = new URLSearchParams({
@@ -86,7 +87,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
       {nights > 0 && (
         <div className="mt-5 space-y-2 border-t border-navy/10 pt-5 text-sm text-navy/70">
           <div className="flex justify-between">
-            <span>{formatMoney(unit.base_price_per_night, currency)} × {nights} nights</span>
+            <span>{usesMonthlyRate(nights, unit.monthly_price) ? `Monthly rate, ${nights} nights` : `${formatMoney(unit.base_price_per_night, currency)} × ${nights} nights`}</span>
             <span>{formatMoney(total, currency)}</span>
           </div>
           <div className="flex justify-between text-base text-navy">

@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/format";
 import { asResult } from "@/lib/action-result";
 import { addDays, calculateNights } from "@/lib/booking/dates";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
+import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/booking/cancellation-policy";
 import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
 
@@ -37,11 +38,11 @@ export function EditDatesDialog({ booking, open, onClose, pricing }: DialogProps
   const [total, setTotal] = useState<number>(Number(booking.total_amount));
 
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
-  const rate = Number(booking.units?.base_price_per_night ?? 0);
+  const price = booking.units ? stayPrice(nights, unitRates(booking.units)) : 0;
   // The total is in cedis. A booking made with USD prices keeps its own rate; otherwise use today's.
   const bookingRate = Number(booking.exchange_rate) || null;
   const suggested =
-    toChargeAmount(nights * rate, bookingRate ? { currency: "USD", usdToGhsRate: bookingRate } : pricing) ?? 0;
+    toChargeAmount(price, bookingRate ? { currency: "USD", usdToGhsRate: bookingRate } : pricing) ?? 0;
   const paid = Number(booking.net_paid ?? 0);
   const balance = total - paid;
 

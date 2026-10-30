@@ -17,6 +17,7 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
     name: unit.name,
     short_description: unit.short_description ?? "",
     base_price_per_night: unit.base_price_per_night,
+    monthly_price: unit.monthly_price,
     max_guests: unit.max_guests,
   });
   const [isActive, setIsActive] = useState(unit.is_active);
@@ -38,6 +39,8 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
       name: unit.name,
       short_description: unit.short_description ?? "",
       base_price_per_night: unit.base_price_per_night,
+      monthly_price: unit.monthly_price,
+    monthly_price: unit.monthly_price,
       max_guests: unit.max_guests,
     });
     setEditing(false);
@@ -104,7 +107,7 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
         <p className="mt-2 text-sm text-navy/60">{unit.short_description}</p>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-navy/10 pt-4 text-sm sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-navy/10 pt-4 text-sm sm:grid-cols-5">
         <div>
           <p className="text-xs uppercase tracking-widest text-navy/40">Price / night ({currency})</p>
           {editing ? (
@@ -117,6 +120,20 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
             />
           ) : (
             <p>{formatMoney(unit.base_price_per_night, currency)}</p>
+          )}
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-widest text-navy/40">Price / month ({currency})</p>
+          {editing ? (
+            <input
+              type="number"
+              min={0}
+              value={form.monthly_price ?? ""}
+              onChange={(e) => setForm({ ...form, monthly_price: e.target.value === "" ? null : Number(e.target.value) })}
+              className="mt-1 w-full rounded-lg border border-navy/15 px-2 py-1"
+            />
+          ) : (
+            <p>{unit.monthly_price ? formatMoney(unit.monthly_price, currency) : "—"}</p>
           )}
         </div>
         <div>

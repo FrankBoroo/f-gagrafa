@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import type { PriceCurrency } from "@/lib/booking/pricing";
+import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import type { Unit } from "@/lib/types";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -213,7 +214,7 @@ function UnitOption({
           {nights > 0 && (
             <p className="text-sm text-navy/70">
               {nights} night{nights === 1 ? "" : "s"} ·{" "}
-              <span className="text-navy">{formatMoney(nights * unit.base_price_per_night, currency)}</span>
+              <span className="text-navy">{formatMoney(stayPrice(nights, unitRates(unit)), currency)}</span>
             </p>
           )}
         </div>

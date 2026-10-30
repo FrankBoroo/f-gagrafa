@@ -20,7 +20,7 @@ export default async function AdminBookingsPage({
 
   let query = supabase
     .from("bookings")
-    .select("*, units(name, base_price_per_night), payments(amount, status, method, paystack_reference)")
+    .select("*, units(name, base_price_per_night, monthly_price), payments(amount, status, method, paystack_reference)")
     .order("created_at", { ascending: false });
 
   const status = oneOf(Constants.public.Enums.booking_status, params.status);

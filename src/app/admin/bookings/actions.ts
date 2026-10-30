@@ -13,6 +13,7 @@ import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify
 import { generateBookingCode } from "@/lib/booking/codes";
 import { isUnitAvailable, releaseStaleHolds } from "@/lib/booking/availability";
 import { calculateNights } from "@/lib/booking/dates";
+import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { formatMoney } from "@/lib/format";
 import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { logAudit } from "@/lib/audit";
@@ -70,7 +71,7 @@ export async function createManualBooking(input: ManualBookingInput) {
 
   const { data: unit } = await supabase
     .from("units")
-    .select("id, name, base_price_per_night")
+    .select("id, name, base_price_per_night, monthly_price")
     .eq("id", data.unit_id)
     .single();
 
@@ -90,7 +91,7 @@ export async function createManualBooking(input: ManualBookingInput) {
   // Same rule as online bookings: price in the Settings currency, store and charge cedis.
   const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
   const pricing = pricingFromSettings(settingsRow);
-  const priceTotal = nights * Number(unit.base_price_per_night);
+  const priceTotal = stayPrice(nights, unitRates(unit));
   const totalAmount = toChargeAmount(priceTotal, pricing);
   if (totalAmount === null) {
     return { ok: false, error: "Prices are set to USD but there's no exchange rate. Add one in Settings first." };

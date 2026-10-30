@@ -12,6 +12,7 @@ import type { Unit } from "@/lib/types";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
+import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
 import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
 
@@ -60,7 +61,7 @@ export function BookingFlow({
 
   const unit = units.find((u) => u.id === unitId);
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
-  const subtotal = unit ? nights * unit.base_price_per_night : 0;
+  const subtotal = unit ? stayPrice(nights, unitRates(unit)) : 0;
   const total = promoStatus.applied ? Math.max(subtotal - promoStatus.applied.discountAmount, 0) : subtotal;
   const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability) : null;
   const canContinue =

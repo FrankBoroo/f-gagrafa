@@ -14,6 +14,7 @@ export interface UnitFormValues {
   short_description: string;
   description: string;
   base_price_per_night: number;
+  monthly_price: number | null;
   max_guests: number;
   bedrooms: number;
   bathrooms: number;
@@ -37,6 +38,7 @@ const EMPTY: UnitFormValues = {
   short_description: "",
   description: "",
   base_price_per_night: 0,
+  monthly_price: null,
   max_guests: 2,
   bedrooms: 1,
   bathrooms: 1,
@@ -130,6 +132,14 @@ export function UnitForm({
             type="number" min={1} step="any" required
             value={form.base_price_per_night || ""}
             onChange={(e) => update("base_price_per_night", Number(e.target.value))}
+            className={inputClass}
+          />
+        </Field>
+        <Field label={`Price per month (${currency})`} hint="For stays of 30 nights or more. Blank for none.">
+          <input
+            type="number" min={1} step="any"
+            value={form.monthly_price ?? ""}
+            onChange={(e) => update("monthly_price", e.target.value === "" ? null : Number(e.target.value))}
             className={inputClass}
           />
         </Field>
