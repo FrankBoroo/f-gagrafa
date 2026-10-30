@@ -40,7 +40,6 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
       short_description: unit.short_description ?? "",
       base_price_per_night: unit.base_price_per_night,
       monthly_price: unit.monthly_price,
-    monthly_price: unit.monthly_price,
       max_guests: unit.max_guests,
     });
     setEditing(false);

@@ -8,7 +8,7 @@ import { formatMoney } from "@/lib/format";
 import { asResult } from "@/lib/action-result";
 import { addDays, calculateNights } from "@/lib/booking/dates";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
-import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { stayPrice, unitRates, usesMonthlyRate } from "@/lib/booking/stay-price";
 import { daysUntilCheckIn, refundPercentFor, suggestedRefund } from "@/lib/booking/cancellation-policy";
 import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
 
@@ -84,9 +84,9 @@ export function EditDatesDialog({ booking, open, onClose, pricing }: DialogProps
       <div className="mt-4">
         <label className="text-sm text-navy/60">New total ({booking.currency})</label>
         <input type="number" min={0} step="any" value={total} onChange={(e) => setTotal(Number(e.target.value))} className={inputClass} />
-        {rate > 0 && nights > 0 && (
+        {price > 0 && nights > 0 && (
           <p className="mt-1 text-xs text-navy/50">
-            {nights} night{nights === 1 ? "" : "s"} at the standard rate = {formatMoney(suggested, booking.currency)}
+            {nights} night{nights === 1 ? "" : "s"} at {booking.units && usesMonthlyRate(nights, booking.units.monthly_price) ? "the monthly" : "the standard"} rate = {formatMoney(suggested, booking.currency)}
             {booking.promo_code ? " (before this booking's promo discount)" : ""}.{" "}
             <button type="button" className="underline" onClick={() => setTotal(suggested)}>Use this</button>
           </p>
