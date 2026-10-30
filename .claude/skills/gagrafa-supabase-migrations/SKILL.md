@@ -17,9 +17,9 @@ Never tell anyone to re-run all of `schema.sql` on an existing database (it fail
 - Add indexes only for queries that need them (lookups, filters, joins, sorts).
 
 ## Booking integrity (do not weaken)
-- `is_unit_available()` ignores unpaid pending holds older than 30 minutes.
+- `is_room_available()` ignores unpaid pending holds older than 30 minutes; `free_rooms_for_type()` lists the free rooms of a type.
 - `expire_stale_pending_bookings()` cancels stale holds.
-- GiST exclusion constraint `bookings_no_overlap` blocks overlapping bookings (error 23P01). Handle 23P01 in actions with a friendly "dates just taken" message.
+- GiST exclusion constraint `bookings_no_room_overlap` blocks overlapping bookings per room (error 23P01). Handle 23P01 in actions with a friendly "dates just taken" message.
 - `booking_code` is unique and doubles as the Paystack reference.
 
 ## RLS
@@ -29,7 +29,7 @@ Never tell anyone to re-run all of `schema.sql` on an existing database (it fail
 
 ## Client code
 - `await createClient()` (async) in server code; browser client only in client components.
-- Row types come from `src/types/database.ts`, generated from the SQL files by `npm run db:types` (`scripts/gen-db-types.mjs`, runs them in PGlite). After adding a migration, add it to `SQL_FILES` in that script, regenerate, and commit the result. Never hand-write row types; use `Tables<"x">`, `TablesInsert`, `TablesUpdate`, `Enums` and `Constants`.
+- Row types come from `src/types/database.ts`, generated from the SQL files by `npm run db:types` (`scripts/gen-db-types.mjs`, runs them in PGlite). After adding a migration, add it to `supabase/sql-files.json`, regenerate, and commit the result. Never hand-write row types; use `Tables<"x">`, `TablesInsert`, `TablesUpdate`, `Enums` and `Constants`.
 - Photo uploads: browser → Supabase Storage via signed upload URL (avoids Vercel's ~4.5 MB body limit).
 
 ## Verify

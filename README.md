@@ -216,6 +216,7 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
 8. `supabase/migration-admin-only-writes.sql` — security fix: only admins can change promo codes,
    Settings and payment records directly in the database (staff can still view them, and staff
    "Record payment" keeps working). Safe to re-run.
+9. `supabase/migration-rooms.sql` — the 13 rooms, per-room double-booking guard and monthly prices. Run it with the `redesign` deploy, not before, then `supabase/reset-and-seed.sql` if you are wiping the database (it **deletes all bookings, payments, units and rooms**).
 
 ### Guest portal, units, refunds and team
 
@@ -225,7 +226,7 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
 - **Unit photos** upload straight from the browser to Supabase Storage (the `unit-images`
   bucket is created automatically on first upload), and are shrunk in the browser first.
   Door codes are stored in their own locked table, never on the public `units` table.
-- **Cancellations & refunds** follow the tiers on the FAQ/Terms pages
+- **Cancellations & refunds** follow the 72-hour rule on the FAQ/Terms pages
   (`src/lib/booking/cancellation-policy.ts`). Only admins can refund; refunds can go back through
   Paystack or be recorded as paid out by hand. Guests can *request* a cancellation from the portal.
 - **Team** (`/admin/team`, admin only) creates invite links on your own domain, so no Supabase
@@ -239,11 +240,11 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
   upload photos, add captions, reorder them. Photos upload straight from the browser to the
   `gallery-images` bucket (created automatically). Each residence page also has a gallery with a
   full-screen viewer.
-- **Deposits**: when check-in is at least 7 days away, guests can reserve by paying a share of
+- **Deposits**: on every stay, guests can reserve by paying a share of
   the total now (50% by default, change it in Admin → Settings; 0 turns it off) and pay the rest
   at check-in. Staff record the balance with "Record payment" on the booking. The rules live in
   `src/lib/booking/deposit.ts`, and the server re-checks them whatever the browser sends. Refunds apply
-  the usual cancellation tiers to whatever has actually been paid.
+  the usual cancellation rule to whatever has actually been paid.
 
 ### Next.js 15 notes
 

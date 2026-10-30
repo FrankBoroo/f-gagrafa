@@ -13,7 +13,7 @@ description: Use when touching booking creation, Paystack payments, webhooks, re
 - Prices and totals are computed on the server only; never accept an amount from the client.
 
 ## Refunds and cancellation
-- Tiers (`src/lib/booking/cancellation-policy.ts`): 100% refund at 7+ days before check-in, 50% at 2-6 days, 0% otherwise.
+- Rule (`src/lib/booking/cancellation-policy.ts`): more than 72 hours before check-in (2 PM) is a full refund of what was paid; within 72 hours, after check-in or a no-show keeps one night, never below 0.
 - Refunds are stored as negative `payments` rows with status `refunded`. Net paid = sum of `success` + `refunded` rows.
 - Only admins refund; staff can cancel. Both log to the audit log.
 
@@ -40,4 +40,4 @@ description: Use when touching booking creation, Paystack payments, webhooks, re
 - Results go through `asResult()` for a uniform shape.
 
 ## Tests to keep green
-Payment confirmation scenarios (paid, failed, duplicate webhook, paid after expiry, refunded booking), refund tiers, price/nights maths, deposit maths. Add a test with every change to this area.
+Payment confirmation scenarios (paid, failed, duplicate webhook, paid after expiry, refunded booking), the 72-hour refund rule, price/nights maths, deposit maths. Add a test with every change to this area.
