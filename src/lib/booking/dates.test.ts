@@ -20,6 +20,12 @@ describe("defaultCheckOut", () => {
     expect(defaultCheckOut("2026-11-10", "2026-11-05")).toBe("2026-11-11");
   });
 
+  it("respects a minimum stay", () => {
+    expect(defaultCheckOut("2026-11-10", "", 2)).toBe("2026-11-12");
+    expect(defaultCheckOut("2026-11-10", "2026-11-11", 2)).toBe("2026-11-12");
+    expect(defaultCheckOut("2026-11-10", "2026-11-12", 2)).toBe("2026-11-12");
+  });
+
   it("keeps a later check-out the guest already picked", () => {
     expect(defaultCheckOut("2026-11-10", "2026-11-14")).toBe("2026-11-14");
   });

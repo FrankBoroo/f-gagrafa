@@ -6,7 +6,7 @@ const TODAY = "2026-10-26";
 describe("stayDatesError", () => {
   it("accepts an ordinary stay", () => {
     expect(stayDatesError("2026-11-10", "2026-11-14", TODAY)).toBeNull();
-    expect(stayDatesError(TODAY, "2026-10-27", TODAY)).toBeNull();
+    expect(stayDatesError(TODAY, "2026-10-28", TODAY)).toBeNull();
   });
 
   it("refuses dates that aren't real calendar days", () => {
@@ -18,6 +18,11 @@ describe("stayDatesError", () => {
   it("refuses check-out on or before check-in, and check-in in the past", () => {
     expect(stayDatesError("2026-11-10", "2026-11-10", TODAY)).toMatch(/after check-in/);
     expect(stayDatesError("2026-10-25", "2026-10-28", TODAY)).toMatch(/past/);
+  });
+
+  it("needs at least 2 nights", () => {
+    expect(stayDatesError("2026-11-10", "2026-11-11", TODAY)).toMatch(/2 nights/);
+    expect(stayDatesError("2026-11-10", "2026-11-12", TODAY)).toBeNull();
   });
 
   it("caps the length of a stay at 365 nights", () => {

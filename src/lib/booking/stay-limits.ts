@@ -1,7 +1,8 @@
 import { addDays, calculateNights, toISODate } from "@/lib/booking/dates";
 
-// Longest stay and furthest check-in that can be booked online. Longer or later stays go
-// through the team, so a single request can't hold a residence for years.
+// Shortest and longest stay, and furthest check-in, that can be booked online. Anything else
+// goes through the team, so a single request can't hold a residence for years.
+export const MIN_NIGHTS = 2;
 export const MAX_NIGHTS = 365;
 export const MAX_DAYS_AHEAD = 730;
 
@@ -13,6 +14,7 @@ export function stayDatesError(checkIn: string, checkOut: string, today: string 
   if (!isRealDate(checkIn) || !isRealDate(checkOut)) return "Choose valid dates";
   if (checkOut <= checkIn) return "Check-out must be after check-in";
   if (checkIn < today) return "Check-in can't be in the past";
+  if (calculateNights(checkIn, checkOut) < MIN_NIGHTS) return `The minimum stay is ${MIN_NIGHTS} nights`;
   if (calculateNights(checkIn, checkOut) > MAX_NIGHTS) {
     return `Online bookings are limited to ${MAX_NIGHTS} nights — contact us for longer stays`;
   }

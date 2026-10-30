@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 import type { Unit } from "@/lib/types";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
+import { MIN_NIGHTS } from "@/lib/booking/stay-limits";
 import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
@@ -65,7 +66,7 @@ export function BookingFlow({
   const total = promoStatus.applied ? Math.max(subtotal - promoStatus.applied.discountAmount, 0) : subtotal;
   const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability) : null;
   const canContinue =
-    Boolean(unit) && nights > 0 && guests >= 1 && !checking && selectedBlockReason === null;
+    Boolean(unit) && nights >= MIN_NIGHTS && guests >= 1 && !checking && selectedBlockReason === null;
 
   // Deposit option (shown on step 3). The server re-checks
   // the same rules from `lib/deposit.ts`, so this only decides what the guest sees.
@@ -144,7 +145,7 @@ export function BookingFlow({
 
   function handleCheckInChange(value: string) {
     setCheckIn(value);
-    setCheckOut((current: string) => defaultCheckOut(value, current));
+    setCheckOut((current: string) => defaultCheckOut(value, current, MIN_NIGHTS));
   }
 
   const availableCount = availability ? units.filter((u) => availability[u.id] !== false).length : 0;
@@ -234,7 +235,7 @@ export function BookingFlow({
               <input
                 id="check-out"
                 type="date"
-                min={checkIn ? addDays(checkIn, 1) : today || undefined}
+                min={checkIn ? addDays(checkIn, MIN_NIGHTS) : today || undefined}
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"

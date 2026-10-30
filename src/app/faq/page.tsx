@@ -29,7 +29,7 @@ const faqs = [
   },
   {
     q: "Is there a minimum stay?",
-    a: "You can book from one night. Monthly rates apply automatically to stays of 30 nights or more, on every apartment except the Studio.",
+    a: "The minimum stay is 2 nights. Monthly rates apply automatically to stays of 30 nights or more, on every apartment except the Studio.",
   },
   {
     q: "Do you offer airport pickup?",

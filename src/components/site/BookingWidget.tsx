@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/format";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
+import { MIN_NIGHTS } from "@/lib/booking/stay-limits";
 import type { Unit } from "@/lib/types";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 import { stayPrice, unitRates, usesMonthlyRate } from "@/lib/booking/stay-price";
@@ -22,7 +23,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
 
   function handleCheckInChange(value: string) {
     setCheckIn(value);
-    setCheckOut((current: string) => defaultCheckOut(value, current));
+    setCheckOut((current: string) => defaultCheckOut(value, current, MIN_NIGHTS));
   }
 
   const nights = useMemo(() => {
@@ -66,7 +67,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
           <input
             type="date"
             value={checkOut}
-            min={checkIn ? addDays(checkIn, 1) : today || undefined}
+            min={checkIn ? addDays(checkIn, MIN_NIGHTS) : today || undefined}
             onChange={(e) => setCheckOut(e.target.value)}
             className="mt-1 rounded-lg border border-navy/15 px-3 py-2 text-sm text-navy"
           />
@@ -99,7 +100,7 @@ export function BookingWidget({ unit, currency = "GHS" }: { unit: Unit; currency
 
       <button
         className="btn-primary mt-6 w-full disabled:cursor-not-allowed"
-        disabled={!checkIn || !checkOut || nights <= 0}
+        disabled={!checkIn || !checkOut || nights < MIN_NIGHTS}
         onClick={goToBooking}
       >
         Book Now

@@ -12,9 +12,10 @@ export function addDays(date: string, days: number): string {
 
 // Check-out to use after the guest picks a check-in: keep a later check-out they already
 // chose, otherwise default to the next day (one night).
-export function defaultCheckOut(checkIn: string, currentCheckOut: string): string {
+export function defaultCheckOut(checkIn: string, currentCheckOut: string, minNights = 1): string {
   if (!checkIn) return currentCheckOut;
-  return currentCheckOut && currentCheckOut > checkIn ? currentCheckOut : addDays(checkIn, 1);
+  const earliest = addDays(checkIn, minNights);
+  return currentCheckOut && currentCheckOut >= earliest ? currentCheckOut : earliest;
 }
 
 // Nights between two "YYYY-MM-DD" dates (negative when check-out is before check-in).
