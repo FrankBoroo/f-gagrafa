@@ -1,12 +1,12 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { BlockedDatesManager } from "@/components/admin/BlockedDatesManager";
-import type { Unit } from "@/lib/types";
 
 export default async function AdminAvailabilityPage() {
   const supabase = createServiceClient();
 
-  const [{ data: units }, { data: blocks }] = await Promise.all([
-    supabase.from("units").select("*").order("sort_order"),
+  const [{ data: rooms }, { data: units }, { data: blocks }] = await Promise.all([
+    supabase.from("rooms").select("id, number, units(name)").order("number"),
+    supabase.from("units").select("id, name"),
     supabase.from("blocked_dates").select("*").order("start_date"),
   ]);
 
@@ -19,7 +19,7 @@ export default async function AdminAvailabilityPage() {
         book over them.
       </p>
       <div className="mt-8">
-        <BlockedDatesManager units={(units as Unit[]) ?? []} blocks={blocks ?? []} />
+        <BlockedDatesManager rooms={rooms ?? []} units={units ?? []} blocks={blocks ?? []} />
       </div>
     </div>
   );
