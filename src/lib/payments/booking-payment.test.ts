@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     existingPayment: { id: string } | null;
     insertError: DbError | null;
     firstUpdateError: DbError | null;
+    secondUpdateError: DbError | null;
     writes: Write[];
     rpc: Mock<(name: string, params: unknown) => Promise<unknown>>;
   },
@@ -45,10 +46,11 @@ class FakeQuery {
     if (this.op === "select") {
       return { data: this.table === "bookings" ? db.booking : db.existingPayment, error: null };
     }
-    const isFirstUpdate = this.op === "update" && !db.writes.some((w: Write) => w.op === "update");
+    const priorUpdates = db.writes.filter((w: Write) => w.op === "update").length;
     db.writes.push({ table: this.table, op: this.op, payload: this.payload });
     if (this.op === "insert") return { data: null, error: db.insertError };
-    if (isFirstUpdate && db.firstUpdateError) return { data: null, error: db.firstUpdateError };
+    if (this.op === "update" && priorUpdates === 0 && db.firstUpdateError) return { data: null, error: db.firstUpdateError };
+    if (this.op === "update" && priorUpdates === 1 && db.secondUpdateError) return { data: null, error: db.secondUpdateError };
     return { data: { ...db.booking, ...this.payload }, error: null };
   }
 }
@@ -100,6 +102,7 @@ beforeEach(() => {
   mocks.db.existingPayment = null;
   mocks.db.insertError = null;
   mocks.db.firstUpdateError = null;
+  mocks.db.secondUpdateError = null;
   mocks.db.writes = [];
   mocks.db.rpc = vi.fn().mockResolvedValue({ data: null, error: null });
   mocks.verify.mockResolvedValue(paystackSuccess(2400));
@@ -253,5 +256,61 @@ describe("confirmPaymentByReference", () => {
     expect(String(flag.admin_notes)).toContain("PAID AFTER HOLD EXPIRED");
     expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
     expect(mocks.sendEmail).not.toHaveBeenCalled();
+  });
+
+  describe("when the held room was re-booked", () => {
+    const overlap = { code: "23P01", message: "conflicting key value violates exclusion constraint" };
+    const expired = {
+      status: "cancelled", room_id: "room-8", room_confirmed: true, unit_id: "unit-1",
+      check_in: "2026-12-01", check_out: "2026-12-05",
+    };
+
+    beforeEach(() => {
+      mocks.db.booking = pendingBooking(expired);
+      mocks.db.firstUpdateError = overlap;
+    });
+
+    it("confirms on another free room of the type", async () => {
+      mocks.db.rpc.mockResolvedValue({ data: [{ id: "room-9", number: 9 }], error: null });
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("paid");
+      expect(mocks.db.rpc).toHaveBeenCalledWith("free_rooms_for_type", {
+        p_unit_id: "unit-1", p_check_in: "2026-12-01", p_check_out: "2026-12-05", p_exclude_booking_id: "booking-1",
+      });
+      expect(bookingUpdates()[1].payload).toEqual({
+        status: "confirmed", payment_status: "paid", room_id: "room-9", room_confirmed: false,
+      });
+      expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
+      expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("still goes to review when no room of the type is free", async () => {
+      mocks.db.rpc.mockResolvedValue({ data: [], error: null });
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+      expect(String(bookingUpdates()[1].payload.admin_notes)).toContain("PAID AFTER HOLD EXPIRED");
+      expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+    });
+
+    it("still goes to review when the free-room lookup fails", async () => {
+      mocks.db.rpc.mockResolvedValue({ data: null, error: { code: "XX000" } });
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+    });
+
+    it("goes to review when the other room is taken too", async () => {
+      mocks.db.rpc.mockResolvedValue({ data: [{ id: "room-9", number: 9 }], error: null });
+      mocks.db.secondUpdateError = overlap;
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+      expect(String(bookingUpdates()[2].payload.admin_notes)).toContain("PAID AFTER HOLD EXPIRED");
+    });
+
+    it("never moves a booking that a person cancelled", async () => {
+      mocks.db.booking = pendingBooking({ ...expired, cancelled_at: "2026-11-01T09:00:00Z" });
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+      expect(mocks.db.rpc).not.toHaveBeenCalled();
+    });
   });
 });

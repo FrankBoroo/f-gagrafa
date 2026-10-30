@@ -114,18 +114,37 @@ export async function confirmPaymentByReference(
     return { outcome: "needs_review", booking };
   }
 
-  const { data: updatedBooking, error: updateError } = await supabase
-    .from("bookings")
-    .update({ status: "confirmed", payment_status: paidInFull ? "paid" : "partial" })
-    .eq("id", booking.id)
-    .select("*, units(name)")
-    .single();
+  const confirmBooking = (room: { room_id: string; room_confirmed: boolean } | null = null) =>
+    supabase
+      .from("bookings")
+      .update({ status: "confirmed", payment_status: paidInFull ? "paid" : "partial", ...room })
+      .eq("id", booking.id)
+      .select("*, units(name)")
+      .single();
+
+  let { data: updatedBooking, error: updateError } = await confirmBooking();
+
+  // The unpaid hold expired and someone else took that room (23P01, the database's
+  // double-booking guard). Guests book a type, so any free room of it will do.
+  if (updateError?.code === "23P01") {
+    const { data: freeRooms } = await supabase.rpc("free_rooms_for_type", {
+      p_unit_id: booking.unit_id,
+      p_check_in: booking.check_in,
+      p_check_out: booking.check_out,
+      p_exclude_booking_id: booking.id,
+    });
+    if (freeRooms?.length) {
+      ({ data: updatedBooking, error: updateError } = await confirmBooking({
+        room_id: freeRooms[0].id,
+        room_confirmed: false,
+      }));
+    }
+  }
 
   if (updateError) {
-    // Money was taken but the booking couldn't be confirmed. Most likely the unpaid
-    // hold expired and the dates were booked by someone else meanwhile (23P01, the
-    // database's double-booking guard). The payment row is already recorded; flag
-    // the booking and tell the admin so a person can offer new dates or a refund.
+    // Money was taken but the booking couldn't be confirmed. Most likely every room of
+    // the type was booked by someone else meanwhile. The payment row is already recorded;
+    // flag the booking and tell the admin so a person can offer new dates or a refund.
     const reason =
       updateError.code === "23P01"
         ? "PAID AFTER HOLD EXPIRED — the dates were re-booked. Contact the guest: offer new dates or refund in full."
