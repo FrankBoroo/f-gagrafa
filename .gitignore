@@ -6,3 +6,6 @@ tsconfig.tsbuildinfo
 
 # Playwright MCP screenshots and logs from local browser checks
 .playwright-mcp/
+
+# visual brainstorming mockups
+.superpowers/
