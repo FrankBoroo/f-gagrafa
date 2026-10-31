@@ -1,19 +1,20 @@
 import Link from "next/link";
 import { getPublicSettings } from "@/lib/site-settings";
+import { Logo } from "@/components/site/Logo";
 
 export async function SiteFooter() {
   const settings = await getPublicSettings();
   return (
-    <footer data-hide-floating-book className="border-t border-navy/10 bg-navy text-ivory">
+    <footer data-hide-floating-book className="bg-navy text-ivory">
       <div className="container-gagrafa grid gap-10 py-16 md:grid-cols-4">
         <div>
-          <p className="font-display text-xl">The Gagrafa</p>
-          <p className="mt-3 text-sm text-ivory/60">Live Luxuriously, Stay Serenely.</p>
+          <Logo className="h-14 w-auto" />
+          <p className="mt-4 text-sm text-ivory/60">Live Luxuriously, Stay Serenely.</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-widest text-champagne">Explore</p>
           <div className="mt-3 flex flex-col gap-2 text-sm text-ivory/70">
-            <Link href="/units">Residences</Link>
+            <Link href="/units">Apartments</Link>
             <Link href="/tour">Tour</Link>
             <Link href="/about">About</Link>
             <Link href="/contact">Contact</Link>

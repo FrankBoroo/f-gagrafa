@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Logo } from "@/components/site/Logo";
 
 const links = [
-  { href: "/units", label: "Residences" },
+  { href: "/units", label: "Apartments" },
   { href: "/tour", label: "Tour" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
@@ -31,7 +32,7 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [overHero]);
 
-  // Full-screen mobile menu: close on navigation and Escape, and keep the page behind it still.
+  // Full-screen menu: close on navigation and Escape, and keep the page behind it still.
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
@@ -52,69 +53,44 @@ export function SiteHeader() {
         transparent
           ? "border-transparent bg-transparent text-ivory"
           : // backdrop-blur would make the fixed full-screen menu size itself to the header, so drop it while open.
-            `border-navy/10 text-navy ${open ? "bg-ivory" : "bg-ivory/90 backdrop-blur"} ${overHero ? "shadow-soft" : ""}`
+            `border-sand text-navy ${open ? "bg-ivory" : "bg-ivory/90 backdrop-blur"} ${overHero ? "shadow-soft" : ""}`
       }`}
     >
-      <div className="container-gagrafa flex h-20 items-center justify-between">
-        <Link href="/" className="font-display text-2xl tracking-wide">
-          The Gagrafa
-        </Link>
-
-        <nav className="hidden items-center gap-10 md:flex">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`text-sm transition-colors ${
-                transparent ? "text-ivory/80 hover:text-ivory" : "text-navy/70 hover:text-navy"
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
-          {/* Over the hero the gold CTA is the hero's own; keep this one quiet until the header turns solid. */}
-          <Link
-            href="/booking"
-            className={
-              transparent
-                ? "btn-secondary border-ivory/40 text-ivory hover:border-ivory/70 hover:bg-ivory/10"
-                : "btn-primary"
-            }
-          >
-            Book Your Stay
-          </Link>
-        </nav>
-
+      <div className="container-gagrafa grid h-20 grid-cols-[1fr_auto_1fr] items-center">
         <button
-          className="-mr-2 flex h-11 w-11 items-center justify-center md:hidden"
+          className="-ml-2 flex h-11 items-center gap-2 justify-self-start px-2 text-[0.7rem] uppercase tracking-[0.2em]"
           onClick={() => setOpen(!open)}
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
-          aria-controls="mobile-menu"
+          aria-controls="site-menu"
         >
-          {open ? <X size={24} /> : <Menu size={24} />}
+          {open ? <X size={22} /> : <Menu size={22} />}
+          <span className="hidden sm:inline" aria-hidden="true">Menu</span>
         </button>
+
+        <Link href="/" aria-label="The Gagrafa home" className="flex h-11 items-center">
+          <Logo className="h-11 w-auto" />
+        </Link>
+
+        <Link href="/booking" className="btn-gold justify-self-end px-5">
+          Book
+        </Link>
       </div>
 
       {open && (
-        <div
-          id="mobile-menu"
-          className="fixed inset-x-0 bottom-0 top-20 overflow-y-auto border-t border-navy/10 bg-ivory md:hidden"
-        >
-          <nav className="container-gagrafa flex flex-col gap-1 py-8">
+        <div id="site-menu" className="fixed inset-x-0 bottom-0 top-20 overflow-y-auto bg-ivory">
+          <nav className="container-gagrafa flex max-w-2xl flex-col gap-1 py-10 md:py-16">
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="border-b border-navy/5 py-4 font-display text-2xl text-navy"
+                className="border-b border-sand py-5 font-display text-3xl text-navy transition-colors hover:text-champagne-ink md:text-4xl"
                 onClick={() => setOpen(false)}
               >
                 {l.label}
               </Link>
             ))}
-            <Link href="/booking" className="btn-primary mt-8 w-full py-4" onClick={() => setOpen(false)}>
-              Book Your Stay
-            </Link>
+            <p className="eyebrow mt-10">Community 20 · Tema</p>
           </nav>
         </div>
       )}
