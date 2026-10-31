@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // Guests read "apartment", never "residence", and nothing unconfirmed or stock appears on the site.
 const ROOTS = ["src/app", "src/components/site", "src/lib/notify", "src/lib/payments", "src/lib/property.ts", "src/lib/site-settings.ts", "src/lib/validations.ts", "src/lib/booking/stay-limits.ts", "src/lib/tour-photos.ts"];
 const SKIP = [join("src", "app", "admin"), join("src", "app", "api")];
-const BANNED = [/residence/i, /spintex/i, /images\.unsplash\.com/, /infinity pool/i, /backup power/i, /secure parking/i];
+const BANNED = [/residence/i, /spintex/i, /images\.unsplash\.com/, /infinity pool/i, /backup power/i, /secure parking/i, /due at check-in/i, /balance at check-in/i, /due on arrival/i];
 
 function sourceFiles(path: string): string[] {
   if (SKIP.some((s) => path.startsWith(s))) return [];

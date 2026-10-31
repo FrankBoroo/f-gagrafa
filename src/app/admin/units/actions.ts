@@ -8,6 +8,7 @@ import {
 } from "@/lib/validations";
 import { logAudit } from "@/lib/audit";
 import { isStaff, isAdmin, UNAUTHORIZED } from "@/lib/auth";
+import { withNewPhoto } from "@/lib/unit-photos";
 
 export async function updateUnit(input: UnitUpdateInput) {
   if (!(await isStaff())) return UNAUTHORIZED;
@@ -225,10 +226,7 @@ export async function registerUnitImage(unitId: string, path: string) {
   if (images.length >= MAX_PHOTOS) return { ok: false, error: `A residence can have up to ${MAX_PHOTOS} photos.` };
 
   const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl as string;
-  // Your first real upload goes to the front so it takes over from the seed/stock
-  // placeholder straight away; later uploads are added to the end.
-  const hasOwnPhoto = images.some((u) => bucketPathFromUrl(u) !== null);
-  const next = hasOwnPhoto ? [...images, publicUrl] : [publicUrl, ...images];
+  const next = withNewPhoto(images, publicUrl);
   const { error } = await supabase.from("units").update({ images: next }).eq("id", unitId);
   if (error) return { ok: false, error: error.message };
 

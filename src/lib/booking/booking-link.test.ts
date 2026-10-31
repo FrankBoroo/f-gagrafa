@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookingHref, parseBookingParams } from "@/lib/booking/booking-link";
+import { bookingHref, canContinueToDetails, parseBookingParams, withApartmentTaken } from "@/lib/booking/booking-link";
 import { addDays, toISODate } from "@/lib/booking/dates";
 
 const units = [
@@ -40,6 +40,11 @@ describe("parseBookingParams", () => {
     }
   });
 
+  it("clears dates already in the past", () => {
+    const past = { ...valid, checkIn: inDays(-5), checkOut: inDays(-2) };
+    expect(parseBookingParams(params(past), units)).toMatchObject({ checkIn: "", checkOut: "" });
+  });
+
   it("caps guests at what the apartment allows", () => {
     expect(parseBookingParams(params({ ...valid, guests: "99" }), units).guests).toBe(2);
   });
@@ -52,6 +57,37 @@ describe("parseBookingParams", () => {
     expect(parseBookingParams(params({ ...valid, guests: "0" }), units).guests).toBe(2);
     expect(parseBookingParams(params({ ...valid, guests: "abc" }), units).guests).toBe(2);
     expect(parseBookingParams(params({}), units).guests).toBe(2);
+  });
+});
+
+describe("canContinueToDetails", () => {
+  const ready = { apartmentChosen: true, checkIn: inDays(10), checkOut: inDays(13), guests: 2, checking: false, blocked: false };
+
+  it("lets a valid choice through", () => {
+    expect(canContinueToDetails(ready)).toBe(true);
+  });
+
+  it("stops dates the server would refuse", () => {
+    expect(canContinueToDetails({ ...ready, checkIn: inDays(-5), checkOut: inDays(-2) })).toBe(false);
+    expect(canContinueToDetails({ ...ready, checkIn: inDays(10), checkOut: inDays(11) })).toBe(false);
+    expect(canContinueToDetails({ ...ready, checkOut: inDays(500) })).toBe(false);
+    expect(canContinueToDetails({ ...ready, checkIn: inDays(800), checkOut: inDays(803) })).toBe(false);
+  });
+
+  it("waits for an apartment, the availability check and a free apartment", () => {
+    expect(canContinueToDetails({ ...ready, apartmentChosen: false })).toBe(false);
+    expect(canContinueToDetails({ ...ready, checking: true })).toBe(false);
+    expect(canContinueToDetails({ ...ready, blocked: true })).toBe(false);
+  });
+});
+
+describe("withApartmentTaken", () => {
+  it("marks one apartment taken and keeps the others", () => {
+    expect(withApartmentTaken({ u1: true, u2: true }, "u1")).toEqual({ u1: false, u2: true });
+  });
+
+  it("works before any availability answer has arrived", () => {
+    expect(withApartmentTaken(null, "u1")).toEqual({ u1: false });
   });
 });
 

@@ -119,7 +119,7 @@ export default async function BookingSuccessPage({
       title={isDeposit ? "Reservation Confirmed" : "Booking Confirmed"}
       body={
         isDeposit
-          ? `Thank you — your deposit of ${formatMoney(deposit, booking.currency)} is received and your dates are reserved. The remaining ${formatMoney(balance, booking.currency)} is due at check-in. A confirmation has been sent to your email.`
+          ? `Thank you — your down payment of ${formatMoney(deposit, booking.currency)} is received and your dates are reserved. The remaining ${formatMoney(balance, booking.currency)} is due by arrival. A confirmation has been sent to your email.`
           : "Thank you — a confirmation has been sent to your email. Keep your booking code handy to access your Guest Portal."
       }
       code={result.booking.booking_code}

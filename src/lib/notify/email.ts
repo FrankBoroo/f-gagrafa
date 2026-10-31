@@ -74,7 +74,7 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
     total <= 0.005 && booking.promo_code
       ? `<strong>Total:</strong> ${money(0)}, covered in full by promo code ${esc(booking.promo_code)}`
       : balance > 0.005
-      ? `<strong>Deposit paid:</strong> ${money(paid)}<br/><strong>Balance due at check-in:</strong> ${money(balance)}`
+      ? `<strong>Down payment paid:</strong> ${money(paid)}<br/><strong>Balance due by arrival:</strong> ${money(balance)}`
       : `<strong>Total paid:</strong> ${money(total)}`;
   const bookedAt = bookedPriceSuffix(booking)
     ? `<br/><strong>Booked price:</strong>${bookedPriceSuffix(booking)}, charged in cedis at $1 = GHS ${booking.exchange_rate}`
@@ -114,7 +114,7 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
         <strong>Total:</strong> ${formatMoney(Number(booking.total_amount), booking.currency)}${bookedPriceSuffix(booking)}<br/>
         <strong>Payment status:</strong> ${booking.payment_status}
         ${booking.promo_code ? `<br/><strong>Promo code:</strong> ${esc(booking.promo_code)} (−${formatMoney(Number(booking.discount_amount ?? 0), booking.currency)})${Number(booking.total_amount) <= 0.005 ? ", free stay, confirmed without payment" : ""}` : ""}
-        ${booking.deposit_amount ? `<br/><strong>Deposit due now:</strong> ${formatMoney(Number(booking.deposit_amount), booking.currency)} (balance at check-in)` : ""}
+        ${booking.deposit_amount ? `<br/><strong>Down payment due now:</strong> ${formatMoney(Number(booking.deposit_amount), booking.currency)} (balance by arrival)` : ""}
       </p>
     `,
   });
@@ -226,7 +226,7 @@ export async function sendPreArrivalReminder(booking: any, unitName: string, bal
     html: `
       <p>Hi ${esc(booking.guest_name)},</p>
       <p>Your stay at <strong>${esc(unitName)}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
-      ${balanceDue > 0.005 ? `<p><strong>Balance due on arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
+      ${balanceDue > 0.005 ? `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
       <p>Check-in is from 2:00 PM. Your digital access code and Wi-Fi details will be ready in your Guest Portal:</p>
       <p><a href="${portalMagicLink(booking.booking_code)}">View your stay details</a></p>
       <p>— The Gagrafa</p>

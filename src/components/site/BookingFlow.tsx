@@ -10,9 +10,9 @@ import { toast } from "sonner";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { Unit } from "@/lib/types";
 import { coverImage } from "@/lib/apartment-facts";
-import { parseBookingParams } from "@/lib/booking/booking-link";
+import { canContinueToDetails, parseBookingParams, withApartmentTaken } from "@/lib/booking/booking-link";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
-import { MIN_NIGHTS } from "@/lib/booking/stay-limits";
+import { MIN_NIGHTS, stayDatesError } from "@/lib/booking/stay-limits";
 import { paymentSummary, type PaymentOption } from "@/lib/booking/payment-summary";
 import type { Pricing } from "@/lib/booking/pricing";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
@@ -60,8 +60,10 @@ export function BookingFlow({
   const subtotal = unit ? stayPrice(nights, unitRates(unit)) : 0;
   const total = promoStatus.applied ? Math.max(subtotal - promoStatus.applied.discountAmount, 0) : subtotal;
   const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability) : null;
-  const canContinue =
-    Boolean(unit) && nights >= MIN_NIGHTS && guests >= 1 && !checking && selectedBlockReason === null;
+  const datesError = checkIn && checkOut ? stayDatesError(checkIn, checkOut) : null;
+  const canContinue = canContinueToDetails({
+    apartmentChosen: Boolean(unit), checkIn, checkOut, guests, checking, blocked: selectedBlockReason !== null,
+  });
 
   // Down payment option (shown on step 3). The server re-checks the same rules, so this only
   // decides what the guest sees.
@@ -137,7 +139,8 @@ export function BookingFlow({
 
   const availableCount = availability ? units.filter((u) => availability[u.id] !== false).length : 0;
   let statusText = "Pick your dates to see availability and totals.";
-  if (checking) statusText = "Checking availability…";
+  if (datesError) statusText = datesError;
+  else if (checking) statusText = "Checking availability…";
   else if (availabilityError) statusText = availabilityError;
   else if (availability) statusText = `${availableCount} of ${units.length} available for your dates`;
 
@@ -181,6 +184,14 @@ export function BookingFlow({
         renderedAt,
         ...guestDetails,
       });
+
+      // Sold out while the guest filled in the form. The drop-selection effect above takes them
+      // back to step 1 with a message; retrying Pay here could only be refused again.
+      if (result.unavailable) {
+        setAvailability((current) => withApartmentTaken(current, unit.id));
+        setSubmitting(false);
+        return;
+      }
 
       const next = result.authorization_url ?? result.redirect_url;
       if (!result.ok || !next) {
@@ -246,7 +257,7 @@ export function BookingFlow({
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-xl">Choose your apartment</h2>
               <p
-                className={`text-sm ${availabilityError ? "text-amber-700" : "text-navy/50"}`}
+                className={`text-sm ${datesError || availabilityError ? "text-amber-700" : "text-navy/50"}`}
                 aria-live="polite"
               >
                 {statusText}

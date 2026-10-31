@@ -106,7 +106,7 @@ export default async function PortalDetailPage({
         </div>
         {paidNet > 0.005 && balanceDue > 0.005 && !isCancelled && (
           <div className="mt-2 flex justify-between text-sm">
-            <span className="text-navy/60">Balance due at check-in</span>
+            <span className="text-navy/60">Balance due by arrival</span>
             <span>{formatMoney(balanceDue, booking.currency)}</span>
           </div>
         )}

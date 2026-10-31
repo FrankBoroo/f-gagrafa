@@ -67,6 +67,7 @@ export async function checkUnitsAvailability(
 interface ActionResult {
   ok: boolean;
   error?: string;
+  unavailable?: boolean; // the apartment has no free room for these dates: send the guest back to choose
   authorization_url?: string;
   redirect_url?: string; // free stays: straight to the success page, no Paystack
   booking_code?: string;
@@ -127,7 +128,7 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: "We couldn't check availability. Please try again." };
   }
   if (!rooms.length) {
-    return { ok: false, error: "This apartment is not available for the selected dates" };
+    return { ok: false, unavailable: true, error: "This apartment is not available for the selected dates" };
   }
 
   const nights = calculateNights(data.check_in, data.check_out);
@@ -227,7 +228,7 @@ export async function createBookingAndInitializePayment(
     if (freePromo) await releasePromoUse(freePromo);
     // 23P01 = the database's double-booking guard: another guest took these dates a moment ago.
     if (error?.code === "23P01") {
-      return { ok: false, error: "Sorry — those dates were just taken by another guest. Please choose different dates." };
+      return { ok: false, unavailable: true, error: "Sorry — those dates were just taken by another guest. Please choose different dates." };
     }
     if (depositDue !== null && (error?.code === "42703" || error?.code === "PGRST204")) {
       return { ok: false, error: "Deposits aren't available right now. Please pay in full." };
