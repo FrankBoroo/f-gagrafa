@@ -7,17 +7,18 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#0F1620",
-          light: "#1B2735",
+          DEFAULT: "#14213D",
+          light: "#22325A",
         },
         charcoal: "#1C1F26",
         champagne: {
-          DEFAULT: "#C9A66B",
+          DEFAULT: "#C9A96E",
           light: "#E4D3AE",
           dark: "#A9814C",
+          ink: "#7F6132", // small text on ivory and sand: plain champagne fails 4.5:1 there
         },
-        ivory: "#F8F6F1",
-        sand: "#EDE7DA",
+        ivory: "#FAF7F2",
+        sand: "#EDE6DA",
       },
       fontFamily: {
         display: ["var(--font-display)", "serif"],

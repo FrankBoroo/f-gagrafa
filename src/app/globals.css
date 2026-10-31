@@ -22,16 +22,25 @@
     @apply mx-auto w-full max-w-7xl px-6 md:px-10;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-full bg-navy px-7 py-3 text-sm tracking-wide text-ivory transition-colors hover:bg-navy-light disabled:opacity-50;
+    @apply inline-flex min-h-11 items-center justify-center bg-navy px-7 py-3 text-xs uppercase tracking-[0.15em] text-ivory transition-colors hover:bg-navy-light disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-full border border-navy/20 bg-transparent px-7 py-3 text-sm tracking-wide text-navy transition-colors hover:border-navy/40 hover:bg-navy/5;
+    @apply inline-flex min-h-11 items-center justify-center border border-navy/20 bg-transparent px-7 py-3 text-xs uppercase tracking-[0.15em] text-navy transition-colors hover:border-navy/40 hover:bg-navy/5;
   }
   .btn-gold {
-    @apply inline-flex items-center justify-center rounded-full bg-champagne px-7 py-3 text-sm tracking-wide text-navy transition-colors hover:bg-champagne-dark;
+    @apply inline-flex min-h-11 items-center justify-center bg-champagne px-7 py-3 text-xs uppercase tracking-[0.15em] text-navy transition-colors hover:bg-champagne-light disabled:opacity-50;
   }
   .card {
     @apply rounded-xl border border-navy/10 bg-white shadow-soft;
+  }
+  .panel {
+    @apply border border-sand bg-white;
+  }
+  .eyebrow {
+    @apply text-[0.7rem] uppercase tracking-[0.25em] text-champagne-ink;
+  }
+  .link-underline {
+    @apply inline-block border-b border-champagne pb-0.5 text-[0.7rem] uppercase tracking-[0.2em] transition-colors hover:text-champagne-ink;
   }
 }
 

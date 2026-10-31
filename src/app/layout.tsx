@@ -11,7 +11,7 @@ import { jsonLd } from "@/lib/json-ld";
 const display = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const body = Inter({

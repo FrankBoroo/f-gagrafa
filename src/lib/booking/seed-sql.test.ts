@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createTestDatabase, readSupabaseFile } from "@/test/pglite-db";
@@ -69,6 +72,41 @@ describe("reset-and-seed", { timeout: 30_000 }, () => {
       "select price_currency, deposit_percent from property_settings"
     );
     expect(rows).toEqual([{ price_currency: "USD", deposit_percent: 50 }]);
+  });
+
+  it("gives every type its real photos, and each file exists", async () => {
+    const { rows } = await db.query<{ slug: string; images: string[] }>("select slug, images from units");
+    for (const u of rows) {
+      expect(u.images.length).toBeGreaterThanOrEqual(4);
+      for (const src of u.images) {
+        expect(src.startsWith(`/apartments/${u.slug}/`)).toBe(true);
+        expect(existsSync(join(process.cwd(), "public", src))).toBe(true);
+      }
+    }
+  });
+
+  it("no two photos in a gallery are the same file", async () => {
+    const { rows } = await db.query<{ images: string[] }>("select images from units");
+    for (const u of rows) {
+      const hashes = u.images.map((src) =>
+        createHash("md5").update(readFileSync(join(process.cwd(), "public", src))).digest("hex")
+      );
+      expect(new Set(hashes).size).toBe(hashes.length);
+    }
+  });
+
+  it("gives every type the old-site description", async () => {
+    const { rows } = await db.query<{ description: string | null }>("select description from units");
+    for (const u of rows) expect(u.description).toContain("relaxing atmosphere of a home");
+  });
+
+  it("sets the real address and contacts", async () => {
+    const { rows } = await db.query("select address, contact_phone, contact_email from property_settings");
+    expect(rows).toEqual([{
+      address: "Militia Street, Mango Link, Tema, Community 20",
+      contact_phone: "0303 400 535 / 059 381 0182",
+      contact_email: "info@thegagrafa.com",
+    }]);
   });
 
   it("can be run twice", async () => {

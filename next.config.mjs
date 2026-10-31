@@ -40,13 +40,15 @@ const nextConfig = {
       { protocol: "https", hostname: "*.supabase.co" },
     ],
   },
-  // Hero video and Tour photos rarely change. Names aren't hashed, so cache for a week, not forever.
+  // Hero video, Tour and apartment photos rarely change. Names aren't hashed, so cache for a week, not forever.
   async headers() {
     const cache = [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }];
     return [
       { source: "/:path*", headers: securityHeaders },
       { source: "/video/:path*", headers: cache },
       { source: "/tour/:path*", headers: cache },
+      { source: "/photos/:path*", headers: cache },
+      { source: "/apartments/:path*", headers: cache },
     ];
   },
 };

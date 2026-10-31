@@ -20,10 +20,10 @@ export interface PublicSettings {
 const DEFAULTS: PublicSettings = {
   property_name: "The Gagrafa",
   tagline: "Live Luxuriously, Stay Serenely",
-  address: "Spintex, Community 20, Accra, Ghana",
+  address: "Militia Street, Mango Link, Tema, Community 20",
   contact_phone: "",
-  contact_email: "kellermanscolt@gmail.com", // temporary until the property mailbox is set up
-  reception_hours: "24/7 — someone is always at the desk",
+  contact_email: "info@thegagrafa.com",
+  reception_hours: "",
   deposit_percent: 0,
   pricing: GHS_PRICING,
 };
