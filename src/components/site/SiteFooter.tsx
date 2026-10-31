@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getPublicSettings } from "@/lib/site-settings";
+import { phoneNumbers, telHref } from "@/lib/contact-links";
 import { Logo } from "@/components/site/Logo";
 
 export async function SiteFooter() {
@@ -33,7 +34,14 @@ export async function SiteFooter() {
           <p className="text-xs uppercase tracking-widest text-champagne">Visit</p>
           <p className="mt-3 text-sm text-ivory/70">{settings.address}</p>
           {settings.contact_email && <p className="mt-2 text-sm text-ivory/70">{settings.contact_email}</p>}
-          {settings.contact_phone && <p className="mt-1 text-sm text-ivory/70">{settings.contact_phone}</p>}
+          {phoneNumbers(settings.contact_phone).map((phone: string) => {
+            const href = telHref(phone);
+            return (
+              <p key={phone} className="mt-1 text-sm text-ivory/70">
+                {href ? <a href={href}>{phone}</a> : phone}
+              </p>
+            );
+          })}
         </div>
       </div>
       <div className="border-t border-ivory/10 py-6 text-center text-xs text-ivory/60">

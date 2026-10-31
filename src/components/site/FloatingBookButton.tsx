@@ -7,12 +7,14 @@ import { useEffect, useState } from "react";
 // Pages that already put booking front and centre, or aren't for browsing guests.
 const HIDDEN_ON = ["/booking", "/admin", "/portal", "/login", "/auth"];
 
-// "Book Your Stay" pinned to the bottom of the screen on phones, where the header has no room
-// for it (DESIGN.md section 11). Appears once the first screen is scrolled past and steps aside
-// while anything marked `data-hide-floating-book` (booking widget, footer) is in view.
-export function FloatingBookButton() {
+const ROUND = "flex h-14 w-14 items-center justify-center rounded-full bg-navy text-[0.6rem] uppercase tracking-[0.1em] text-ivory shadow-soft transition-colors hover:bg-navy-light";
+
+// Round Book and Call buttons in the bottom corner. They appear once the first screen is scrolled
+// past and step aside while anything marked `data-hide-floating-book` (booking panel, footer) is in view.
+export function FloatingBookButton({ phone }: { phone: string | null }) {
   const pathname = usePathname();
   const hiddenHere = HIDDEN_ON.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const bookHref = pathname.startsWith("/units/") ? "#reserve" : "/booking";
   const [pastFirstScreen, setPastFirstScreen] = useState(false);
   const [blocked, setBlocked] = useState(false);
 
@@ -44,13 +46,18 @@ export function FloatingBookButton() {
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none md:hidden ${
+      className={`fixed bottom-0 right-0 z-30 flex gap-2 pb-[max(1rem,env(safe-area-inset-bottom))] pr-4 transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none ${
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
       }`}
     >
-      <Link href="/booking" tabIndex={shown ? 0 : -1} aria-hidden={!shown} className="btn-gold w-full py-4 shadow-soft">
-        Book Your Stay
+      <Link href={bookHref} tabIndex={shown ? 0 : -1} aria-hidden={!shown} className={ROUND}>
+        Book
       </Link>
+      {phone && (
+        <a href={phone} tabIndex={shown ? 0 : -1} aria-hidden={!shown} className={ROUND}>
+          Call
+        </a>
+      )}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { FloatingBookButton } from "@/components/site/FloatingBookButton";
 import { Toaster } from "sonner";
 import { siteUrl } from "@/lib/env";
 import { jsonLd } from "@/lib/json-ld";
+import { getPublicSettings } from "@/lib/site-settings";
+import { phoneNumbers, telHref } from "@/lib/contact-links";
 
 const display = Playfair_Display({
   subsets: ["latin"],
@@ -49,7 +51,9 @@ const organizationJsonLd = {
   url: siteUrl(),
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const settings = await getPublicSettings();
+  const callHref = telHref(phoneNumbers(settings.contact_phone)[0] ?? "");
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
@@ -60,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main>{children}</main>
         <SiteFooter />
-        <FloatingBookButton />
+        <FloatingBookButton phone={callHref} />
         <Toaster position="top-center" richColors />
       </body>
     </html>

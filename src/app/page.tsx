@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { UnitCard } from "@/components/site/UnitCard";
 import { MapEmbed } from "@/components/site/MapEmbed";
-import { HeroVideo } from "@/components/site/HeroVideo";
+import { HeroSlideshow } from "@/components/site/HeroSlideshow";
 import { Reveal } from "@/components/site/Reveal";
 import { getPublicSettings } from "@/lib/site-settings";
 import type { Unit } from "@/lib/types";
@@ -37,7 +37,7 @@ export default async function HomePage() {
 
   return (
     <div>
-      <HeroVideo />
+      <HeroSlideshow />
 
       {/* About */}
       <section id="welcome" className="container-gagrafa scroll-mt-20 py-28">
