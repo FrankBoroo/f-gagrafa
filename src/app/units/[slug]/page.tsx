@@ -26,7 +26,7 @@ export default async function UnitDetailPage({
     .single<Unit>();
 
   if (!unit) notFound();
-  const { pricing, address } = await getPublicSettings();
+  const { pricing, address, deposit_percent } = await getPublicSettings();
   const { data: others } = await supabase
     .from("units")
     .select("*")
@@ -121,7 +121,7 @@ export default async function UnitDetailPage({
         </div>
 
         <div id="reserve" className="scroll-mt-24">
-          <BookingWidget unit={unit} currency={pricing.currency} />
+          <BookingWidget unit={unit} depositPercent={deposit_percent} pricing={pricing} />
         </div>
       </div>
 

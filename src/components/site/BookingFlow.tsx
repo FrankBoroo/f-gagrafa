@@ -7,14 +7,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import type { Unit } from "@/lib/types";
+import { coverImage } from "@/lib/apartment-facts";
+import { parseBookingParams } from "@/lib/booking/booking-link";
 import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { MIN_NIGHTS } from "@/lib/booking/stay-limits";
-import { canOfferDeposit, depositAmount } from "@/lib/booking/deposit";
-import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
+import { paymentSummary, type PaymentOption } from "@/lib/booking/payment-summary";
+import type { Pricing } from "@/lib/booking/pricing";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
+import { PaymentChoice } from "@/components/site/PaymentChoice";
 import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
 
 const guestSchema = z.object({
@@ -26,15 +29,6 @@ const guestSchema = z.object({
 
 type GuestForm = z.infer<typeof guestSchema>;
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";
-
-function parseGuests(raw: string | null) {
-  const n = Number(raw);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 2;
-}
-
-type PaymentOption = "full" | "deposit";
-
 export function BookingFlow({
   units, depositPercent, pricing,
 }: {
@@ -43,12 +37,13 @@ export function BookingFlow({
   pricing: Pricing;
 }) {
   const params = useSearchParams();
-  const [step, setStep] = useState(1);
-  const initialUnitId = units.find((u) => u.slug === params.get("unit"))?.id ?? "";
+  const [initial] = useState(() => parseBookingParams(params, units));
+  const [step, setStep] = useState<number>(initial.startStep);
+  const initialUnitId = initial.unitId;
   const [unitId, setUnitId] = useState(initialUnitId);
-  const [checkIn, setCheckIn] = useState(params.get("checkIn") ?? "");
-  const [checkOut, setCheckOut] = useState(params.get("checkOut") ?? "");
-  const [guests, setGuests] = useState(parseGuests(params.get("guests")));
+  const [checkIn, setCheckIn] = useState(initial.checkIn);
+  const [checkOut, setCheckOut] = useState(initial.checkOut);
+  const [guests, setGuests] = useState(initial.guests);
   const [today, setToday] = useState("");
   const [availability, setAvailability] = useState<Record<string, boolean> | null>(null);
   const [checking, setChecking] = useState(false);
@@ -58,7 +53,7 @@ export function BookingFlow({
   const [renderedAt] = useState(() => Date.now());
   const [promoCode, setPromoCode] = useState("");
   const [promoStatus, setPromoStatus] = useState<{ checking: boolean; applied?: { code: string; discountAmount: number }; error?: string }>({ checking: false });
-  const [paymentOption, setPaymentOption] = useState<PaymentOption>("full");
+  const [paymentOption, setPaymentOption] = useState<PaymentOption>(initial.pay);
 
   const unit = units.find((u) => u.id === unitId);
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
@@ -68,20 +63,11 @@ export function BookingFlow({
   const canContinue =
     Boolean(unit) && nights >= MIN_NIGHTS && guests >= 1 && !checking && selectedBlockReason === null;
 
-  // Deposit option (shown on step 3). The server re-checks
-  // the same rules from `lib/deposit.ts`, so this only decides what the guest sees.
-  const deposit = depositAmount(total, depositPercent);
-  const depositOffered = canOfferDeposit(depositPercent) && deposit > 0 && deposit < total;
-  const payingDeposit = depositOffered && paymentOption === "deposit";
-  const dueNow = payingDeposit ? deposit : total;
-
-  // Paystack charges cedis. With USD prices, show what will actually be charged, using the
-  // same conversion and deposit rounding as the server (which uses the rate at booking time).
+  // Down payment option (shown on step 3). The server re-checks the same rules, so this only
+  // decides what the guest sees.
   const currency = pricing.currency;
-  const chargeTotal = toChargeAmount(total, pricing);
-  const chargeDueNow =
-    chargeTotal === null ? null : payingDeposit ? depositAmount(chargeTotal, depositPercent) : chargeTotal;
-  const convertsToCedis = currency === "USD" && chargeDueNow !== null;
+  const { depositOffered, payingDeposit, deposit, dueNow, chargeTotal, chargeDueNow, convertsToCedis } =
+    paymentSummary({ total, depositPercent, pricing, option: paymentOption });
   // A promo covering the whole stay: no Paystack step, the server confirms it directly.
   const isFreeStay = Boolean(promoStatus.applied) && chargeTotal === 0;
   const money = (amount: number) => formatMoney(amount, currency);
@@ -91,7 +77,7 @@ export function BookingFlow({
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
 
-  // Arriving from a residence page: bring the pre-selected card into view.
+  // Arriving with an apartment chosen: bring the pre-selected card into view.
   const cameWithUnit = useRef(Boolean(initialUnitId));
   useEffect(() => {
     if (!cameWithUnit.current) return;
@@ -100,7 +86,7 @@ export function BookingFlow({
     );
   }, [initialUnitId]);
 
-  // Whenever the dates change, ask which residences are free for them.
+  // Whenever the dates change, ask which apartments are free for them.
   useEffect(() => {
     setAvailability(null);
     setAvailabilityError(null);
@@ -134,6 +120,7 @@ export function BookingFlow({
     const reason = getUnitBlockReason(unit, guests, availability);
     if (reason) {
       setUnitId("");
+      setStep(1); // later steps need an apartment, so send the guest back to choose
       toast.info(`${unit.name} was deselected: ${reason.toLowerCase()}.`);
     }
   }, [unit, guests, availability]);
@@ -159,7 +146,7 @@ export function BookingFlow({
       ? `${unit.name} · ${nights} night${nights === 1 ? "" : "s"} · ${money(subtotal)}`
       : unit
         ? `${unit.name} selected — now choose your dates`
-        : "Choose your dates and a residence to continue";
+        : "Choose your dates and an apartment to continue";
 
   async function applyPromoCode() {
     if (!promoCode.trim()) return;
@@ -227,7 +214,7 @@ export function BookingFlow({
                 min={today || undefined}
                 value={checkIn}
                 onChange={(e) => handleCheckInChange(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+                className="mt-2 w-full border border-navy/15 px-4 py-3"
               />
             </div>
             <div>
@@ -238,7 +225,7 @@ export function BookingFlow({
                 min={checkIn ? addDays(checkIn, MIN_NIGHTS) : today || undefined}
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+                className="mt-2 w-full border border-navy/15 px-4 py-3"
               />
             </div>
             <div>
@@ -250,14 +237,14 @@ export function BookingFlow({
                 step={1}
                 value={guests}
                 onChange={(e) => setGuests(Number(e.target.value))}
-                className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+                className="mt-2 w-full border border-navy/15 px-4 py-3"
               />
             </div>
           </div>
 
           <div className="mt-10">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-xl">Choose your residence</h2>
+              <h2 className="text-xl">Choose your apartment</h2>
               <p
                 className={`text-sm ${availabilityError ? "text-amber-700" : "text-navy/50"}`}
                 aria-live="polite"
@@ -303,22 +290,22 @@ export function BookingFlow({
           </div>
           <div>
             <label className="text-sm text-navy/60">Full name</label>
-            <input {...register("guest_name")} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+            <input {...register("guest_name")} className="mt-2 w-full border border-navy/15 px-4 py-3" />
             {errors.guest_name && <p className="mt-1 text-xs text-red-600">{errors.guest_name.message}</p>}
           </div>
           <div>
             <label className="text-sm text-navy/60">Email</label>
-            <input {...register("guest_email")} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+            <input {...register("guest_email")} className="mt-2 w-full border border-navy/15 px-4 py-3" />
             {errors.guest_email && <p className="mt-1 text-xs text-red-600">{errors.guest_email.message}</p>}
           </div>
           <div>
             <label className="text-sm text-navy/60">Phone</label>
-            <input {...register("guest_phone")} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+            <input {...register("guest_phone")} className="mt-2 w-full border border-navy/15 px-4 py-3" />
             {errors.guest_phone && <p className="mt-1 text-xs text-red-600">{errors.guest_phone.message}</p>}
           </div>
           <div>
             <label className="text-sm text-navy/60">Special requests (optional)</label>
-            <textarea {...register("special_requests")} rows={3} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3" />
+            <textarea {...register("special_requests")} rows={3} className="mt-2 w-full border border-navy/15 px-4 py-3" />
           </div>
           <div className="flex gap-4">
             <button type="button" className="btn-secondary w-full" onClick={() => setStep(1)}>Back</button>
@@ -333,7 +320,7 @@ export function BookingFlow({
             <div className="flex gap-4">
               <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-sand">
                 <Image
-                  src={unit.images?.[0] ?? FALLBACK_IMAGE}
+                  src={coverImage(unit)}
                   alt={unit.name}
                   fill
                   sizes="112px"
@@ -342,7 +329,9 @@ export function BookingFlow({
               </div>
               <div>
                 <h3 className="text-lg">{unit.name}</h3>
-                <p className="mt-1 text-sm text-navy/60">{checkIn} → {checkOut} · {nights} nights · {guests} guests</p>
+                <p className="mt-1 text-sm text-navy/60">
+                  {formatDate(checkIn)} → {formatDate(checkOut)} · {nights} nights · {guests} {guests === 1 ? "guest" : "guests"}
+                </p>
               </div>
             </div>
 
@@ -351,7 +340,7 @@ export function BookingFlow({
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 placeholder="Promo code"
-                className="flex-1 rounded-lg border border-navy/15 px-3 py-2 text-sm uppercase"
+                className="flex-1 border border-navy/15 px-3 py-2 text-sm uppercase"
                 disabled={!!promoStatus.applied}
               />
               <button
@@ -401,18 +390,18 @@ export function BookingFlow({
                 <legend className="sr-only">How would you like to pay?</legend>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <PaymentChoice
+                    checked={payingDeposit}
+                    onSelect={() => setPaymentOption("deposit")}
+                    title="Down payment"
+                    amount={money(deposit)}
+                    note={`Secures your dates. The remaining ${money(total - deposit)} is due by arrival.`}
+                  />
+                  <PaymentChoice
                     checked={!payingDeposit}
                     onSelect={() => setPaymentOption("full")}
                     title="Pay in full"
                     amount={money(total)}
-                    note="Nothing more to pay at check-in."
-                  />
-                  <PaymentChoice
-                    checked={payingDeposit}
-                    onSelect={() => setPaymentOption("deposit")}
-                    title={`Reserve with ${depositPercent}%`}
-                    amount={money(deposit)}
-                    note={`The remaining ${money(total - deposit)} is due at check-in.`}
+                    note="Nothing more to pay on arrival."
                   />
                 </div>
               </fieldset>
@@ -445,37 +434,8 @@ export function BookingFlow({
   );
 }
 
-function PaymentChoice({
-  checked,
-  onSelect,
-  title,
-  amount,
-  note,
-}: {
-  checked: boolean;
-  onSelect: () => void;
-  title: string;
-  amount: string;
-  note: string;
-}) {
-  return (
-    <label
-      className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${
-        checked ? "border-champagne bg-champagne/10" : "border-navy/15 hover:border-navy/30"
-      }`}
-    >
-      <input type="radio" name="payment_option" checked={checked} onChange={onSelect} className="mt-1 accent-navy" />
-      <span>
-        <span className="block text-sm text-navy">{title}</span>
-        <span className="mt-0.5 block text-lg text-navy">{amount}</span>
-        <span className="mt-1 block text-xs text-navy/60">{note}</span>
-      </span>
-    </label>
-  );
-}
-
 function Steps({ step }: { step: number }) {
-  const labels = ["Dates & Residence", "Your Details", "Review & Pay"];
+  const labels = ["Dates & Apartment", "Your Details", "Review & Pay"];
   return (
     <div className="flex gap-8 border-b border-navy/10 pb-6">
       {labels.map((label, i) => (

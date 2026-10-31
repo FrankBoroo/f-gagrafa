@@ -4,14 +4,14 @@ import { useState } from "react";
 import Image from "next/image";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatMoney } from "@/lib/format";
+import { priceParts, unitFacts } from "@/lib/apartment-facts";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { APARTMENT_FALLBACK_IMAGE } from "@/lib/property";
 import type { Unit } from "@/lib/types";
 import { EmptyState } from "@/components/ui/EmptyState";
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267";
-
-// Why a residence can't be chosen right now, or null if it can. Shared with
+// Why an apartment can't be chosen right now, or null if it can. Shared with
 // BookingFlow so it can also drop a selection that stops being valid (e.g. the
 // guest raises the guest count, or changes dates to ones that are taken).
 export function getUnitBlockReason(
@@ -39,7 +39,7 @@ export function UnitPicker({
     return (
       <EmptyState
         compact
-        title="No residences are open for booking right now"
+        title="No apartments are open for booking right now"
         description="Get in touch and we'll help you find dates."
         action={{ href: "/contact", label: "Contact us" }}
       />
@@ -49,7 +49,7 @@ export function UnitPicker({
   return (
     // Native radio inputs inside: arrow keys, focus, and screen readers work for free.
     <fieldset className="space-y-4">
-      <legend className="sr-only">Choose your residence</legend>
+      <legend className="sr-only">Choose your apartment</legend>
       {units.map((unit) => (
         <UnitOption
           key={unit.id}
@@ -75,23 +75,11 @@ function UnitOption({
   blockReason: string | null;
   nights: number;
 }) {
-  const images = unit.images?.length ? unit.images : [FALLBACK_IMAGE];
-  const amenities = unit.amenities ?? [];
+  const images = unit.images?.length ? unit.images : [APARTMENT_FALLBACK_IMAGE];
   const [index, setIndex] = useState(0);
-  const [expanded, setExpanded] = useState(false);
 
   const blocked = blockReason !== null;
-  const hasMoreDetail =
-    amenities.length > 4 || Boolean(unit.description && unit.description !== unit.short_description);
-  const visibleAmenities = expanded ? amenities : amenities.slice(0, 4);
   const reasonId = `unit-reason-${unit.id}`;
-
-  const stats = [
-    `${unit.max_guests} guest${unit.max_guests === 1 ? "" : "s"}`,
-    unit.bedrooms === 0 ? "Studio" : `${unit.bedrooms} bedroom${unit.bedrooms === 1 ? "" : "s"}`,
-    `${unit.bathrooms} bath`,
-    unit.size_sqm ? `${unit.size_sqm} m²` : null,
-  ].filter(Boolean);
 
   // Buttons live inside the <label>; stop them from toggling the radio.
   function stopAnd(e: React.MouseEvent, fn: () => void) {
@@ -109,11 +97,11 @@ function UnitOption({
   return (
     <label
       id={`unit-${unit.id}`}
-      className={`relative flex flex-col overflow-hidden rounded-xl border bg-white transition md:flex-row has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-champagne ${stateClasses}`}
+      className={`relative flex flex-col overflow-hidden border bg-white transition md:flex-row has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-champagne ${stateClasses}`}
     >
       <input
         type="radio"
-        name="residence"
+        name="apartment"
         value={unit.id}
         checked={selected}
         disabled={blocked}
@@ -124,10 +112,10 @@ function UnitOption({
       {blocked && <span id={reasonId} className="sr-only">{blockReason}</span>}
 
       {/* Photo area */}
-      <div className="relative h-56 shrink-0 overflow-hidden bg-sand md:h-auto md:min-h-[240px] md:w-72">
+      <div className="relative h-56 shrink-0 overflow-hidden bg-sand md:h-auto md:min-h-[200px] md:w-72">
         <Image
           src={images[index]}
-          alt={`${unit.name} — photo ${index + 1} of ${images.length}`}
+          alt={`${unit.name}, photo ${index + 1} of ${images.length}`}
           fill
           sizes="(min-width: 768px) 288px, 100vw"
           className="object-cover"
@@ -163,7 +151,7 @@ function UnitOption({
         )}
 
         {blocked && (
-          <span className="absolute left-3 top-3 rounded-full bg-navy/85 px-3 py-1 text-xs text-ivory">
+          <span className="absolute left-3 top-3 bg-navy/85 px-3 py-1 text-xs text-ivory">
             {blockReason}
           </span>
         )}
@@ -176,41 +164,11 @@ function UnitOption({
 
       {/* Details */}
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="text-xl">{unit.name}</h3>
-        <p className="mt-1 text-sm text-navy/60">{unit.short_description ?? unit.description}</p>
-        <p className="mt-3 text-sm text-navy/70">{stats.join(" · ")}</p>
+        <h3 className="text-xl font-normal">{unit.name}</h3>
+        <p className="mt-2 text-sm text-navy/70">{unitFacts(unit).join(" · ")}</p>
 
-        {expanded && unit.description && unit.description !== unit.short_description && (
-          <p className="mt-3 text-sm text-navy/70">{unit.description}</p>
-        )}
-
-        {amenities.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {visibleAmenities.map((a) => (
-              <span key={a} className="rounded-full border border-navy/10 px-3 py-1 text-xs text-navy/70">
-                {a}
-              </span>
-            ))}
-            {!expanded && amenities.length > 4 && (
-              <span className="px-1 py-1 text-xs text-navy/50">+{amenities.length - 4} more</span>
-            )}
-          </div>
-        )}
-
-        {hasMoreDetail && (
-          <button
-            type="button"
-            onClick={(e) => stopAnd(e, () => setExpanded((v) => !v))}
-            className="mt-3 self-start text-xs text-champagne-dark underline underline-offset-2"
-          >
-            {expanded ? "Show less" : "Full details"}
-          </button>
-        )}
-
-        <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-navy/10 pt-4">
-          <p className="text-sm text-navy/60">
-            <span className="text-lg text-navy">{formatMoney(unit.base_price_per_night, currency)}</span> / night
-          </p>
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-sand pt-4">
+          <p className="text-sm text-navy">{priceParts(unit, currency).join(" · ")}</p>
           {nights > 0 && (
             <p className="text-sm text-navy/70">
               {nights} night{nights === 1 ? "" : "s"} ·{" "}

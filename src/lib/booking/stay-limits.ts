@@ -6,7 +6,7 @@ export const MIN_NIGHTS = 2;
 export const MAX_NIGHTS = 365;
 export const MAX_DAYS_AHEAD = 730;
 
-const isRealDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d)) && toISODate(new Date(d)) === d;
+export const isRealDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d)) && toISODate(new Date(d)) === d;
 
 // Why these dates can't be booked online, or null when they can. Checked on the server
 // (the date pickers enforce none of it).

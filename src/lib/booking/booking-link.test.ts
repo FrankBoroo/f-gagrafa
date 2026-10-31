@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+import { bookingHref, parseBookingParams } from "@/lib/booking/booking-link";
+import { addDays, toISODate } from "@/lib/booking/dates";
+
+const units = [
+  { id: "u1", slug: "penthouse", max_guests: 2 },
+  { id: "u2", slug: "studio", max_guests: 3 },
+];
+const inDays = (n: number) => addDays(toISODate(new Date()), n);
+const params = (values: Record<string, string>) => new URLSearchParams(values);
+const valid = { unit: "penthouse", checkIn: inDays(10), checkOut: inDays(13), guests: "2" };
+
+describe("parseBookingParams", () => {
+  it("starts at the guest's details when the link is complete", () => {
+    expect(parseBookingParams(params(valid), units)).toEqual({
+      unitId: "u1", checkIn: valid.checkIn, checkOut: valid.checkOut, guests: 2, pay: "deposit", startStep: 2,
+    });
+  });
+
+  it("selects the down payment unless the link says full", () => {
+    expect(parseBookingParams(params({ ...valid, pay: "full" }), units).pay).toBe("full");
+    expect(parseBookingParams(params({ ...valid, pay: "xyz" }), units).pay).toBe("deposit");
+  });
+
+  it("starts at step 1 for an unknown apartment", () => {
+    expect(parseBookingParams(params({ ...valid, unit: "nope" }), units)).toMatchObject({ unitId: "", startStep: 1 });
+  });
+
+  it("drops dates that aren't dates", () => {
+    expect(parseBookingParams(params({ ...valid, checkIn: "banana" }), units)).toMatchObject({ checkIn: "", checkOut: "", startStep: 1 });
+    expect(parseBookingParams(params({ ...valid, checkIn: "2030-02-31" }), units)).toMatchObject({ checkIn: "", startStep: 1 });
+  });
+
+  it("starts at step 1 for stays the rules refuse", () => {
+    const backwards = { ...valid, checkIn: inDays(13), checkOut: inDays(10) };
+    const oneNight = { ...valid, checkIn: inDays(10), checkOut: inDays(11) };
+    const past = { ...valid, checkIn: inDays(-5), checkOut: inDays(-2) };
+    for (const link of [backwards, oneNight, past]) {
+      expect(parseBookingParams(params(link), units).startStep).toBe(1);
+    }
+  });
+
+  it("caps guests at what the apartment allows", () => {
+    expect(parseBookingParams(params({ ...valid, guests: "99" }), units).guests).toBe(2);
+  });
+
+  it("uses 2 guests when the number is unusable", () => {
+    expect(parseBookingParams(params({ ...valid, guests: "0" }), units).guests).toBe(2);
+    expect(parseBookingParams(params({ ...valid, guests: "abc" }), units).guests).toBe(2);
+    expect(parseBookingParams(params({}), units).guests).toBe(2);
+  });
+});
+
+describe("bookingHref", () => {
+  it("round-trips through parseBookingParams", () => {
+    const href = bookingHref({ slug: "studio", checkIn: valid.checkIn, checkOut: valid.checkOut, guests: 1, pay: "full" });
+    expect(href.startsWith("/booking?")).toBe(true);
+    expect(parseBookingParams(new URLSearchParams(href.split("?")[1]), units)).toEqual({
+      unitId: "u2", checkIn: valid.checkIn, checkOut: valid.checkOut, guests: 1, pay: "full", startStep: 2,
+    });
+  });
+
+  it("leaves the apartment out when none is given", () => {
+    const href = bookingHref({ checkIn: valid.checkIn, checkOut: valid.checkOut, guests: 2, pay: "deposit" });
+    expect(href).not.toContain("unit=");
+  });
+});
