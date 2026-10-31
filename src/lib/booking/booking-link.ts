@@ -46,7 +46,7 @@ export function parseBookingParams(
     unitId: unit?.id ?? "",
     checkIn,
     checkOut,
-    guests: parseGuests(params.get("guests"), unit?.max_guests ?? Number.MAX_SAFE_INTEGER),
+    guests: parseGuests(params.get("guests"), unit?.max_guests ?? Math.max(DEFAULT_GUESTS, ...units.map((u) => u.max_guests))),
     pay: params.get("pay") === "full" ? "full" : "deposit",
     startStep: unit && datesReal && stayDatesError(checkIn, checkOut) === null ? 2 : 1,
   };

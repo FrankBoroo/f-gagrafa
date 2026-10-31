@@ -21,6 +21,16 @@ export const HERO_SLIDES: { src: string; alt: string; position: string }[] = [
   },
 ];
 
+// The next slide whose photo has finished loading, or the current one if none has, so the
+// slideshow never fades to an empty frame on a slow connection.
+export function nextLoadedSlide(active: number, count: number, loaded: Set<number>): number {
+  for (let step = 1; step < count; step++) {
+    const next = (active + step) % count;
+    if (loaded.has(next)) return next;
+  }
+  return active;
+}
+
 export const BUILDING_AMENITIES: { name: string; src: string; alt: string }[] = [
   { name: "Pool side", src: "/photos/pool.jpg", alt: "The pool with sun loungers beside it" },
   { name: "Gym", src: "/photos/gym.jpg", alt: "Treadmills and free weights by a tall window in the gym" },

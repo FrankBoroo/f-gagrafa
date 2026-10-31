@@ -56,7 +56,7 @@ export default async function TourPage() {
           alt=""
           fill
           priority
-          sizes="100vw"
+          sizes="(max-width: 767px) 60vh, 100vw"
           className="animate-slow-zoom object-cover motion-reduce:animate-none"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/45 to-navy/20" aria-hidden="true" />

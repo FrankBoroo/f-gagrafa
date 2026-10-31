@@ -146,10 +146,10 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: unit } = await supabase.from("units").select("name, short_description, images").eq("slug", slug).single<Pick<Unit, "name" | "short_description" | "images">>();
+  const { data: unit } = await supabase.from("units").select("name, short_description, description, images").eq("slug", slug).single<Pick<Unit, "name" | "short_description" | "description" | "images">>();
   if (!unit) return { title: "The Gagrafa" };
   const title = `${unit.name} — The Gagrafa`;
-  const description = unit.short_description ?? undefined;
+  const description = unit.short_description ?? unit.description ?? undefined;
   const image = unit.images?.[0];
   return {
     title,

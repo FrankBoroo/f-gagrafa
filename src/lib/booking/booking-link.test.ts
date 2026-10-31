@@ -44,6 +44,10 @@ describe("parseBookingParams", () => {
     expect(parseBookingParams(params({ ...valid, guests: "99" }), units).guests).toBe(2);
   });
 
+  it("caps guests at the largest apartment when none is chosen, so nothing is blocked by a bad link", () => {
+    expect(parseBookingParams(params({ unit: "nope", guests: "99" }), units).guests).toBe(3);
+  });
+
   it("uses 2 guests when the number is unusable", () => {
     expect(parseBookingParams(params({ ...valid, guests: "0" }), units).guests).toBe(2);
     expect(parseBookingParams(params({ ...valid, guests: "abc" }), units).guests).toBe(2);

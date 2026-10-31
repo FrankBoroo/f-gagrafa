@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { HERO_SLIDES } from "@/lib/property";
+import { HERO_SLIDES, nextLoadedSlide } from "@/lib/property";
 
 const SLIDE_MS = 6000;
 
@@ -24,6 +24,7 @@ export function HeroSlideshow() {
   const [active, setActive] = useState(0);
   const [allLoaded, setAllLoaded] = useState(false);
   const [auto, setAuto] = useState(false);
+  const loaded = useRef(new Set<number>([0]));
   const count = HERO_SLIDES.length;
 
   // The first photo is the LCP. The others wait until the page has finished and gone idle.
@@ -49,14 +50,14 @@ export function HeroSlideshow() {
   useEffect(() => {
     if (!auto) return;
     const timer = window.setInterval(() => {
-      if (!document.hidden) setActive((i: number) => (i + 1) % count);
+      if (!document.hidden) setActive((i: number) => nextLoadedSlide(i, count, loaded.current));
     }, SLIDE_MS);
     return () => window.clearInterval(timer);
   }, [auto, count]);
 
   function show(index: number) {
     setAuto(false);
-    setActive(index);
+    if (loaded.current.has(index)) setActive(index);
   }
 
   return (
@@ -69,7 +70,9 @@ export function HeroSlideshow() {
             alt={i === active ? slide.alt : ""}
             fill
             priority={i === 0}
-            sizes="100vw"
+            // On tall phones the crop is far wider than the screen, so 100vw would pick a blurry file.
+            sizes="(max-width: 767px) 60vh, 100vw"
+            onLoad={() => loaded.current.add(i)}
             style={{ objectPosition: slide.position }}
             className={`object-cover transition-opacity duration-[900ms] ease-out motion-reduce:transition-none ${
               i === active ? "opacity-100" : "opacity-0"
