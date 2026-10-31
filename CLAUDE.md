@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # The Gagrafa
 
-Luxury serviced apartments, Spintex / Community 20, Accra. Tagline: "Live Luxuriously, Stay Serenely".
+Luxury serviced apartments, Tema, Community 20. Tagline: "Live Luxuriously, Stay Serenely".
 Three parts in one Next.js app: public direct-booking site, guest portal, admin/property dashboard.
 
 ## Pre-deployment dashboard items (owner-confirmed 2026-10-26)
@@ -61,6 +61,8 @@ These live in the Supabase / Vercel dashboards, not the code. The owner confirme
 - **Uploads**: unit photos (`unit-images` bucket) and Tour photos (`gallery-images` bucket) go browser to Supabase Storage via signed upload URL (avoids Vercel's ~4.5 MB body limit). Images are shrunk client-side first (`src/lib/image-prepare.ts`).
 - **Free stays** (`src/lib/booking/free-booking.ts`): a promo that brings the charge to 0 skips Paystack; the booking is inserted confirmed/paid with no payments row, an audit entry `booking.free_confirmed` and an admin note. The promo use is claimed before the insert with a compare-and-set on `used_count` (`claimPromoUse`), released if the insert fails. A 0 total without a promo is refused.
 - **Deposits** (`src/lib/booking/deposit.ts`): on every stay, guests may pay a deposit share (default 50%, set in Settings; 0 disables). The server re-checks the rules; staff record the balance with "Record payment".
+- **Public photos**: building photos are in `public/photos`, apartment galleries in `public/apartments/<slug>` and listed on each type by `reset-and-seed.sql`. Facts shared by pages (hero slides, amenities) are in `src/lib/property.ts`. `src/lib/public-copy.test.ts` keeps retired words and unconfirmed claims off guest-facing pages.
+- **Booking link**: the apartment panel sends guests to `/booking` via `bookingHref`; `parseBookingParams` (`src/lib/booking/booking-link.ts`) reads it back and treats it as untrusted. What is due now comes from `paymentSummary`.
 - **Tour**: public `/tour` page; property and neighbourhood photos managed in Admin → Tour (`TourManager`), residence photos come from unit galleries.
 
 ## Database
@@ -85,7 +87,6 @@ RLS rule: the app reads and writes through the service-role client after its own
 See `.env.example`. Needed on Vercel too: Supabase URL / anon / service-role keys, Paystack public + secret keys, Resend key and `RESEND_FROM_EMAIL` (verified domain required), Twilio (optional), `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET` (the cron route refuses to run without it), `ADMIN_NOTIFICATION_EMAIL`, `PORTAL_SESSION_SECRET` (falls back to the service-role key if unset). Add the Paystack webhook URL `/api/webhooks/paystack` in the Paystack dashboard. Vercel reads env vars at build time, so redeploy after changing them.
 
 ## Pending / deferred work
-- **Homepage design extras (optional, desktop only)**: magnetic buttons, custom cursor, grain, diagonal section. Done: video hero with parallax, see-through header, scroll reveals, floating "Book Your Stay" on phones.
 - Replace placeholder Terms / Privacy text and contact details; verify a Resend domain.
 
 ## Not yet verified against live services
@@ -202,6 +203,6 @@ Feel free to stop and ask me questions at any point. For example: where it's hos
 
 ## Project docs and skills
 - `PLAN.md`: architecture and phased roadmap. Work phase by phase; finish each phase's exit gate first.
-- `DESIGN.md`: homepage design (video hero with parallax). Read before touching the homepage.
+- `DESIGN.md`: public site design (photo slideshow, apartment page). Read before touching public pages.
 - Skills in `.claude/skills/`: `gagrafa-frontend-design`, `gagrafa-supabase-migrations`, `gagrafa-payments-booking`, `gagrafa-pre-ship-check`. Use the matching skill for that kind of work.
 - Third-party skill `ui-ux-pro-max` is also installed for general UI/UX checks (accessibility, layout, interaction). For brand decisions (palette, fonts, motion, look), `gagrafa-frontend-design` and `DESIGN.md` take priority; never adopt its suggested palettes or font pairings over the navy / champagne / ivory / sand palette and Playfair Display + Inter.

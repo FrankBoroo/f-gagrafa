@@ -65,7 +65,7 @@ export async function confirmPaymentByReference(
         .from("bookings")
         .update({ admin_notes: [booking.admin_notes, note].filter(Boolean).join("\n") })
         .eq("id", booking.id);
-      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", `${note} Do not confirm this booking; check the payment in Paystack and refund or contact the guest.`);
+      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "an apartment", `${note} Do not confirm this booking; check the payment in Paystack and refund or contact the guest.`);
     }
     return { outcome: "failed", booking, reason: mismatch };
   }
@@ -109,7 +109,7 @@ export async function confirmPaymentByReference(
       .eq("id", booking.id);
     log.error("payment.paid_after_cancellation", { booking_code: reference, first: firstConfirmation });
     if (firstConfirmation) {
-      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", reason);
+      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "an apartment", reason);
     }
     return { outcome: "needs_review", booking };
   }
@@ -158,7 +158,7 @@ export async function confirmPaymentByReference(
       .eq("id", booking.id);
     log.error("payment.paid_not_confirmed", { booking_code: reference, first: firstConfirmation }, updateError);
     if (firstConfirmation) {
-      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "a residence", reason);
+      await sendAdminPaymentConflictAlert(booking, (booking as any).units?.name ?? "an apartment", reason);
     }
     return { outcome: "needs_review", booking };
   }
@@ -167,7 +167,7 @@ export async function confirmPaymentByReference(
   // `firstConfirmation` is false when the webhook or the success page already
   // handled this reference.
   if (firstConfirmation) {
-    const unitName = (updatedBooking as any)?.units?.name ?? (booking as any).units?.name ?? "your residence";
+    const unitName = (updatedBooking as any)?.units?.name ?? (booking as any).units?.name ?? "your apartment";
     await Promise.all([
       sendBookingConfirmationEmail(updatedBooking ?? booking, unitName, charged),
       sendBookingConfirmationWhatsApp(updatedBooking ?? booking, unitName),

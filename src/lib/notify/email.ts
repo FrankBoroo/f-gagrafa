@@ -88,7 +88,7 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
       <p>Your stay at <strong>The Gagrafa</strong> is confirmed.</p>
       <p>
         <strong>Booking code:</strong> ${booking.booking_code}<br/>
-        <strong>Residence:</strong> ${esc(unitName)}<br/>
+        <strong>Apartment:</strong> ${esc(unitName)}<br/>
         <strong>Check-in:</strong> ${booking.check_in}<br/>
         <strong>Check-out:</strong> ${booking.check_out}<br/>
         ${paymentLines}${bookedAt}
@@ -109,7 +109,7 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
       <p>
         <strong>Code:</strong> ${booking.booking_code}<br/>
         <strong>Guest:</strong> ${esc(booking.guest_name)} (${esc(booking.guest_email)}, ${esc(booking.guest_phone ?? "no phone")})<br/>
-        <strong>Residence:</strong> ${esc(unitName)}<br/>
+        <strong>Apartment:</strong> ${esc(unitName)}<br/>
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}<br/>
         <strong>Total:</strong> ${formatMoney(Number(booking.total_amount), booking.currency)}${bookedPriceSuffix(booking)}<br/>
         <strong>Payment status:</strong> ${booking.payment_status}
@@ -131,7 +131,7 @@ export async function sendAdminPaymentConflictAlert(booking: any, unitName: stri
       <p>
         <strong>Code:</strong> ${booking.booking_code}<br/>
         <strong>Guest:</strong> ${esc(booking.guest_name)} (${esc(booking.guest_email)}, ${esc(booking.guest_phone ?? "no phone")})<br/>
-        <strong>Residence:</strong> ${esc(unitName)}<br/>
+        <strong>Apartment:</strong> ${esc(unitName)}<br/>
         <strong>Dates:</strong> ${booking.check_in} → ${booking.check_out}
       </p>
       <p>Please contact the guest to offer other dates or a full refund.</p>

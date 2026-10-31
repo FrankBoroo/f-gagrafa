@@ -9,10 +9,10 @@ export const guestDetailsSchema = z.object({
 export type GuestDetails = z.infer<typeof guestDetailsSchema>;
 
 export const createBookingSchema = guestDetailsSchema.extend({
-  unit_id: z.string().uuid("Select a residence"),
+  unit_id: z.string().uuid("Select an apartment"),
   check_in: z.string().min(1, "Select a check-in date"),
   check_out: z.string().min(1, "Select a check-out date"),
-  // The residence's own max_guests is checked in the booking action; 30 is the most any can sleep.
+  // The apartment's own max_guests is checked in the booking action; 30 is the most any can sleep.
   adults: z.coerce.number().int().min(1, "At least 1 adult").max(30),
   children: z.coerce.number().int().min(0).max(30).default(0),
   promo_code: z.string().max(40).optional(),
@@ -47,7 +47,7 @@ export const unitUpdateSchema = z.object({
 });
 export type UnitUpdateInput = z.infer<typeof unitUpdateSchema>;
 
-// Everything about a residence except its photos and slug (the slug is generated on
+// Everything about an apartment except its photos and slug (the slug is generated on
 // creation and then kept stable so links and search results never break).
 export const unitDetailsSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(100),

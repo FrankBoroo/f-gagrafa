@@ -37,12 +37,12 @@ describe("stayDatesError", () => {
 });
 
 describe("guestCountError", () => {
-  it("allows up to the residence's limit", () => {
+  it("allows up to the apartment's limit", () => {
     expect(guestCountError(2, 0, 2)).toBeNull();
     expect(guestCountError(1, 2, 4)).toBeNull();
   });
 
-  it("refuses more guests than the residence sleeps", () => {
+  it("refuses more guests than the apartment sleeps", () => {
     expect(guestCountError(3, 0, 2)).toMatch(/sleeps 2 guests/);
     expect(guestCountError(2, 1, 2)).toMatch(/sleeps 2 guests/);
     expect(guestCountError(2, 0, 1)).toMatch(/sleeps 1 guest at most/);

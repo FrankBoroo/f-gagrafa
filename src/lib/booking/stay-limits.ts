@@ -1,7 +1,7 @@
 import { addDays, calculateNights, toISODate } from "@/lib/booking/dates";
 
 // Shortest and longest stay, and furthest check-in, that can be booked online. Anything else
-// goes through the team, so a single request can't hold a residence for years.
+// goes through the team, so a single request can't hold an apartment for years.
 export const MIN_NIGHTS = 2;
 export const MAX_NIGHTS = 365;
 export const MAX_DAYS_AHEAD = 730;
@@ -26,5 +26,5 @@ export function stayDatesError(checkIn: string, checkOut: string, today: string 
 
 export function guestCountError(adults: number, children: number, maxGuests: number): string | null {
   if (adults + children <= maxGuests) return null;
-  return `This residence sleeps ${maxGuests} guest${maxGuests === 1 ? "" : "s"} at most`;
+  return `This apartment sleeps ${maxGuests} guest${maxGuests === 1 ? "" : "s"} at most`;
 }

@@ -34,7 +34,7 @@ type AvailabilityResult =
   | { ok: true; availability: Record<string, boolean> }
   | { ok: false; error: string };
 
-// Powers the residence picker: tells the guest, before they pick, which units
+// Powers the apartment picker: tells the guest, before they pick, which units
 // are free for their dates. Read-only and advisory — the real, authoritative
 // check still runs again inside createBookingAndInitializePayment, so a unit
 // that gets booked between this call and payment is still caught there.
@@ -105,7 +105,7 @@ export async function createBookingAndInitializePayment(
     .single();
 
   if (!unit || !unit.is_active) {
-    return { ok: false, error: "This residence is no longer available" };
+    return { ok: false, error: "This apartment is no longer available" };
   }
   const guestsError = guestCountError(data.adults, data.children, unit.max_guests);
   if (guestsError) return { ok: false, error: guestsError };
@@ -127,7 +127,7 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: "We couldn't check availability. Please try again." };
   }
   if (!rooms.length) {
-    return { ok: false, error: "This residence is not available for the selected dates" };
+    return { ok: false, error: "This apartment is not available for the selected dates" };
   }
 
   const nights = calculateNights(data.check_in, data.check_out);
@@ -164,7 +164,7 @@ export async function createBookingAndInitializePayment(
   // can't give two free stays).
   const freeStay = checkFreeStay(chargeTotal, appliedPromoCode);
   if (freeStay === "invalid") {
-    return { ok: false, error: "This residence can't be booked online right now. Please contact us to book." };
+    return { ok: false, error: "This apartment can't be booked online right now. Please contact us to book." };
   }
   const freePromo = freeStay === "free" ? appliedPromoCode : null;
   const isFree = freePromo !== null;
@@ -237,7 +237,7 @@ export async function createBookingAndInitializePayment(
     }
     log.error("booking.insert_failed", { unit_id: data.unit_id, check_in: data.check_in, check_out: data.check_out }, error);
     await sendAdminSystemAlert("booking.insert_failed", "A guest could not create a booking", {
-      Residence: unit.name,
+      Apartment: unit.name,
       Dates: `${data.check_in} → ${data.check_out}`,
       "Database error": error?.code ?? "no row returned",
     });
@@ -282,7 +282,7 @@ export async function createBookingAndInitializePayment(
     log.error("payment.init_failed", { booking_code: bookingCode, amount: amountDueNow }, err);
     await sendAdminSystemAlert("payment.init_failed", "Paystack checkout could not be started", {
       "Booking code": bookingCode,
-      Residence: unit.name,
+      Apartment: unit.name,
       Amount: `GHS ${amountDueNow}`,
       Note: "The booking was auto-cancelled. If this repeats, check the Paystack keys and status.",
     });

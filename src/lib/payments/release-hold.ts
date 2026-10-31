@@ -68,7 +68,7 @@ export async function releaseUnpaidHold(reference: string): Promise<ReleaseHoldR
   return { outcome: "released", booking };
 }
 
-// "/booking" with the same residence, dates and guests filled in, for a quick retry.
+// "/booking" with the same apartment, dates and guests filled in, for a quick retry.
 export function rebookHref(booking: any): string {
   const slug = booking?.units?.slug;
   if (!slug) return "/booking";

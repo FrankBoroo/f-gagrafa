@@ -141,7 +141,7 @@ describe("releaseUnpaidHold", () => {
 });
 
 describe("rebookHref", () => {
-  it("prefills residence, dates and guests", () => {
+  it("prefills apartment, dates and guests", () => {
     expect(rebookHref(pendingBooking())).toBe(
       "/booking?unit=studio-suite&checkIn=2027-03-01&checkOut=2027-03-04&guests=3"
     );
