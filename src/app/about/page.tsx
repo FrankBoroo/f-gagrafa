@@ -1,81 +1,50 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export const metadata = { title: "About — The Gagrafa" };
-
-const pillars = [
-  {
-    title: "Considered design",
-    body: "Every residence is furnished with the same care as a well-kept home — durable materials, calm colour, and nothing that feels temporary.",
-  },
-  {
-    title: "Dependable utilities",
-    body: "Backup power and water, fast Wi-Fi, and 24/7 security, so a stay here is never interrupted by the things Accra can sometimes interrupt.",
-  },
-  {
-    title: "Service that anticipates",
-    body: "From check-in instructions sent ahead of arrival to a team that responds to requests quickly — without hovering.",
-  },
-];
 
 export default function AboutPage() {
   return (
     <div>
-      <section className="relative h-[50vh] w-full">
+      <section className="relative h-[60vh] min-h-[380px] w-full bg-navy">
         <Image
-          src="/tour/open-plan-living.jpg"
-          alt="The Gagrafa residence interior"
+          src="/photos/hero-4.jpg"
+          alt="The Gagrafa building seen from its forecourt"
           fill
           priority
+          sizes="100vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-navy/40" />
-        <div className="container-gagrafa relative z-10 flex h-full flex-col justify-end pb-16 text-ivory">
-          <p className="text-xs uppercase tracking-[0.3em] text-champagne">About</p>
-          <h1 className="mt-3 max-w-2xl text-4xl md:text-5xl">A quiet residence on Community 20</h1>
+        <div className="absolute inset-0 bg-gradient-to-t from-navy/75 to-navy/15" />
+        <div className="container-gagrafa relative z-10 flex h-full flex-col justify-end pb-14 text-ivory">
+          <p className="text-[0.7rem] uppercase tracking-[0.25em] text-champagne-light">About</p>
+          <h1 className="mt-3 max-w-2xl text-4xl font-normal md:text-6xl">Where modern living meets comfort</h1>
         </div>
       </section>
 
-      <section className="container-gagrafa py-20">
-        <div className="grid gap-12 md:grid-cols-2">
-          <h2 className="text-3xl">Our story</h2>
-          <div className="space-y-4 text-navy/70">
-            <p>
-              The Gagrafa was built for a specific kind of traveller — the one who wants
-              the independence of an apartment with the reliability of a well-run hotel.
-              Spintex is one of Accra&rsquo;s most connected neighbourhoods, close to the
-              business districts without the noise of being in the middle of them, and
-              Community 20 sits quietly within it.
-            </p>
-            <p>
-              We furnish every residence ourselves, maintain them ourselves, and keep a
-              small team on-site around the clock, so the experience stays consistent
-              whether you&rsquo;re here for three nights or three months.
-            </p>
-          </div>
+      <section className="container-gagrafa grid gap-10 py-20 md:grid-cols-[1fr_1.2fr] md:gap-16 md:py-28">
+        <div>
+          <h2 className="text-3xl font-normal leading-tight md:text-4xl">Welcome to The Gagrafa</h2>
+          <Link href="/units" className="link-underline mt-6">Our apartments</Link>
         </div>
-      </section>
-
-      <section className="bg-sand py-20">
-        <div className="container-gagrafa">
-          <h2 className="text-3xl">What we care about</h2>
-          <div className="mt-10 grid gap-8 md:grid-cols-3">
-            {pillars.map((p) => (
-              <div key={p.title} className="border-l border-champagne pl-5">
-                <p className="text-lg">{p.title}</p>
-                <p className="mt-2 text-sm text-navy/60">{p.body}</p>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-5 text-navy/75">
+          <p>
+            We offer a unique blend of contemporary design, serene surroundings and easy access to
+            the vibrant heart of the city. Whether you&rsquo;re here for a short stay or a long-term
+            one, our apartments are designed to give you a peaceful retreat while keeping you
+            connected to everything you need.
+          </p>
+          <p>
+            Our thoughtfully designed spaces feature sleek, modern finishes, state-of-the-art
+            amenities and flexible living options, including fully and semi-furnished apartments.
+            Each detail is crafted for your comfort, convenience and peace of mind.
+          </p>
+          <p>
+            What sets us apart is a lifestyle that balances tranquillity and accessibility. Just a
+            short drive from the city&rsquo;s bustling business district, The Gagrafa offers an escape
+            from the daily grind without sacrificing connectivity.
+          </p>
         </div>
-      </section>
-
-      <section className="container-gagrafa py-20">
-        <h2 className="text-3xl">The neighbourhood</h2>
-        <p className="mt-4 max-w-2xl text-navy/70">
-          Spintex connects easily to the Accra Mall, Kotoka International Airport, and
-          the Airport City business district, with a growing strip of restaurants,
-          gyms, and supermarkets within a short drive of the property.
-        </p>
       </section>
     </div>
   );

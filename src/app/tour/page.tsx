@@ -11,16 +11,14 @@ import type { Json } from "@/types/database";
 export const metadata = {
   title: "Tour — The Gagrafa",
   description:
-    "A photo tour of The Gagrafa: our residences, the building, and the Spintex neighbourhood around it.",
+    "A photo tour of The Gagrafa: our apartments, the building and the neighbourhood around it.",
 };
 
 // Photos change when staff edit them, and the page is cheap to build.
 export const dynamic = "force-dynamic";
 
-const PHOTOS_PER_RESIDENCE = 4; // the full set lives on each residence's own page
+const PHOTOS_PER_APARTMENT = 4; // the full set lives on each apartment's own page
 
-// Seed data uses stock photos as stand-ins; they don't belong on a tour of the real place.
-const isPlaceholder = (src: string) => src.includes("images.unsplash.com");
 
 export default async function TourPage() {
   const supabase = createServiceClient();
@@ -31,10 +29,9 @@ export default async function TourPage() {
     supabase.from("gallery_items").select("*").order("sort_order", { ascending: true }),
   ]);
 
-  const residences: StripPhoto[] = (units ?? []).flatMap((u: { name: string; images: Json }) =>
+  const apartments: StripPhoto[] = (units ?? []).flatMap((u: { name: string; images: Json }) =>
     stringList(u.images)
-      .filter((src: string) => !isPlaceholder(src))
-      .slice(0, PHOTOS_PER_RESIDENCE)
+      .slice(0, PHOTOS_PER_APARTMENT)
       .map((src: string, i: number) => ({ src, alt: `${u.name}, photo ${i + 1}`, caption: u.name }))
   );
 
@@ -67,7 +64,7 @@ export default async function TourPage() {
           <p className="text-xs uppercase tracking-[0.3em] text-champagne-light">Take a tour</p>
           <h1 className="mt-4 max-w-3xl text-5xl leading-[1.05] text-ivory md:text-7xl">Step inside The Gagrafa</h1>
           <p className="mt-6 max-w-xl text-lg text-ivory/80">
-            Serviced apartments in Spintex, Community 20. Calm rooms, considered finishes, and the city a short drive away.
+            Serviced apartments in Tema, Community 20. Calm rooms, considered finishes, and the city a short drive away.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link href="/booking" className="btn-gold">Book Your Stay</Link>
@@ -109,17 +106,17 @@ export default async function TourPage() {
             id="inside"
             eyebrow="Interiors"
             title="Inside The Gagrafa"
-            description="Living rooms, kitchens, dining corners and bedrooms, photographed in our residences."
+            description="Living rooms, kitchens, dining corners and bedrooms, photographed in our apartments."
             photos={INTERIOR_PHOTOS}
           />
         </Reveal>
-        {residences.length > 0 && (
+        {apartments.length > 0 && (
           <Reveal>
             <FilmStrip
-              eyebrow="Residences"
-              title="Choose your residence"
-              description="From the studio to the penthouse. Each residence has its full gallery on its own page."
-              photos={residences}
+              eyebrow="Apartments"
+              title="Choose your apartment"
+              description="From the studio to the penthouse. Each apartment has its full gallery on its own page."
+              photos={apartments}
             />
           </Reveal>
         )}
@@ -132,8 +129,7 @@ export default async function TourPage() {
           <Reveal>
             <FilmStrip
               eyebrow="The neighbourhood"
-              title="Around Spintex"
-              description="Community 20, Spintex: quiet streets, with the airport and Accra's business district within easy reach."
+              title="Around Community 20"
               photos={neighbourhood}
             />
           </Reveal>
@@ -144,12 +140,12 @@ export default async function TourPage() {
         <div className="container-gagrafa flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-champagne-light">Live luxuriously, stay serenely</p>
-            <h2 className="mt-3 text-3xl md:text-4xl">Your residence is ready when you are.</h2>
+            <h2 className="mt-3 text-3xl md:text-4xl">Your apartment is ready when you are.</h2>
           </div>
           <div className="flex flex-wrap gap-4">
             <Link href="/booking" className="btn-gold">Book Your Stay</Link>
             <Link href="/units" className="btn-secondary border-ivory/30 text-ivory hover:border-ivory/60 hover:bg-ivory/10">
-              View residences
+              View apartments
             </Link>
           </div>
         </div>

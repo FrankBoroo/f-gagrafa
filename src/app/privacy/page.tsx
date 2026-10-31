@@ -10,7 +10,7 @@ export default async function PrivacyPage() {
   const { contact_email } = await getPublicSettings();
   return (
     <div className="container-gagrafa max-w-3xl py-24">
-      <p className="text-xs uppercase tracking-[0.3em] text-champagne">Legal</p>
+      <p className="eyebrow">Legal</p>
       <h1 className="mt-3 text-4xl md:text-5xl">Privacy Policy</h1>
       <p className="mt-4 text-sm text-navy/50">Last updated: {formatDate(LAST_UPDATED)}</p>
       <p className="mt-6 text-navy/70">
@@ -23,7 +23,7 @@ export default async function PrivacyPage() {
           <p>When you book a stay, contact us, or use the Guest Portal, we collect:</p>
           <ul className="mt-3 list-disc space-y-2 pl-5">
             <li>Name, email address, and phone number</li>
-            <li>Booking details — dates, residence, guest count, special requests</li>
+            <li>Booking details — dates, apartment, guest count, special requests</li>
             <li>Payment confirmation details from Paystack (we never store full card numbers)</li>
             <li>Messages you send us via the contact form or service requests</li>
           </ul>

@@ -1,6 +1,6 @@
 // Real interiors from The Gagrafa (the photos on the old thegagrafa.com Tour page), served from
 // /public/tour. They give the Tour page a curated strip and its banner even before staff upload
-// anything; residence, property and neighbourhood photos still come from the database.
+// anything; apartment, property and neighbourhood photos still come from the database.
 
 export interface StripPhoto {
   src: string;
@@ -17,10 +17,13 @@ const photo = (name: string, alt: string, portrait = false): StripPhoto => ({
   height: portrait ? 854 : 662,
 });
 
-export const TOUR_HERO: StripPhoto = photo(
-  "penthouse-lounge",
-  "A bright lounge with a crystal chandelier, terracotta armchairs and floor-to-ceiling windows"
-);
+// A 2560 px photo: the banner is full-bleed, and the interiors below are too small for that.
+export const TOUR_HERO: StripPhoto = {
+  src: "/photos/hero-1.jpg",
+  alt: "The Gagrafa's outdoor pool, lined with green stone, with sun loungers along one side",
+  width: 2560,
+  height: 1707,
+};
 
 // Landscape and portrait shots alternate so the strip has a rhythm.
 export const INTERIOR_PHOTOS: StripPhoto[] = [
@@ -36,5 +39,5 @@ export const INTERIOR_PHOTOS: StripPhoto[] = [
   photo("kitchen-dining", "White kitchen with a round dining table and four chairs"),
   photo("living-blue-artwork", "Lounge with a caramel sectional sofa and a large blue painting"),
   photo("bright-living", "Bright living room with a white sofa, ottoman and floor-length curtains"),
-  TOUR_HERO,
+  photo("penthouse-lounge", "A bright lounge with a crystal chandelier, terracotta armchairs and floor-to-ceiling windows"),
 ];

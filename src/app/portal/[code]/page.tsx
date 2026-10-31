@@ -218,7 +218,7 @@ export default async function PortalDetailPage({
       <section className="mt-10">
         <h2 className="text-2xl">Nearby</h2>
         <p className="mt-2 text-sm text-navy/60">
-          Curated recommendations for restaurants and things to do near Spintex —
+          Curated recommendations for restaurants and things to do near Community 20 —
           coming soon.
         </p>
       </section>

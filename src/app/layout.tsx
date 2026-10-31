@@ -26,10 +26,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: "The Gagrafa — Live Luxuriously, Stay Serenely",
   description:
-    "Luxury serviced apartments in Spintex, Accra. Studios, one and two bedroom residences, and a signature penthouse — book direct at The Gagrafa.",
+    "Luxury serviced apartments in Tema, Community 20. Studios, one and two bedroom apartments and a penthouse, by the night or the month. Book direct at The Gagrafa.",
   openGraph: {
     title: "The Gagrafa",
-    description: "Live Luxuriously, Stay Serenely. Luxury serviced apartments in Spintex, Accra.",
+    description: "Live Luxuriously, Stay Serenely. Luxury serviced apartments in Tema, Community 20.",
     type: "website",
     siteName: "The Gagrafa",
     locale: "en_GH",
@@ -41,11 +41,11 @@ const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "LodgingBusiness",
   name: "The Gagrafa",
-  description: "Luxury serviced apartments in Spintex, Accra, Ghana.",
+  description: "Luxury serviced apartments in Tema, Community 20, Ghana.",
   address: {
     "@type": "PostalAddress",
-    streetAddress: "Community 20, Spintex",
-    addressLocality: "Accra",
+    streetAddress: "Militia Street, Mango Link, Community 20",
+    addressLocality: "Tema",
     addressCountry: "GH",
   },
   url: siteUrl(),

@@ -5,13 +5,13 @@ import { getPublicSettings } from "@/lib/site-settings";
 export const metadata = { title: "Terms & Conditions — The Gagrafa" };
 
 // Change this whenever the wording below changes.
-const LAST_UPDATED = "2026-10-24";
+const LAST_UPDATED = "2026-10-31";
 
 export default async function TermsPage() {
   const { contact_email, pricing } = await getPublicSettings();
   return (
     <div className="container-gagrafa max-w-3xl py-24">
-      <p className="text-xs uppercase tracking-[0.3em] text-champagne">Legal</p>
+      <p className="eyebrow">Legal</p>
       <h1 className="mt-3 text-4xl md:text-5xl">Terms & Conditions</h1>
       <p className="mt-4 text-sm text-navy/50">Last updated: {formatDate(LAST_UPDATED)}</p>
 
@@ -40,11 +40,10 @@ export default async function TermsPage() {
 
         <Section title="3. Payment">
           <p>
-            Full payment is required at the time of booking to confirm a reservation,
-            processed securely through Paystack (card, Mobile Money) or, for bookings
-            made directly with our team, by cash or bank transfer. You may instead reserve
-            with a down payment, shown at checkout, and pay the remaining balance before or
-            on arrival.{" "}
+            A booking is secured by a down payment, shown at checkout, or by payment in
+            full, processed securely through Paystack (card, Mobile Money) or, for bookings
+            made directly with our team, by cash or bank transfer. Any remaining balance is
+            due by arrival.{" "}
             {pricing.currency === "USD"
               ? "Rates are shown in US dollars (USD). Online payments are charged in Ghana cedis (GHS) at the exchange rate shown at checkout."
               : "Rates are quoted in Ghana cedis (GHS)."}
@@ -53,10 +52,7 @@ export default async function TermsPage() {
 
         <Section title="4. House Rules">
           <ul className="list-disc space-y-2 pl-5">
-            <li>No smoking inside any residence.</li>
-            <li>Quiet hours are 10:00 PM – 7:00 AM.</li>
-            <li>Occupancy may not exceed the maximum guests stated for the residence booked.</li>
-            <li>Pets are not permitted, with the exception of registered service animals.</li>
+            <li>Occupancy may not exceed the maximum guests stated for the apartment booked.</li>
             <li>Guests are responsible for any damage caused during their stay beyond normal wear and tear.</li>
           </ul>
         </Section>
@@ -87,7 +83,7 @@ export default async function TermsPage() {
         <Section title="8. Contact">
           <p>
             Questions about these terms can be sent to{" "}
-            <a href={`mailto:${contact_email}`} className="text-champagne-dark underline">
+            <a href={`mailto:${contact_email}`} className="text-champagne-ink underline">
               {contact_email}
             </a>.
           </p>

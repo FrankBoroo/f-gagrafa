@@ -28,7 +28,7 @@ export default async function BookingCancelledPage({
       <BookingStatusScreen
         icon={<CheckCircle2 className="text-champagne" size={48} />}
         title="Checkout cancelled"
-        body="You haven't been charged, and we've released the dates you picked. You can try again with the same residence and dates whenever you're ready."
+        body="You haven't been charged, and we've released the dates you picked. You can try again with the same apartment and dates whenever you're ready."
         ctaHref={rebookHref(release.booking)}
         ctaLabel="Try again"
       />
