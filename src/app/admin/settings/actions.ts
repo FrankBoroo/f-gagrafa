@@ -28,6 +28,8 @@ const settingsSchema = z.object({
   usd_to_ghs_rate: z
     .union([z.literal(""), z.coerce.number().positive("The exchange rate must be above 0").max(10000)])
     .optional(),
+  // The admin ticked "I'll re-enter every price": needed only when price_currency changes.
+  confirm_currency_change: z.boolean().optional(),
 }).refine((s) => s.price_currency !== "USD" || (typeof s.usd_to_ghs_rate === "number" && s.usd_to_ghs_rate > 0), {
   message: "Add the exchange rate (GH₵ per $1) before switching prices to USD",
 });
@@ -39,13 +41,26 @@ export async function updatePropertySettings(input: z.infer<typeof settingsSchem
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid settings" };
   }
-  const { id, usd_to_ghs_rate, ...rest } = parsed.data;
+  const { id, usd_to_ghs_rate, confirm_currency_change, ...rest } = parsed.data;
   const fields = {
     ...rest,
     ...(usd_to_ghs_rate !== undefined ? { usd_to_ghs_rate: usd_to_ghs_rate === "" ? null : usd_to_ghs_rate } : {}),
   };
 
   const supabase = createServiceClient();
+
+  // Apartment and promo prices are stored as plain numbers in the Settings currency, so
+  // switching currency silently turns $170 into GH₵170. Make the admin confirm it.
+  if (rest.price_currency) {
+    const { data: saved } = await supabase.from("property_settings").select("price_currency").eq("id", id).maybeSingle();
+    const savedCurrency = saved?.price_currency === "USD" ? "USD" : "GHS";
+    if (rest.price_currency !== savedCurrency && confirm_currency_change !== true) {
+      return {
+        ok: false,
+        error: "Changing the price currency changes what every apartment price means. Tick the box to confirm, then re-enter every price.",
+      };
+    }
+  }
   const { error } = await supabase
     .from("property_settings")
     .update({ ...fields, updated_at: new Date().toISOString() })

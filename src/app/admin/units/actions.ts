@@ -151,6 +151,12 @@ export async function deleteUnit(id: string) {
   if (!(await isAdmin())) return { ok: false, error: "Only admins can delete a residence." };
   const supabase = createServiceClient();
 
+  // Rooms point at their type and the database won't drop a type that still has them.
+  const { count: roomCount } = await supabase.from("rooms").select("id", { count: "exact", head: true }).eq("unit_id", id);
+  if ((roomCount ?? 0) > 0) {
+    return { ok: false, error: `This type has ${roomCount} room(s). Delete or move them in Rooms first.` };
+  }
+
   const { count } = await supabase
     .from("bookings")
     .select("id", { count: "exact", head: true })
