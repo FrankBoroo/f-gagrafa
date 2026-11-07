@@ -9,34 +9,40 @@ import { BedDouble } from "lucide-react";
 export default async function AdminUnitsPage() {
   const supabase = createServiceClient();
   const { pricing } = await getPublicSettings();
-  const { data: units } = await supabase.from("units").select("*").order("sort_order");
+  const [{ data: units }, { data: rooms }] = await Promise.all([
+    supabase.from("units").select("*").order("sort_order"),
+    supabase.from("rooms").select("unit_id").eq("is_active", true),
+  ]);
+
+  const roomCounts = new Map<string, number>();
+  for (const r of rooms ?? []) roomCounts.set(r.unit_id, (roomCounts.get(r.unit_id) ?? 0) + 1);
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl">Units</h1>
+        <h1 className="text-3xl">Apartment types</h1>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-navy/50">{units?.length ?? 0} residences</span>
-          <Link href="/admin/units/new" className="btn-primary px-5 py-2.5 text-sm">+ New residence</Link>
+          <span className="text-sm text-navy/50">{units?.length ?? 0} types</span>
+          <Link href="/admin/units/new" className="btn-primary px-5 py-2.5 text-sm">+ New type</Link>
         </div>
       </div>
       <p className="mt-2 max-w-2xl text-sm text-navy/50">
-        Quick-edit price, capacity, and description here; open a residence for photos, amenities
-        and its door code. Deactivating a unit hides it from the
-        public site and booking flow immediately, without deleting anything.
+        Quick-edit price, capacity and description here; open a type for photos and amenities. Switching a type
+        off hides it from the public site and booking flow at once, without deleting anything. Rooms are managed
+        in the Rooms tab.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {(units as Unit[] | null)?.map((unit) => (
-          <UnitEditCard key={unit.id} unit={unit} currency={pricing.currency} />
+          <UnitEditCard key={unit.id} unit={unit} currency={pricing.currency} roomCount={roomCounts.get(unit.id) ?? 0} />
         ))}
       </div>
       {!units?.length && (
         <EmptyState
           icon={BedDouble}
-          title="No residences yet"
-          description="Add your first residence to show it on the website and open it for booking."
-          action={{ href: "/admin/units/new", label: "+ New residence" }}
+          title="No apartment types yet"
+          description="Add your first type to show it on the website, then add its rooms."
+          action={{ href: "/admin/units/new", label: "+ New type" }}
         />
       )}
     </div>

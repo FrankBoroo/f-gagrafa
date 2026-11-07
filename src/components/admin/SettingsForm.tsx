@@ -32,6 +32,9 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   const currencyAvailable = settings.price_currency !== undefined && settings.price_currency !== null;
   const [priceCurrency, setPriceCurrency] = useState<"GHS" | "USD">(settings.price_currency === "USD" ? "USD" : "GHS");
   const [usdRate, setUsdRate] = useState<string>(settings.usd_to_ghs_rate ? String(settings.usd_to_ghs_rate) : "");
+  const savedCurrency = settings.price_currency === "USD" ? "USD" : "GHS";
+  const currencyChanged = currencyAvailable && priceCurrency !== savedCurrency;
+  const [confirmCurrency, setConfirmCurrency] = useState(false);
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -45,7 +48,11 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         ...form,
         ...(depositAvailable ? { deposit_percent: depositPercent } : {}),
         ...(currencyAvailable
-          ? { price_currency: priceCurrency, usd_to_ghs_rate: usdRate.trim() === "" ? ("" as const) : Number(usdRate) }
+          ? {
+              price_currency: priceCurrency,
+              usd_to_ghs_rate: usdRate.trim() === "" ? ("" as const) : Number(usdRate),
+              confirm_currency_change: currencyChanged ? confirmCurrency : undefined,
+            }
           : {}),
       });
       if (!result.ok) {
@@ -140,7 +147,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         <p className="text-sm text-navy/50">
           The currency guests see on the site. Paystack always charges in cedis: with USD prices, the
           total is converted at this rate when the guest books, and the checkout shows both amounts.
-          Residence prices and fixed-amount promo codes are read in this currency, so update them when you
+          Apartment prices and fixed-amount promo codes are read in this currency, so update them when you
           switch.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -172,11 +179,36 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             />
           </div>
         </div>
+        {currencyChanged && (
+          <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <p>
+              Changing the price currency changes what every apartment price means: a price of 170 becomes{" "}
+              {priceCurrency === "USD" ? "$170" : "GH₵170"}. Re-enter every apartment and promo price after saving.
+            </p>
+            <label className="mt-3 flex min-h-11 items-center gap-3">
+              <input
+                type="checkbox"
+                checked={confirmCurrency}
+                onChange={(e) => setConfirmCurrency(e.target.checked)}
+                className="h-5 w-5"
+              />
+              I&rsquo;ll re-enter every apartment and promo price in {priceCurrency === "USD" ? "US dollars" : "Ghana cedis"}
+            </label>
+          </div>
+        )}
         {!currencyAvailable && (
           <p className="text-xs text-amber-700">
             USD pricing isn&rsquo;t switched on yet. Run <code>supabase/migration-usd-pricing.sql</code> in the Supabase SQL Editor, then reload this page.
           </p>
         )}
+      </div>
+
+      <div className="card space-y-2 p-6">
+        <h2 className="text-lg">Check-in and check-out</h2>
+        <p className="text-sm text-navy">Check-in from 2 PM · Check-out by 11 AM</p>
+        <p className="text-sm text-navy/50">
+          These times are part of the booking and cancellation rules. Ask your developer to change them.
+        </p>
       </div>
 
       <div className="card space-y-4 p-6">
@@ -199,7 +231,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         />
       </div>
 
-      <button className="btn-primary" disabled={isPending}>
+      <button className="btn-primary" disabled={isPending || (currencyChanged && !confirmCurrency)}>
         {isPending ? "Saving…" : "Save settings"}
       </button>
     </form>

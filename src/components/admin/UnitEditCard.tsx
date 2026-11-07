@@ -10,7 +10,7 @@ import { updateUnit, toggleUnitActive } from "@/app/admin/units/actions";
 import type { Unit } from "@/lib/types";
 import type { PriceCurrency } from "@/lib/booking/pricing";
 
-export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCurrency }) {
+export function UnitEditCard({ unit, currency, roomCount }: { unit: Unit; currency: PriceCurrency; roomCount?: number }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
@@ -89,7 +89,7 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
           <p className="font-display text-lg">{unit.name}</p>
         )}
         {!editing && (
-          <button onClick={() => setEditing(true)} className="shrink-0 rounded-lg border border-navy/15 p-2 hover:bg-navy/5" aria-label="Edit unit">
+          <button onClick={() => setEditing(true)} className="shrink-0 rounded-lg border border-navy/15 p-2 hover:bg-navy/5" aria-label={`Edit ${unit.name}`}>
             <Pencil size={15} />
           </button>
         )}
@@ -105,6 +105,14 @@ export function UnitEditCard({ unit, currency }: { unit: Unit; currency: PriceCu
       ) : (
         <p className="mt-2 text-sm text-navy/60">{unit.short_description}</p>
       )}
+
+      {roomCount === 0 ? (
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          No rooms yet: guests can&rsquo;t book this type. Add rooms in Rooms.
+        </p>
+      ) : roomCount !== undefined ? (
+        <p className="mt-2 text-xs text-navy/50">{roomCount} room{roomCount === 1 ? "" : "s"}</p>
+      ) : null}
 
       <div className="mt-4 grid grid-cols-2 gap-3 border-t border-navy/10 pt-4 text-sm sm:grid-cols-5">
         <div>
