@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 import { updateBookingStatus } from "@/app/admin/bookings/actions";
 import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
+import { RoomAssignment } from "@/components/admin/RoomAssignment";
 import type { Pricing } from "@/lib/booking/pricing";
 
 const statusColor: Record<string, string> = {
@@ -71,9 +72,21 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
 
       <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-navy/70 sm:grid-cols-4">
         <Field label="Code" value={booking.booking_code} />
-        <Field label="Unit" value={booking.units?.name ?? "—"} />
+        <Field label="Type" value={booking.units?.name ?? "—"} />
         <Field label="Dates" value={`${booking.check_in} → ${booking.check_out}`} />
         <Field label="Guests" value={`${booking.adults + (booking.children ?? 0)}`} />
+      </div>
+
+      <div className="mt-3">
+        <RoomAssignment
+          booking={{
+            id: booking.id,
+            room_number: booking.rooms?.number ?? null,
+            room_confirmed: Boolean(booking.room_confirmed),
+            status,
+            payment_status: booking.payment_status,
+          }}
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-navy/10 pt-4">

@@ -6,7 +6,10 @@ import { getPublicSettings } from "@/lib/site-settings";
 export default async function NewBookingPage() {
   const supabase = createServiceClient();
   const { pricing } = await getPublicSettings();
-  const { data: units } = await supabase.from("units").select("*").eq("is_active", true).order("sort_order");
+  const [{ data: units }, { data: rooms }] = await Promise.all([
+    supabase.from("units").select("*").eq("is_active", true).order("sort_order"),
+    supabase.from("rooms").select("id, number, unit_id").eq("is_active", true).order("number"),
+  ]);
 
   return (
     <div>
@@ -15,7 +18,7 @@ export default async function NewBookingPage() {
         For phone, walk-in, or cash/bank-transfer reservations. Availability is checked the
         same way as the public booking flow.
       </p>
-      <ManualBookingForm units={(units as Unit[]) ?? []} pricing={pricing} />
+      <ManualBookingForm units={(units as Unit[]) ?? []} rooms={rooms ?? []} pricing={pricing} />
     </div>
   );
 }

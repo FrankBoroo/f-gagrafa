@@ -20,7 +20,7 @@ export default async function AdminBookingsPage({
 
   let query = supabase
     .from("bookings")
-    .select("*, units(name, base_price_per_night, monthly_price), payments(amount, status, method, paystack_reference)")
+    .select("*, units(name, base_price_per_night, monthly_price), rooms(number), payments(amount, status, method, paystack_reference)")
     .order("created_at", { ascending: false });
 
   const status = oneOf(Constants.public.Enums.booking_status, params.status);
@@ -64,7 +64,7 @@ export default async function AdminBookingsPage({
         {bookings.map((b: any) => (
           // The key includes the fields that change after an action, so the card re-mounts fresh.
           <BookingCard
-            key={`${b.id}-${b.status}-${b.payment_status}-${b.check_in}-${b.check_out}-${b.total_amount}-${b.net_paid}`}
+            key={`${b.id}-${b.status}-${b.payment_status}-${b.check_in}-${b.check_out}-${b.total_amount}-${b.net_paid}-${b.room_id}-${b.room_confirmed}`}
             booking={b}
             isAdmin={admin}
             pricing={pricing}

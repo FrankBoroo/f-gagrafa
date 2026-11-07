@@ -12,7 +12,8 @@ import { refundPaystackTransaction } from "@/lib/payments/paystack";
 import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify/email";
 import { generateBookingCode } from "@/lib/booking/codes";
 import { releaseStaleHolds } from "@/lib/booking/availability";
-import { chooseRoomForNewDates, freeRoomsForType, tryRoomsInOrder } from "@/lib/booking/rooms";
+import { chooseRoomForNewDates, freeRoomsForType, tryRoomsInOrder, type FreeRoom } from "@/lib/booking/rooms";
+import { roomAssignmentError, roomLabel } from "@/lib/booking/room-assignment";
 import { calculateNights } from "@/lib/booking/dates";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
 import { formatMoney } from "@/lib/format";
@@ -46,7 +47,8 @@ export async function updateBookingStatus(bookingId: string, status: string) {
 }
 
 const manualBookingSchema = guestDetailsSchema.extend({
-  unit_id: z.string().uuid("Select a residence"),
+  unit_id: z.string().uuid("Select an apartment type"),
+  room_id: z.string().uuid().optional(),
   check_in: z.string().min(1),
   check_out: z.string().min(1),
   adults: z.coerce.number().int().min(1),
@@ -88,6 +90,11 @@ export async function createManualBooking(input: ManualBookingInput) {
   });
   if (rooms === null) return { ok: false, error: "We couldn't check availability. Please try again." };
   if (!rooms.length) return { ok: false, error: "Not available for the selected dates" };
+  // Staff may pick the room; it is then confirmed at once. Otherwise the lowest free room is pencilled in.
+  if (data.room_id && !rooms.some((room) => room.id === data.room_id)) {
+    return { ok: false, error: "That room isn't free for these dates." };
+  }
+  const roomOrder = data.room_id ? [data.room_id] : rooms.map((room) => room.id);
 
   const nights = calculateNights(data.check_in, data.check_out);
   // Same rule as online bookings: price in the Settings currency, store and charge cedis.
@@ -100,14 +107,14 @@ export async function createManualBooking(input: ManualBookingInput) {
   }
   const bookingCode = generateBookingCode();
 
-  const { data: booking, error } = await tryRoomsInOrder<Tables<"bookings">>(rooms.map((room) => room.id), (roomId) =>
+  const { data: booking, error } = await tryRoomsInOrder<Tables<"bookings">>(roomOrder, (roomId) =>
     supabase
       .from("bookings")
       .insert({
         booking_code: bookingCode,
         unit_id: data.unit_id,
         room_id: roomId,
-        room_confirmed: false,
+        room_confirmed: Boolean(data.room_id),
         check_in: data.check_in,
         check_out: data.check_out,
         adults: data.adults,
@@ -155,6 +162,93 @@ export async function createManualBooking(input: ManualBookingInput) {
   redirect("/admin/bookings");
 }
 
+
+// ---------------------------------------------------------------------------
+// Rooms: staff confirm the pencilled-in room, or move the booking to another free room
+// of the same type. The guest is not emailed; they see the room once it is confirmed.
+// ---------------------------------------------------------------------------
+
+const roomChangeSchema = z.object({ bookingId: z.string().uuid(), roomId: z.string().uuid() });
+
+async function loadBookingForRoom(supabase: ReturnType<typeof createServiceClient>, bookingId: string) {
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, booking_code, unit_id, room_id, room_confirmed, check_in, check_out, status, payment_status")
+    .eq("id", bookingId)
+    .maybeSingle();
+  return data;
+}
+
+export async function confirmRoom(bookingId: string) {
+  if (!(await isStaff())) return UNAUTHORIZED;
+  if (!z.string().uuid().safeParse(bookingId).success) return { ok: false, error: "Booking not found" };
+  const supabase = createServiceClient();
+  const booking = await loadBookingForRoom(supabase, bookingId);
+  if (!booking) return { ok: false, error: "Booking not found" };
+  const problem = roomAssignmentError(booking);
+  if (problem) return { ok: false, error: problem };
+  if (!booking.room_id) return { ok: false, error: "This booking has no room yet. Use Change to pick one." };
+
+  const { error } = await supabase.from("bookings").update({ room_confirmed: true }).eq("id", bookingId);
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit("booking.room_confirmed", "booking", bookingId, { booking_code: booking.booking_code, room_id: booking.room_id });
+  refreshBookingPages(booking.booking_code);
+  return { ok: true };
+}
+
+// The rooms a booking could move to: free rooms of its type for its dates (its own room included).
+export async function roomChoices(
+  bookingId: string
+): Promise<{ ok: true; rooms: FreeRoom[]; currentRoomId: string | null } | { ok: false; error: string }> {
+  if (!(await isStaff())) return UNAUTHORIZED;
+  if (!z.string().uuid().safeParse(bookingId).success) return { ok: false, error: "Booking not found" };
+  const supabase = createServiceClient();
+  const booking = await loadBookingForRoom(supabase, bookingId);
+  if (!booking) return { ok: false, error: "Booking not found" };
+  const problem = roomAssignmentError(booking);
+  if (problem) return { ok: false, error: problem };
+
+  await releaseStaleHolds(supabase);
+  const rooms = await freeRoomsForType(supabase, {
+    unitId: booking.unit_id,
+    checkIn: booking.check_in,
+    checkOut: booking.check_out,
+    excludeBookingId: booking.id,
+  });
+  if (rooms === null) return { ok: false, error: "We couldn't check which rooms are free. Please try again." };
+  return { ok: true, rooms, currentRoomId: booking.room_id };
+}
+
+export async function changeRoom(input: { bookingId: string; roomId: string }) {
+  if (!(await isStaff())) return UNAUTHORIZED;
+  const parsed = roomChangeSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Choose a room" };
+  const { bookingId, roomId } = parsed.data;
+
+  const choices = await roomChoices(bookingId);
+  if (!choices.ok) return choices;
+  const room = choices.rooms.find((r: FreeRoom) => r.id === roomId);
+  if (!room) {
+    const supabase = createServiceClient();
+    const { data: wanted } = await supabase.from("rooms").select("number").eq("id", roomId).maybeSingle();
+    return { ok: false, error: `${wanted ? roomLabel(wanted.number) : "That room"} isn't free for the whole stay.` };
+  }
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("bookings").update({ room_id: roomId, room_confirmed: true }).eq("id", bookingId);
+  if (error) {
+    if (error.code === "23P01") return { ok: false, error: "That room was just booked. Pick another." };
+    return { ok: false, error: error.message };
+  }
+
+  const booking = await loadBookingForRoom(supabase, bookingId);
+  await logAudit("booking.room_changed", "booking", bookingId, {
+    booking_code: booking?.booking_code, from: choices.currentRoomId, to: roomId,
+  });
+  refreshBookingPages(booking?.booking_code);
+  return { ok: true };
+}
 
 // ---------------------------------------------------------------------------
 // Cancellations & refunds, moving a booking's dates, and recording payments

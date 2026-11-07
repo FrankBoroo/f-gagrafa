@@ -9,11 +9,19 @@ import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
 import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { roomLabel } from "@/lib/booking/room-assignment";
 
-export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: Pricing }) {
+export interface RoomOption {
+  id: string;
+  number: number;
+  unit_id: string;
+}
+
+export function ManualBookingForm({ units, rooms, pricing }: { units: Unit[]; rooms: RoomOption[]; pricing: Pricing }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     unit_id: units[0]?.id ?? "",
+    room_id: "",
     check_in: "",
     check_out: "",
     adults: 2,
@@ -48,7 +56,7 @@ export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createManualBooking(form);
+      const result = await createManualBooking({ ...form, room_id: form.room_id || undefined });
       if (result && !result.ok) {
         toast.error(result.error ?? "Could not create booking");
       }
@@ -59,12 +67,35 @@ export function ManualBookingForm({ units, pricing }: { units: Unit[]; pricing: 
   return (
     <form onSubmit={submit} className="card mt-8 max-w-2xl space-y-6 p-6">
       <div>
-        <label className="text-sm text-navy/60">Residence</label>
-        <select value={form.unit_id} onChange={(e) => update("unit_id", e.target.value)} className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3">
+        <label className="text-sm text-navy/60" htmlFor="manual-unit">Apartment type</label>
+        <select
+          id="manual-unit"
+          value={form.unit_id}
+          onChange={(e) => setForm((f) => ({ ...f, unit_id: e.target.value, room_id: "" }))}
+          className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+        >
           {units.map((u) => (
             <option key={u.id} value={u.id}>{u.name} — {formatMoney(u.base_price_per_night, pricing.currency)}/night</option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <label className="text-sm text-navy/60" htmlFor="manual-room">Room</label>
+        <select
+          id="manual-room"
+          value={form.room_id}
+          onChange={(e) => update("room_id", e.target.value)}
+          className="mt-2 w-full rounded-lg border border-navy/15 px-4 py-3"
+        >
+          <option value="">Any free room</option>
+          {rooms
+            .filter((r: RoomOption) => r.unit_id === form.unit_id)
+            .map((r: RoomOption) => (
+              <option key={r.id} value={r.id}>{roomLabel(r.number)}</option>
+            ))}
+        </select>
+        <p className="mt-1 text-xs text-navy/50">A room you pick is confirmed at once. &ldquo;Any free room&rdquo; pencils in the lowest free one.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
