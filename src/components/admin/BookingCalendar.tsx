@@ -4,110 +4,100 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatMonthYear } from "@/lib/format";
+import type { CalendarSegment, RoomRow } from "@/lib/admin/room-calendar";
 
-interface CalendarBooking {
-  id: string;
-  booking_code: string;
-  guest_name: string;
-  check_in: string;
-  check_out: string;
-  status: string;
-  unit_name: string;
-}
-
-const statusDot: Record<string, string> = {
-  pending: "bg-amber-400",
-  confirmed: "bg-emerald-500",
-  checked_in: "bg-sky-500",
-  checked_out: "bg-navy/30",
-  cancelled: "bg-red-400",
-  no_show: "bg-red-400",
+const SEGMENT_STYLE: Record<string, string> = {
+  confirmed: "bg-navy text-ivory",
+  pencilled: "border border-navy bg-white text-navy",
+  hold: "bg-sand text-navy/80",
+  block: "bg-navy/10 text-navy/60 [background-image:repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(20,33,61,.08)_4px,rgba(20,33,61,.08)_8px)]",
 };
 
-export function BookingCalendar({
-  year, month, bookings,
-}: {
-  year: number;
-  month: number; // 1-12
-  bookings: CalendarBooking[];
-}) {
+function styleFor(s: CalendarSegment): string {
+  if (s.kind === "block") return SEGMENT_STYLE.block;
+  if (s.kind === "hold") return SEGMENT_STYLE.hold;
+  return s.confirmed ? SEGMENT_STYLE.confirmed : SEGMENT_STYLE.pencilled;
+}
+
+// One row per room, one column per day. On a phone the grid scrolls sideways inside
+// the card; the room names stay put on the left.
+export function BookingCalendar({ year, month, rows }: { year: number; month: number; rows: RoomRow[] }) {
   const router = useRouter();
-
-  const firstDay = new Date(year, month - 1, 1);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const startWeekday = firstDay.getDay(); // 0 = Sunday
-
-  const cells: (number | null)[] = [
-    ...Array(startWeekday).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  function bookingsForDay(day: number) {
-    const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return bookings.filter((b) => b.check_in <= date && date < b.check_out);
-  }
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const columns = `repeat(${daysInMonth}, minmax(2rem, 1fr))`;
 
   function navigate(delta: number) {
-    const d = new Date(year, month - 1 + delta, 1);
-    router.push(`/admin/calendar?year=${d.getFullYear()}&month=${d.getMonth() + 1}`);
+    const d = new Date(Date.UTC(year, month - 1 + delta, 1));
+    router.push(`/admin/calendar?year=${d.getUTCFullYear()}&month=${d.getUTCMonth() + 1}`);
   }
-
-  const monthLabel = formatMonthYear(year, month);
 
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="rounded-lg p-2 hover:bg-navy/5" aria-label="Previous month">
+        <button onClick={() => navigate(-1)} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-navy/5" aria-label="Previous month">
           <ChevronLeft size={18} />
         </button>
-        <p className="text-lg">{monthLabel}</p>
-        <button onClick={() => navigate(1)} className="rounded-lg p-2 hover:bg-navy/5" aria-label="Next month">
+        <p className="text-lg">{formatMonthYear(year, month)}</p>
+        <button onClick={() => navigate(1)} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-navy/5" aria-label="Next month">
           <ChevronRight size={18} />
         </button>
       </div>
 
-      <div className="mt-5 grid grid-cols-7 gap-px overflow-hidden rounded-lg bg-navy/10 text-xs">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="bg-sand px-2 py-2 text-center font-medium text-navy/50">{d}</div>
-        ))}
-        {cells.map((day, i) => {
-          const dayBookings = day ? bookingsForDay(day) : [];
-          return (
-            <div key={i} className="min-h-[90px] bg-white p-1.5 sm:min-h-[110px]">
-              {day && (
-                <>
-                  <p className="text-xs text-navy/40">{day}</p>
-                  <div className="mt-1 space-y-1">
-                    {dayBookings.slice(0, 3).map((b) => (
-                      <Link
-                        key={b.id}
-                        href={`/admin/bookings?q=${b.booking_code}`}
-                        className="block truncate rounded px-1.5 py-0.5 text-[11px] text-navy/80 hover:bg-sand"
-                        title={`${b.guest_name} — ${b.unit_name}`}
-                      >
-                        <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${statusDot[b.status] ?? "bg-navy/30"}`} />
-                        {b.unit_name}
-                      </Link>
-                    ))}
-                    {dayBookings.length > 3 && (
-                      <p className="px-1.5 text-[11px] text-navy/40">+{dayBookings.length - 3} more</p>
-                    )}
-                  </div>
-                </>
-              )}
+      {rows.length ? (
+        <div className="mt-5 overflow-x-auto">
+          <div className="min-w-[56rem] text-xs">
+            <div className="flex border-b border-navy/10">
+              <div className="sticky left-0 z-10 w-36 shrink-0 bg-white py-2 font-medium text-navy/50">Room</div>
+              <div className="grid flex-1" style={{ gridTemplateColumns: columns }}>
+                {days.map((d) => (
+                  <div key={d} className="py-2 text-center text-navy/40">{d}</div>
+                ))}
+              </div>
             </div>
-          );
-        })}
-      </div>
+            {rows.map((row) => (
+              <div key={row.roomId} className="flex border-b border-navy/5">
+                <div className="sticky left-0 z-10 w-36 shrink-0 bg-white py-2 pr-2">
+                  <p className="text-sm text-navy">{row.label}</p>
+                  <p className="truncate text-[11px] text-navy/50">{row.unitName}</p>
+                </div>
+                <div className="grid flex-1 items-center py-1.5" style={{ gridTemplateColumns: columns }}>
+                  {row.segments.map((s) => {
+                    const className = `mx-px block truncate rounded px-1.5 py-1 text-[11px] ${styleFor(s)}`;
+                    const style = { gridColumn: `${s.startDay} / ${s.endDay + 1}`, gridRow: 1 };
+                    return s.href ? (
+                      <Link key={`${s.kind}-${s.id}`} href={s.href} className={`${className} hover:opacity-90`} style={style} title={s.label}>
+                        {s.label}
+                      </Link>
+                    ) : (
+                      <span key={`${s.kind}-${s.id}`} className={className} style={style} title={s.label}>
+                        {s.label}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-navy/60">No rooms yet. Add them in Apartments → Rooms.</p>
+      )}
 
-      <div className="mt-4 flex flex-wrap gap-4 text-xs text-navy/50">
-        {Object.entries(statusDot).map(([status, dot]) => (
-          <span key={status} className="flex items-center gap-1.5 capitalize">
-            <span className={`inline-block h-1.5 w-1.5 rounded-full ${dot}`} /> {status.replace("_", " ")}
-          </span>
-        ))}
+      <div className="mt-4 flex flex-wrap gap-4 text-xs text-navy/60">
+        <Legend className={SEGMENT_STYLE.confirmed} label="Room confirmed" />
+        <Legend className={SEGMENT_STYLE.pencilled} label="Room pencilled in" />
+        <Legend className={SEGMENT_STYLE.hold} label="Unpaid checkout" />
+        <Legend className={SEGMENT_STYLE.block} label="Blocked" />
       </div>
     </div>
+  );
+}
+
+function Legend({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`inline-block h-3 w-5 rounded ${className}`} aria-hidden /> {label}
+    </span>
   );
 }

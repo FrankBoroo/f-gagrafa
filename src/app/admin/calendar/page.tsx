@@ -1,5 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { BookingCalendar } from "@/components/admin/BookingCalendar";
+import { roomCalendarRows } from "@/lib/admin/room-calendar";
+import { addDays } from "@/lib/booking/dates";
 
 export default async function AdminCalendarPage({
   searchParams,
@@ -8,37 +10,45 @@ export default async function AdminCalendarPage({
 }) {
   const params = await searchParams;
   const now = new Date();
-  const year = Number(params.year) || now.getFullYear();
-  const month = Number(params.month) || now.getMonth() + 1;
+  const asked = { year: Number(params.year), month: Number(params.month) };
+  const year = Number.isInteger(asked.year) && asked.year >= 2000 && asked.year <= 2100 ? asked.year : now.getUTCFullYear();
+  const month = Number.isInteger(asked.month) && asked.month >= 1 && asked.month <= 12 ? asked.month : now.getUTCMonth() + 1;
 
-  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-  const monthEndDate = new Date(year, month, 0);
-  const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(monthEndDate.getDate()).padStart(2, "0")}`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const monthStart = `${year}-${pad(month)}-01`;
+  const nextMonthStart = addDays(`${year}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`, 1);
 
   const supabase = createServiceClient();
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select("id, booking_code, guest_name, check_in, check_out, status, units(name)")
-    .not("status", "in", "(cancelled)")
-    .lte("check_in", monthEnd)
-    .gte("check_out", monthStart);
+  const [{ data: rooms }, { data: bookings }, { data: blocks }] = await Promise.all([
+    supabase.from("rooms").select("id, number, unit_id, units(name)").eq("is_active", true).order("number"),
+    supabase
+      .from("bookings")
+      .select("id, booking_code, guest_name, room_id, room_confirmed, check_in, check_out, status, payment_status")
+      .not("room_id", "is", null)
+      .not("status", "in", "(cancelled,no_show)")
+      .lt("check_in", nextMonthStart)
+      .gt("check_out", monthStart),
+    supabase
+      .from("blocked_dates")
+      .select("id, unit_id, room_id, start_date, end_date, reason")
+      .lt("start_date", nextMonthStart)
+      .gt("end_date", monthStart),
+  ]);
 
-  const calendarBookings = (bookings ?? []).map((b: any) => ({
-    id: b.id,
-    booking_code: b.booking_code,
-    guest_name: b.guest_name,
-    check_in: b.check_in,
-    check_out: b.check_out,
-    status: b.status,
-    unit_name: b.units?.name ?? "Unit",
-  }));
+  const rows = roomCalendarRows({
+    year,
+    month,
+    rooms: (rooms ?? []).map((r: any) => ({ id: r.id, number: r.number, unit_id: r.unit_id, unit_name: r.units?.name ?? "" })),
+    bookings: (bookings ?? []).map((b: any) => ({ ...b, room_confirmed: Boolean(b.room_confirmed) })),
+    blocks: blocks ?? [],
+  });
 
   return (
     <div>
       <h1 className="text-3xl">Calendar</h1>
-      <p className="mt-2 text-sm text-navy/50">Click a stay to jump to its booking record.</p>
+      <p className="mt-2 text-sm text-navy/50">One row per room. Click a stay to open its booking.</p>
       <div className="mt-8">
-        <BookingCalendar year={year} month={month} bookings={calendarBookings} />
+        <BookingCalendar year={year} month={month} rows={rows} />
       </div>
     </div>
   );
