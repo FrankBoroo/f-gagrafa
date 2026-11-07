@@ -3,30 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard, CalendarDays, Building2, Users,
-  ClipboardList, CreditCard, Star, Settings, CalendarOff,
-  BarChart3, Tag, ScrollText, LayoutGrid, Menu, X, UserPlus, Camera,
-} from "lucide-react";
+import { Sun, CalendarDays, Users, Inbox, Building2, Wallet, Settings, Menu, X, type LucideIcon } from "lucide-react";
 import { SignOutButton } from "@/components/admin/SignOutButton";
+import { sectionFor, visibleSections, type AdminSectionKey } from "@/lib/admin/nav";
 
-const nav = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, adminOnly: false },
-  { href: "/admin/bookings", label: "Bookings", icon: CalendarDays, adminOnly: false },
-  { href: "/admin/calendar", label: "Calendar", icon: LayoutGrid, adminOnly: false },
-  { href: "/admin/units", label: "Units", icon: Building2, adminOnly: false },
-  { href: "/admin/availability", label: "Availability", icon: CalendarOff, adminOnly: false },
-  { href: "/admin/tour", label: "Tour", icon: Camera, adminOnly: false },
-  { href: "/admin/guests", label: "Guests", icon: Users, adminOnly: false },
-  { href: "/admin/service-requests", label: "Service Requests", icon: ClipboardList, adminOnly: false },
-  { href: "/admin/reviews", label: "Reviews", icon: Star, adminOnly: false },
-  { href: "/admin/reports", label: "Reports", icon: BarChart3, adminOnly: true },
-  { href: "/admin/promo-codes", label: "Promo Codes", icon: Tag, adminOnly: true },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard, adminOnly: true },
-  { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
-  { href: "/admin/team", label: "Team", icon: UserPlus, adminOnly: true },
-  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, adminOnly: true },
-];
+const ICONS: Record<AdminSectionKey, LucideIcon> = {
+  today: Sun,
+  bookings: CalendarDays,
+  guests: Users,
+  inbox: Inbox,
+  apartments: Building2,
+  money: Wallet,
+  settings: Settings,
+};
 
 // Renders both navigations: the fixed sidebar on tablet/desktop and, on phones,
 // a top bar with a menu button that opens a slide-in drawer.
@@ -34,12 +23,9 @@ export function AdminNav({ role }: { role?: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const visibleNav = nav.filter((item) => !item.adminOnly || role === "admin");
+  const sections = visibleSections(role);
+  const activeKey = sectionFor(pathname)?.key;
   const roleLabel = role === "staff" ? "Admin · Staff" : "Admin";
-
-  function isActive(href: string) {
-    return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
-  }
 
   // Close the drawer after navigating.
   useEffect(() => {
@@ -63,18 +49,23 @@ export function AdminNav({ role }: { role?: string }) {
 
   const links = (
     <nav className="flex flex-col gap-1">
-      {visibleNav.map(({ href, label, icon: Icon }) => (
-        <Link
-          key={href}
-          href={href}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-ivory/10 hover:text-ivory ${
-            isActive(href) ? "bg-ivory/10 text-ivory" : "text-ivory/70"
-          }`}
-        >
-          <Icon size={17} />
-          {label}
-        </Link>
-      ))}
+      {sections.map(({ key, href, label }) => {
+        const Icon = ICONS[key];
+        const active = key === activeKey;
+        return (
+          <Link
+            key={key}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-ivory/10 hover:text-ivory ${
+              active ? "bg-ivory/10 text-ivory" : "text-ivory/70"
+            }`}
+          >
+            <Icon size={17} aria-hidden />
+            {label}
+          </Link>
+        );
+      })}
     </nav>
   );
 
