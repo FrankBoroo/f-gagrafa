@@ -8,5 +8,6 @@
   "migration-rate-limits.sql",
   "migration-rls-hardening.sql",
   "migration-admin-only-writes.sql",
-  "migration-rooms.sql"
+  "migration-rooms.sql",
+  "migration-admin.sql"
 ]

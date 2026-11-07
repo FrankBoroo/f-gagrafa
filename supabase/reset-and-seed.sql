@@ -1,10 +1,10 @@
 -- DELETES ALL BOOKINGS, PAYMENTS, UNITS AND ROOMS. Run once, by hand, when wiping the database before launch.
--- Run after supabase/migration-rooms.sql. Keeps staff logins (profiles) and Tour photos.
+-- Run after supabase/migration-admin.sql. Keeps staff logins (profiles) and Tour photos.
 -- Settings keep their values, except the address, contact details, reception hours, price currency and down payment set at the end.
 -- Check the USD exchange rate in Admin → Settings afterwards: this script doesn't set it.
 
 truncate payments, service_requests, reviews, bookings, blocked_dates, unit_access_codes,
-  contact_messages, audit_log, portal_access_attempts, rate_limit_hits, promo_codes, rooms, units
+  contact_messages, audit_log, portal_access_attempts, rate_limit_hits, promo_codes, special_prices, guest_notes, rooms, units
   restart identity cascade;
 
 -- The five apartment types. Photos live in public/apartments/<slug>/.

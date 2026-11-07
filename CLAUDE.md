@@ -78,7 +78,7 @@ Run in this order in the Supabase SQL editor:
 9. `supabase/migration-admin-only-writes.sql` (promo codes, settings, payments: staff read, admin write)
 10. `supabase/migration-rooms.sql` (not compatible with the app before the `redesign` branch: run it with that deploy)
 
-Only when wiping the database: `supabase/reset-and-seed.sql` right after step 10. It **deletes all bookings, payments, units and rooms**, then creates the 5 types and 13 rooms.
+Only when wiping the database: `supabase/reset-and-seed.sql` right after step 11. It **deletes all bookings, payments, units and rooms**, then creates the 5 types and 13 rooms.
 
 Migrations are idempotent and each ends with a `-- ROLLBACK` block. The Supabase clients are typed with the generated `Database` type, so a query on a column that isn't in the SQL files fails the type check. Never re-run all of `schema.sql` on an existing database.
 RLS rule: the app reads and writes through the service-role client after its own checks; RLS policies are the backstop for the public anon key, so keep them tight (no public inserts, no self-service role changes).

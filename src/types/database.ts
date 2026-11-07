@@ -103,6 +103,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           adults: number
+          attention_cleared_at: string | null
           booking_code: string
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -138,6 +139,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           adults?: number
+          attention_cleared_at?: string | null
           booking_code: string
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -173,6 +175,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           adults?: number
+          attention_cleared_at?: string | null
           booking_code?: string
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -282,6 +285,35 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      guest_notes: {
+        Row: {
+          email: string
+          notes: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          email: string
+          notes?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          email?: string
+          notes?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -538,6 +570,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          last_cleaned_at: string | null
           number: number
           unit_id: string
         }
@@ -545,6 +578,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          last_cleaned_at?: string | null
           number: number
           unit_id: string
         }
@@ -552,6 +586,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          last_cleaned_at?: string | null
           number?: number
           unit_id?: string
         }
@@ -599,6 +634,47 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      special_prices: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          label: string | null
+          min_nights: number | null
+          nightly_price: number | null
+          start_date: string
+          unit_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          label?: string | null
+          min_nights?: number | null
+          nightly_price?: number | null
+          start_date: string
+          unit_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          label?: string | null
+          min_nights?: number | null
+          nightly_price?: number | null
+          start_date?: string
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "special_prices_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
             referencedColumns: ["id"]
           },
         ]
