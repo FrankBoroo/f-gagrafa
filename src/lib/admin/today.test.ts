@@ -119,6 +119,7 @@ describe("buildToday", () => {
     const b = stay({ room_confirmed: false, room_number: 8, check_in: "2026-12-20", check_out: "2026-12-23" });
     const [item] = buildToday({ ...base, bookings: [b] }).attention;
     expect(item).toMatchObject({ kind: "room_to_confirm", bookingId: b.id, bookingCode: b.booking_code });
+    expect(item?.detail).toContain("20 Dec 2026 → 23 Dec 2026");
   });
 
   it("a mismatch note shows until attention is cleared", () => {

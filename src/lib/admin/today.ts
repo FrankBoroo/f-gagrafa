@@ -1,6 +1,8 @@
 // Everything the admin Today page shows, worked out from plain rows. Pure, so it can
 // be tested without a database. Dates are "YYYY-MM-DD" in Ghana time (UTC+0).
 
+import { formatDate } from "@/lib/format";
+
 export const CANCELLATION_REQUEST_PREFIX = "CANCELLATION REQUEST";
 
 export interface TodayBooking {
@@ -151,7 +153,7 @@ export function buildToday(input: {
       bookingId: b.id,
       bookingCode: b.booking_code,
       title: ATTENTION_TITLES.room_to_confirm,
-      detail: `${b.guest_name}, ${b.unit_name}, ${b.check_in} → ${b.check_out}`,
+      detail: `${b.guest_name}, ${b.unit_name}, ${formatDate(b.check_in)} → ${formatDate(b.check_out)}`,
     }));
 
   const payments = input.bookings.map(attentionFor).filter((i): i is AttentionItem => i !== null);
