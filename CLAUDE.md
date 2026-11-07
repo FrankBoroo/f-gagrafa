@@ -77,6 +77,7 @@ Run in this order in the Supabase SQL editor:
 8. `supabase/migration-rls-hardening.sql` (then run the admin/staff check at the bottom of the file)
 9. `supabase/migration-admin-only-writes.sql` (promo codes, settings, payments: staff read, admin write)
 10. `supabase/migration-rooms.sql` (not compatible with the app before the `redesign` branch: run it with that deploy)
+11. `supabase/migration-admin.sql` (room cleaning time, payment "handled" mark, special prices, guest notes; additive)
 
 Only when wiping the database: `supabase/reset-and-seed.sql` right after step 11. It **deletes all bookings, payments, units and rooms**, then creates the 5 types and 13 rooms.
 
