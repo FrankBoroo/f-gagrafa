@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { SiteChrome } from "@/components/site/SiteChrome";
 import { FloatingBookButton } from "@/components/site/FloatingBookButton";
 import { Toaster } from "sonner";
 import { siteUrl } from "@/lib/env";
@@ -61,9 +62,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
-        <SiteHeader />
+        <SiteChrome><SiteHeader /></SiteChrome>
         <main>{children}</main>
-        <SiteFooter />
+        <SiteChrome><SiteFooter /></SiteChrome>
         <FloatingBookButton phone={callHref} />
         <Toaster position="top-center" richColors />
       </body>
