@@ -10,7 +10,9 @@ import {
 } from "@/lib/validations";
 import { refundPaystackTransaction } from "@/lib/payments/paystack";
 import { paystackRefundCapacity, planPaystackRefund, refundReference } from "@/lib/payments/refund-split";
-import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify/email";
+import { sendBookingCancelledEmail, sendBookingChangedEmail, sendBalancePaymentLinkEmail } from "@/lib/notify/email";
+import { sendBalancePaymentLinkWhatsApp } from "@/lib/notify/whatsapp";
+import { balanceProblem } from "@/lib/payments/balance";
 import { generateBookingCode } from "@/lib/booking/codes";
 import { releaseStaleHolds } from "@/lib/booking/availability";
 import { chooseRoomForNewDates, freeRoomsForType, tryRoomsInOrder, type FreeRoom } from "@/lib/booking/rooms";
@@ -581,5 +583,38 @@ export async function recordPayment(input: RecordPaymentInput) {
     booking_code: booking.booking_code, amount, method, fullyPaid,
   });
   refreshBookingPages(booking.booking_code);
+  return { ok: true };
+}
+
+// Staff email (and WhatsApp) the guest a link to pay what is left from the Guest Portal.
+// The sends are best-effort: the action reports ok even if one fails.
+export async function sendPaymentLink(bookingId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await isStaff())) return UNAUTHORIZED;
+  const supabase = createServiceClient();
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("*, units(name), payments(amount, status)")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (!booking) return { ok: false, error: "Booking not found" };
+
+  const paid = netPaid((booking as any).payments ?? null);
+  const problem = balanceProblem(booking, paid);
+  if (problem) return { ok: false, error: problem };
+
+  const owed = Math.round((Number(booking.total_amount) - paid) * 100) / 100;
+  const unitName = (booking as any).units?.name ?? "your apartment";
+  try {
+    await sendBalancePaymentLinkEmail(booking, unitName, owed);
+  } catch {
+    // best-effort
+  }
+  try {
+    await sendBalancePaymentLinkWhatsApp(booking, owed);
+  } catch {
+    // best-effort
+  }
+
+  await logAudit("booking.payment_link_sent", "booking", bookingId, { booking_code: booking.booking_code, owed });
   return { ok: true };
 }

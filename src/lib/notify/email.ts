@@ -4,6 +4,7 @@ import { portalMagicLink } from "@/lib/portal-session";
 import { serverEnv } from "@/lib/env.server";
 import { bookedPriceSuffix } from "@/lib/booking/pricing";
 import { formatDate, formatMoney } from "@/lib/format";
+import { roomLabel } from "@/lib/booking/room-assignment";
 import { log } from "@/lib/logger";
 import { takeToken } from "@/lib/rate-limit";
 
@@ -122,6 +123,27 @@ export async function sendBalanceReceivedEmail(booking: any, unitName: string, c
         ${balanceLine}
       </p>
       <p><a href="${portalMagicLink(booking.booking_code)}">Open your Guest Portal</a> to see your stay details.</p>
+      <p>— The Gagrafa</p>
+    `,
+  });
+}
+
+// Staff-sent payment link: what is owed and a one-click way into the Guest Portal to pay it.
+export async function sendBalancePaymentLinkEmail(booking: any, unitName: string, owed: number) {
+  await send({
+    to: booking.guest_email,
+    subject: `Your balance for ${booking.booking_code}`,
+    html: `
+      <p>Hi ${esc(booking.guest_name)},</p>
+      <p>Here is the balance for your stay at <strong>The Gagrafa</strong>.</p>
+      <p>
+        <strong>Booking code:</strong> ${booking.booking_code}<br/>
+        <strong>Apartment:</strong> ${esc(unitName)}<br/>
+        <strong>Check-in:</strong> ${formatDate(booking.check_in)}<br/>
+        <strong>Check-out:</strong> ${formatDate(booking.check_out)}<br/>
+        <strong>Balance due:</strong> ${formatMoney(owed, booking.currency)}
+      </p>
+      <p><a href="${portalMagicLink(booking.booking_code)}">Pay balance</a> securely online, or pay at reception by cash, bank transfer or Mobile Money.</p>
       <p>— The Gagrafa</p>
     `,
   });
@@ -248,15 +270,26 @@ export async function sendStaffInviteEmail(email: string, name: string, role: st
 }
 
 export async function sendPreArrivalReminder(booking: any, unitName: string, balanceDue = 0) {
+  const link = portalMagicLink(booking.booking_code);
+  const roomNumber = booking.rooms?.number;
+  const roomLine =
+    booking.room_confirmed && typeof roomNumber === "number"
+      ? `<p><strong>Your room:</strong> ${roomLabel(roomNumber)}</p>`
+      : "";
+  const balanceLine =
+    balanceDue > 0.005
+      ? `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. <a href="${link}">Pay balance</a> online, or pay at the front desk by cash, bank transfer or Mobile Money.</p>`
+      : "";
   await send({
     to: booking.guest_email,
     subject: `See you soon at The Gagrafa — ${booking.booking_code}`,
     html: `
       <p>Hi ${esc(booking.guest_name)},</p>
-      <p>Your stay at <strong>${esc(unitName)}</strong> starts on <strong>${booking.check_in}</strong> — we're looking forward to hosting you.</p>
-      ${balanceDue > 0.005 ? `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. You can pay at the front desk by cash, bank transfer or Mobile Money.</p>` : ""}
+      <p>Your stay at <strong>${esc(unitName)}</strong> starts on <strong>${formatDate(booking.check_in)}</strong> — we're looking forward to hosting you.</p>
+      ${roomLine}
+      ${balanceLine}
       <p>Check-in is from 2:00 PM. Your digital access code and Wi-Fi details will be ready in your Guest Portal:</p>
-      <p><a href="${portalMagicLink(booking.booking_code)}">View your stay details</a></p>
+      <p><a href="${link}">View your stay details</a></p>
       <p>— The Gagrafa</p>
     `,
   });

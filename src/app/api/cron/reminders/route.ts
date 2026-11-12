@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   // --- Pre-arrival reminders ---
   const { data: arriving } = await supabase
     .from("bookings")
-    .select("*, units(name), payments(amount, status)")
+    .select("*, units(name), rooms(number), payments(amount, status)")
     .eq("check_in", dateKey(tomorrow))
     .in("payment_status", ["paid", "partial"])
     .neq("status", "cancelled")

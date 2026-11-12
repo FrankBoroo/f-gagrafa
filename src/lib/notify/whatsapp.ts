@@ -1,6 +1,8 @@
 import "server-only";
 import { serverEnv } from "@/lib/env.server";
 import { log } from "@/lib/logger";
+import { formatMoney } from "@/lib/format";
+import { portalMagicLink } from "@/lib/portal-session";
 
 // Sends via Twilio's WhatsApp API using plain fetch (no SDK dependency).
 // Best-effort like email.ts: guarded, never throws back to the caller.
@@ -60,5 +62,13 @@ export async function sendBookingConfirmationWhatsApp(booking: any, unitName: st
   await sendWhatsAppMessage(
     booking.guest_phone,
     `The Gagrafa: your booking ${booking.booking_code} for ${unitName} (${booking.check_in} → ${booking.check_out}) is confirmed. Reply here or visit your Guest Portal for check-in details.`
+  );
+}
+
+export async function sendBalancePaymentLinkWhatsApp(booking: any, owed: number) {
+  if (!booking.guest_phone) return;
+  await sendWhatsAppMessage(
+    booking.guest_phone,
+    `The Gagrafa: ${formatMoney(owed, booking.currency)} is left to pay on booking ${booking.booking_code}. Pay it from your Guest Portal: ${portalMagicLink(booking.booking_code)} (or at reception by cash, bank transfer or Mobile Money).`
   );
 }

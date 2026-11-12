@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
-import { updateBookingStatus } from "@/app/admin/bookings/actions";
+import { asResult } from "@/lib/action-result";
+import { balanceProblem } from "@/lib/payments/balance";
+import { updateBookingStatus, sendPaymentLink } from "@/app/admin/bookings/actions";
 import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
 import { RoomAssignment } from "@/components/admin/RoomAssignment";
 import type { Pricing } from "@/lib/booking/pricing";
@@ -38,6 +40,8 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
   const awaitingPayment = status === "pending" && booking.payment_status === "unpaid";
   const canEditDates = active && !awaitingPayment;
   const canRecordPayment = !closed && outstanding > 0.005;
+  const canSendLink =
+    balanceProblem({ status, payment_status: booking.payment_status, total_amount: Number(booking.total_amount) }, netPaid) === null;
   const canCancel = active;
   const canRefund = closed && netPaid > 0.005;
   const liveBooking = { ...booking, status };
@@ -51,6 +55,17 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
       }
       setStatus(next);
       toast.success(`Booking ${next.replace("_", " ")}`);
+    });
+  }
+
+  function sendLink() {
+    startTransition(async () => {
+      const result = asResult(await sendPaymentLink(booking.id));
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not send the payment link");
+        return;
+      }
+      toast.success(`Payment link sent to ${booking.guest_email}`);
     });
   }
 
@@ -126,6 +141,16 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
           {canRecordPayment && (
             <button type="button" className="text-champagne-dark underline underline-offset-2" onClick={() => setDialog("pay")}>
               Record payment
+            </button>
+          )}
+          {canSendLink && (
+            <button
+              type="button"
+              className="text-champagne-dark underline underline-offset-2 disabled:opacity-50"
+              disabled={isPending}
+              onClick={sendLink}
+            >
+              Send payment link
             </button>
           )}
           {canCancel && (
