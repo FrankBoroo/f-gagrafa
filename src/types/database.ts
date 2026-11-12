@@ -565,6 +565,32 @@ export type Database = {
           },
         ]
       }
+      room_access_codes: {
+        Row: {
+          access_code: string
+          room_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_code: string
+          room_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_code?: string
+          room_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_access_codes_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: true
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           created_at: string
@@ -838,7 +864,7 @@ export type Database = {
       payment_method: "paystack" | "momo" | "cash" | "bank"
       payment_status: "unpaid" | "paid" | "partial" | "refunded"
       service_request_status: "pending" | "in_progress" | "completed" | "cancelled"
-      service_request_type: "cleaning" | "towels" | "maintenance" | "other"
+      service_request_type: "cleaning" | "towels" | "maintenance" | "other" | "breakfast" | "airport_transfer"
       unit_type: "studio" | "1bed_standard" | "1bed_executive" | "2bed" | "penthouse"
       user_role: "guest" | "admin" | "staff"
     }
@@ -863,7 +889,7 @@ export const Constants = {
       payment_method: ["paystack", "momo", "cash", "bank"],
       payment_status: ["unpaid", "paid", "partial", "refunded"],
       service_request_status: ["pending", "in_progress", "completed", "cancelled"],
-      service_request_type: ["cleaning", "towels", "maintenance", "other"],
+      service_request_type: ["cleaning", "towels", "maintenance", "other", "breakfast", "airport_transfer"],
       unit_type: ["studio", "1bed_standard", "1bed_executive", "2bed", "penthouse"],
       user_role: ["guest", "admin", "staff"],
     },

@@ -9,5 +9,6 @@
   "migration-rls-hardening.sql",
   "migration-admin-only-writes.sql",
   "migration-rooms.sql",
-  "migration-admin.sql"
+  "migration-admin.sql",
+  "migration-portal-v2.sql"
 ]
