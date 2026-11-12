@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatDate } from "@/lib/format";
 import { bookedPriceSuffix } from "@/lib/booking/pricing";
 import { hasPortalAccess } from "@/lib/portal-session";
 import { CANCELLATION_POLICY, suggestedRefund } from "@/lib/booking/cancellation-policy";
@@ -8,16 +8,30 @@ import { ServiceRequestForm } from "@/components/site/ServiceRequestForm";
 import { ReviewForm } from "@/components/site/ReviewForm";
 import { CancellationRequest } from "@/components/site/CancellationRequest";
 import type { Unit } from "@/lib/types";
-import { toISODate } from "@/lib/booking/dates";
+import { toISODate, calculateNights } from "@/lib/booking/dates";
 import { accessState, ACCESS_MESSAGES } from "@/lib/portal/access";
 import { CANCELLATION_REQUEST_PREFIX } from "@/lib/admin/inbox";
+import { APARTMENT_FALLBACK_IMAGE } from "@/lib/property";
+import { netPaid } from "@/lib/admin/guests";
+import { balanceProblem } from "@/lib/payments/balance";
+import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
+import { isOverLimit } from "@/lib/rate-limit";
+import { returnReferenceFor } from "@/lib/portal/return";
+import { roomText } from "@/lib/portal/access";
+import { PortalHeader } from "@/components/portal/PortalHeader";
+import { BalanceCard } from "@/components/portal/BalanceCard";
+import { ArrivalCard } from "@/components/portal/ArrivalCard";
+import { PaymentReturnNotice, type PaymentReturnOutcome } from "@/components/portal/PaymentReturnNotice";
 
 export default async function PortalDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ reference?: string; trxref?: string }>;
 }) {
   const { code: rawCode } = await params;
+  const query = await searchParams;
   const code = rawCode.toUpperCase();
 
   // Not verified (or the cookie expired): ask who they are. Same response for real and
@@ -27,6 +41,31 @@ export default async function PortalDetailPage({
   }
 
   const supabase = createServiceClient();
+
+  // Back from Paystack after paying a balance: confirm it first so the page shows the new
+  // balance. Only a balance reference of this very booking is considered.
+  let returnOutcome: PaymentReturnOutcome | null = null;
+  let returnAmountText: string | null = null;
+  const returnReference = returnReferenceFor(code, query);
+  if (returnReference && !(await isOverLimit("paymentCheck"))) {
+    const confirmation = await confirmPaymentByReference(returnReference);
+    if (
+      confirmation.outcome === "paid" ||
+      confirmation.outcome === "failed" ||
+      confirmation.outcome === "needs_review"
+    ) {
+      returnOutcome = confirmation.outcome;
+    }
+    if (confirmation.outcome === "paid") {
+      const { data: paymentRow } = await supabase
+        .from("payments")
+        .select("amount, currency")
+        .eq("paystack_reference", returnReference)
+        .maybeSingle();
+      if (paymentRow) returnAmountText = formatMoney(Number(paymentRow.amount), paymentRow.currency || "GHS");
+    }
+  }
+
   const { data: booking } = await supabase
     .from("bookings")
     .select("*, units(*), rooms(number)")
@@ -59,10 +98,17 @@ export default async function PortalDetailPage({
 
   // Money actually received so far (refunds are stored as negative rows).
   const { data: paymentRows } = await supabase.from("payments").select("amount, status").eq("booking_id", booking.id);
-  const paidNet = (paymentRows ?? [])
-    .filter((p: any) => p.status === "success" || p.status === "refunded")
-    .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-  const balanceDue = Math.max(Number(booking.total_amount) - paidNet, 0);
+  const paidNet = netPaid(paymentRows);
+  const balanceDue = Math.max(Math.round((Number(booking.total_amount) - paidNet) * 100) / 100, 0);
+  const canPay = balanceProblem(booking, paidNet) === null;
+  const accessMessage = access === "show" ? null : ACCESS_MESSAGES[access];
+  const wifi =
+    [
+      settings?.wifi_network && `Network: ${settings.wifi_network}`,
+      settings?.wifi_password && `Password: ${settings.wifi_password}`,
+    ]
+      .filter(Boolean)
+      .join("\n") || null;
 
   const { data: existingReview } = await supabase
     .from("reviews")
@@ -85,122 +131,100 @@ export default async function PortalDetailPage({
   const refundedAmount = Number(booking.refunded_amount ?? 0);
 
   return (
-    <div className="container-gagrafa max-w-3xl py-24">
-      <p className="text-xs uppercase tracking-[0.3em] text-champagne">{booking.booking_code}</p>
-      <h1 className="mt-3 text-4xl">Welcome, {booking.guest_name.split(" ")[0]}</h1>
+    <div>
+      <PortalHeader
+        imageSrc={unit?.images?.[0] ?? APARTMENT_FALLBACK_IMAGE}
+        unitName={unit?.name ?? ""}
+        checkIn={formatDate(booking.check_in)}
+        checkOut={formatDate(booking.check_out)}
+        nights={booking.nights ?? calculateNights(booking.check_in, booking.check_out)}
+        guests={booking.adults}
+        code={booking.booking_code}
+        firstName={booking.guest_name.split(" ")[0]}
+      />
 
-      <div className="card mt-10 p-6">
-        <h2 className="text-xl">{unit?.name}</h2>
-        <p className="mt-1 text-sm text-navy/60">
-          {booking.check_in} → {booking.check_out} · {booking.nights} nights · {booking.adults} guests
-        </p>
-        <div className="mt-4 flex justify-between border-t border-navy/10 pt-4 text-sm">
-          <span className="text-navy/60">Booking status</span>
-          <span className="capitalize">{status.replace("_", " ")}</span>
-        </div>
-        <div className="mt-2 flex justify-between text-sm">
-          <span className="text-navy/60">Payment status</span>
-          <span className="capitalize">{booking.payment_status === "partial" ? "Deposit paid" : booking.payment_status}</span>
-        </div>
-        <div className="mt-2 flex justify-between text-sm">
-          <span className="text-navy/60">Total</span>
-          <span>{formatMoney(booking.total_amount, booking.currency)}{bookedPriceSuffix(booking)}</span>
-        </div>
-        {paidNet > 0.005 && balanceDue > 0.005 && !isCancelled && (
-          <div className="mt-2 flex justify-between text-sm">
-            <span className="text-navy/60">Balance due by arrival</span>
-            <span>{formatMoney(balanceDue, booking.currency)}</span>
-          </div>
-        )}
-        {refundedAmount > 0 && (
-          <div className="mt-2 flex justify-between text-sm">
-            <span className="text-navy/60">Refunded</span>
-            <span>{formatMoney(refundedAmount, booking.currency)}</span>
-          </div>
-        )}
-      </div>
+      <div className="container-gagrafa max-w-3xl space-y-6 py-10 sm:py-14">
+        {returnOutcome && <PaymentReturnNotice outcome={returnOutcome} amountText={returnAmountText} />}
 
-      {isCancelled ? (
-        <div className="card mt-6 p-6 text-sm text-navy/70">
-          This booking was cancelled
-          {booking.cancelled_at ? ` on ${String(booking.cancelled_at).slice(0, 10)}` : ""}.
-          {refundedAmount > 0
-            ? ` A refund of ${formatMoney(refundedAmount, booking.currency)} has been issued.`
-            : " No refund applied."}{" "}
-          Questions? Please get in touch and we&rsquo;ll help.
-        </div>
-      ) : (
-        <>
-          {/* Access details — gated */}
-          <section className="mt-10">
-            <h2 className="text-2xl">Your stay</h2>
-            {canSeeAccess ? (
-              <div className="mt-4 grid gap-6 sm:grid-cols-2">
-                {settings?.entry_instructions && (
-                  <InfoCard title="Check-in & entry" body={settings.entry_instructions} />
-                )}
-                {doorCode && <InfoCard title="Your door code" body={doorCode} emphasize />}
-                {(settings?.wifi_network || settings?.wifi_password) && (
-                  <InfoCard
-                    title="Wi-Fi"
-                    body={[
-                      settings?.wifi_network && `Network: ${settings.wifi_network}`,
-                      settings?.wifi_password && `Password: ${settings.wifi_password}`,
-                    ].filter(Boolean).join("\n")}
-                  />
-                )}
-                {!settings?.entry_instructions && !doorCode && !settings?.wifi_network && !settings?.wifi_password && (
-                  <InfoCard title="Check-in" body="Our team will share your entry details shortly. Contact the front desk if you need them sooner." />
-                )}
-              </div>
-            ) : (
-              <p className="mt-3 rounded-xl border border-navy/10 p-5 text-sm text-navy/60">
-                {ACCESS_MESSAGES[access]}
-              </p>
+        {isCancelled ? (
+          <div className="card p-6 text-sm text-navy/70">
+            This booking was cancelled
+            {booking.cancelled_at ? ` on ${formatDate(String(booking.cancelled_at).slice(0, 10))}` : ""}.
+            {refundedAmount > 0
+              ? ` A refund of ${formatMoney(refundedAmount, booking.currency)} has been issued.`
+              : " No refund applied."}{" "}
+            Questions? Please get in touch and we&rsquo;ll help.
+          </div>
+        ) : (
+          <BalanceCard
+            total={Number(booking.total_amount)}
+            paid={paidNet}
+            owed={balanceDue}
+            currency={booking.currency}
+            bookedSuffix={bookedPriceSuffix(booking)}
+            canPay={canPay}
+            bookingId={booking.id}
+          />
+        )}
+
+        {/* Task 6: QuickActions row goes here, right under the balance card. */}
+
+        {!isCancelled && (
+          <>
+            <ArrivalCard
+              roomText={roomText({
+                room_confirmed: booking.room_confirmed,
+                room_number: (booking.rooms as { number: number } | null)?.number ?? null,
+              })}
+              accessState={access}
+              accessMessage={accessMessage}
+              doorCode={doorCode}
+              wifi={wifi}
+              entryInstructions={settings?.entry_instructions ?? null}
+              address={settings?.address ?? null}
+            />
+
+            {(settings?.house_rules || settings?.emergency_contact) && (
+              <section className="grid gap-6 sm:grid-cols-2">
+                {settings?.house_rules && <InfoCard title="House rules" body={settings.house_rules} />}
+                {settings?.emergency_contact && <InfoCard title="Emergency contacts" body={settings.emergency_contact} />}
+              </section>
             )}
-          </section>
 
-          {(settings?.house_rules || settings?.emergency_contact) && (
-            <section className="mt-6 grid gap-6 sm:grid-cols-2">
-              {settings?.house_rules && <InfoCard title="House rules" body={settings.house_rules} />}
-              {settings?.emergency_contact && <InfoCard title="Emergency contacts" body={settings.emergency_contact} />}
+            <section className="pt-4">
+              <h2 className="text-2xl">Request a service</h2>
+              <ServiceRequestForm bookingId={booking.id} />
             </section>
-          )}
 
-          <section className="mt-10">
-            <h2 className="text-2xl">Request a service</h2>
-            <ServiceRequestForm bookingId={booking.id} />
-          </section>
-
-          {canRequestCancellation && (
-            <section className="mt-10">
-              <h2 className="text-2xl">Need to cancel?</h2>
-              <div className="card mt-4 p-6 text-sm text-navy/70">
-                <ul className="space-y-1">
-                  {CANCELLATION_POLICY.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
-                {wasPaid ? (
-                  <p className="mt-4 border-t border-navy/10 pt-4">
-                    If you cancel today you&rsquo;d be refunded{" "}
-                    <strong>{formatMoney(refundEstimate, booking.currency)}</strong>{" "}
-                    of the {formatMoney(paidNet, booking.currency)} you&rsquo;ve paid.
-                  </p>
-                ) : (
-                  <p className="mt-4 border-t border-navy/10 pt-4">
-                    No payment has been taken yet, so cancelling simply releases your dates.
-                  </p>
-                )}
-                <CancellationRequest bookingId={booking.id} alreadyRequested={cancellationRequested} />
-              </div>
-            </section>
-          )}
-        </>
-      )}
+            {canRequestCancellation && (
+              <section className="pt-4">
+                <h2 className="text-2xl">Need to cancel?</h2>
+                <div className="card mt-4 p-6 text-sm text-navy/70">
+                  <ul className="space-y-1">
+                    {CANCELLATION_POLICY.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                  {wasPaid ? (
+                    <p className="mt-4 border-t border-navy/10 pt-4">
+                      If you cancel today you&rsquo;d be refunded{" "}
+                      <strong>{formatMoney(refundEstimate, booking.currency)}</strong>{" "}
+                      of the {formatMoney(paidNet, booking.currency)} you&rsquo;ve paid.
+                    </p>
+                  ) : (
+                    <p className="mt-4 border-t border-navy/10 pt-4">
+                      No payment has been taken yet, so cancelling simply releases your dates.
+                    </p>
+                  )}
+                  <CancellationRequest bookingId={booking.id} alreadyRequested={cancellationRequested} />
+                </div>
+              </section>
+            )}
+          </>
+        )}
 
       {status === "checked_out" && (
-        <section className="mt-10">
+        <section className="pt-4">
           <h2 className="text-2xl">Your review</h2>
           {existingReview ? (
             <div className="card mt-4 p-6 text-sm text-navy/70">
@@ -212,14 +236,7 @@ export default async function PortalDetailPage({
           )}
         </section>
       )}
-
-      <section className="mt-10">
-        <h2 className="text-2xl">Nearby</h2>
-        <p className="mt-2 text-sm text-navy/60">
-          Curated recommendations for restaurants and things to do near Community 20 —
-          coming soon.
-        </p>
-      </section>
+      </div>
     </div>
   );
 }

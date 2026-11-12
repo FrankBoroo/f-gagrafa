@@ -2,6 +2,10 @@
 
 export const APARTMENT_FALLBACK_IMAGE = "/photos/lounge.jpg";
 
+// Check-in and check-out times in Ghana (UTC+0), as shown to guests.
+export const CHECK_IN_LABEL = "2 PM";
+export const CHECK_OUT_LABEL = "11 AM";
+
 // `position` keeps the subject in frame when a landscape photo is cropped for a tall phone screen.
 export const HERO_SLIDES: { src: string; alt: string; position: string }[] = [
   {
