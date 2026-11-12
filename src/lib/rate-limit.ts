@@ -18,6 +18,8 @@ export const RATE_LIMITS = {
   serviceRequest: { max: 10, windowSeconds: 60 * 60 },
   // The booking success page asks Paystack about the payment on every visit.
   paymentCheck: { max: 30, windowSeconds: 10 * 60 },
+  // Each "Pay balance" click saves a payment row and starts a Paystack checkout.
+  balancePayment: { max: 10, windowSeconds: 60 * 60 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

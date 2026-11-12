@@ -4,6 +4,8 @@ import { verifyPaystackTransaction } from "@/lib/payments/paystack";
 import { sendBookingConfirmationEmail, sendAdminPaymentConflictAlert } from "@/lib/notify/email";
 import { sendBookingConfirmationWhatsApp } from "@/lib/notify/whatsapp";
 import { log } from "@/lib/logger";
+import { parseBalanceReference } from "@/lib/payments/balance";
+import { confirmBalancePayment } from "@/lib/payments/balance-payment";
 
 export type PaymentConfirmationResult =
   | { outcome: "paid"; booking: any }
@@ -19,6 +21,9 @@ export type PaymentConfirmationResult =
 export async function confirmPaymentByReference(
   reference: string
 ): Promise<PaymentConfirmationResult> {
+  // A balance paid later from the Guest Portal ("<code>-B<6>") has its own payment row.
+  if (parseBalanceReference(reference)) return confirmBalancePayment(reference);
+
   const supabase = createServiceClient();
 
   const { data: booking } = await supabase

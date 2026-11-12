@@ -8,6 +8,7 @@ import { sendCancellationRequestAlert } from "@/lib/notify/email";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { CANCELLATION_REQUEST_PREFIX } from "@/lib/admin/inbox";
+import { startBalancePayment } from "@/lib/payments/balance-payment";
 
 const reviewSchema = z.object({
   booking_id: z.string().uuid(),
@@ -174,4 +175,25 @@ export async function requestCancellation(bookingId: string, reason: string) {
   await sendCancellationRequestAlert(booking, cleanReason);
   revalidatePath(`/portal/${booking.booking_code}`);
   return { ok: true };
+}
+
+// "Pay balance" in the portal: starts a Paystack checkout for what's still owed. The
+// amount is worked out on the server from the booking and its payments.
+export async function payBalance(bookingId: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  if (await isOverLimit("balancePayment")) return { ok: false, error: RATE_LIMITED_MESSAGE };
+  if (!z.string().uuid().safeParse(bookingId).success) return { ok: false, error: "Booking not found" };
+
+  const supabase = createServiceClient();
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id, booking_code")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (!booking) return { ok: false, error: "Booking not found" };
+  if (!(await hasPortalAccess(booking.booking_code))) {
+    return { ok: false, error: "Please verify your booking first." };
+  }
+
+  return startBalancePayment(booking.booking_code);
 }

@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { portalMagicLink } from "@/lib/portal-session";
 import { serverEnv } from "@/lib/env.server";
 import { bookedPriceSuffix } from "@/lib/booking/pricing";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { log } from "@/lib/logger";
 import { takeToken } from "@/lib/rate-limit";
 
@@ -94,6 +94,34 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
         ${paymentLines}${bookedAt}
       </p>
       <p><a href="${portalMagicLink(booking.booking_code)}">Open your Guest Portal</a> for check-in details, Wi-Fi, and to request services. You can also sign in any time with your booking code and the email or phone you booked with.</p>
+      <p>— The Gagrafa</p>
+    `,
+  });
+}
+
+// After a balance payment from the Guest Portal: what arrived and what, if anything, is left.
+export async function sendBalanceReceivedEmail(booking: any, unitName: string, charged: number, remaining: number) {
+  const money = (n: number) => formatMoney(n, booking.currency);
+  const balanceLine =
+    remaining > 0.005
+      ? `<strong>Balance still due by arrival:</strong> ${money(remaining)}`
+      : `Your stay is now paid in full.`;
+
+  await send({
+    to: booking.guest_email,
+    subject: `Payment received — ${booking.booking_code}`,
+    html: `
+      <p>Hi ${esc(booking.guest_name)},</p>
+      <p>Thank you, we've received your payment for your stay at <strong>The Gagrafa</strong>.</p>
+      <p>
+        <strong>Booking code:</strong> ${booking.booking_code}<br/>
+        <strong>Apartment:</strong> ${esc(unitName)}<br/>
+        <strong>Check-in:</strong> ${formatDate(booking.check_in)}<br/>
+        <strong>Check-out:</strong> ${formatDate(booking.check_out)}<br/>
+        <strong>Amount received:</strong> ${money(charged)}<br/>
+        ${balanceLine}
+      </p>
+      <p><a href="${portalMagicLink(booking.booking_code)}">Open your Guest Portal</a> to see your stay details.</p>
       <p>— The Gagrafa</p>
     `,
   });

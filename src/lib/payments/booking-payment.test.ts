@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   sendEmail: vi.fn(),
   sendWhatsApp: vi.fn(),
   sendConflictAlert: vi.fn(),
+  confirmBalance: vi.fn(),
+  tablesRead: [] as string[],
 }));
 
 class FakeQuery {
@@ -57,7 +59,10 @@ class FakeQuery {
 
 vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: () => ({
-    from: (table: string) => new FakeQuery(table),
+    from: (table: string) => {
+      mocks.tablesRead.push(table);
+      return new FakeQuery(table);
+    },
     rpc: (name: string, params: unknown) => mocks.db.rpc(name, params),
   }),
 }));
@@ -67,6 +72,7 @@ vi.mock("@/lib/notify/email", () => ({
   sendAdminPaymentConflictAlert: mocks.sendConflictAlert,
 }));
 vi.mock("@/lib/notify/whatsapp", () => ({ sendBookingConfirmationWhatsApp: mocks.sendWhatsApp }));
+vi.mock("@/lib/payments/balance-payment", () => ({ confirmBalancePayment: mocks.confirmBalance }));
 
 const { confirmPaymentByReference } = await import("@/lib/payments/booking-payment");
 
@@ -104,11 +110,26 @@ beforeEach(() => {
   mocks.db.firstUpdateError = null;
   mocks.db.secondUpdateError = null;
   mocks.db.writes = [];
+  mocks.tablesRead = [];
   mocks.db.rpc = vi.fn().mockResolvedValue({ data: null, error: null });
   mocks.verify.mockResolvedValue(paystackSuccess(2400));
 });
 
 describe("confirmPaymentByReference", () => {
+  it("hands a balance reference to confirmBalancePayment without reading the booking", async () => {
+    mocks.confirmBalance.mockResolvedValue({ outcome: "paid", booking: { id: "booking-1" } });
+
+    expect(await confirmPaymentByReference(`${REF}-BZZ99ZZ`)).toEqual({ outcome: "paid", booking: { id: "booking-1" } });
+    expect(mocks.confirmBalance).toHaveBeenCalledWith(`${REF}-BZZ99ZZ`);
+    expect(mocks.tablesRead).not.toContain("bookings");
+    expect(mocks.verify).not.toHaveBeenCalled();
+  });
+
+  it("confirms a normal booking code itself", async () => {
+    await confirmPaymentByReference(REF);
+    expect(mocks.confirmBalance).not.toHaveBeenCalled();
+  });
+
   it("returns not_found for an unknown reference", async () => {
     mocks.db.booking = null;
     expect(await confirmPaymentByReference(REF)).toEqual({ outcome: "not_found" });
