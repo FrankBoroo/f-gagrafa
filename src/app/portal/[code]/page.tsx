@@ -9,6 +9,7 @@ import { ReviewForm } from "@/components/site/ReviewForm";
 import { CancellationRequest } from "@/components/site/CancellationRequest";
 import type { Unit } from "@/lib/types";
 import { addDays } from "@/lib/booking/dates";
+import { CANCELLATION_REQUEST_PREFIX } from "@/lib/admin/inbox";
 
 export default async function PortalDetailPage({
   params,
@@ -72,7 +73,7 @@ export default async function PortalDetailPage({
     .from("service_requests")
     .select("id")
     .eq("booking_id", booking.id)
-    .like("description", "CANCELLATION REQUEST%")
+    .like("description", `${CANCELLATION_REQUEST_PREFIX}%`)
     .in("status", ["pending", "in_progress"])
     .limit(1);
   const cancellationRequested = Boolean(cancelRequests && cancelRequests.length > 0);

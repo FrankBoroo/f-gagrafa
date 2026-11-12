@@ -3,8 +3,6 @@
 
 import { formatDate } from "@/lib/format";
 
-export const CANCELLATION_REQUEST_PREFIX = "CANCELLATION REQUEST";
-
 export interface TodayBooking {
   id: string;
   booking_code: string;

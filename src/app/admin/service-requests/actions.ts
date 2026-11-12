@@ -25,6 +25,7 @@ export async function updateServiceRequestStatus(id: string, status: string) {
   if (error) return { ok: false, error: error.message };
 
   await logAudit("service_request.status_changed", "service_request", id, { status: parsed.data });
-  revalidatePath("/admin/service-requests");
+  revalidatePath("/admin/inbox");
+  revalidatePath("/admin");
   return { ok: true };
 }

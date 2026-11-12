@@ -7,6 +7,7 @@ import { grantPortalAccess, hasPortalAccess } from "@/lib/portal-session";
 import { sendCancellationRequestAlert } from "@/lib/notify/email";
 import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
+import { CANCELLATION_REQUEST_PREFIX } from "@/lib/admin/inbox";
 
 const reviewSchema = z.object({
   booking_id: z.string().uuid(),
@@ -154,7 +155,7 @@ export async function requestCancellation(bookingId: string, reason: string) {
     .from("service_requests")
     .select("id")
     .eq("booking_id", booking.id)
-    .like("description", "CANCELLATION REQUEST%")
+    .like("description", `${CANCELLATION_REQUEST_PREFIX}%`)
     .in("status", ["pending", "in_progress"])
     .limit(1);
   if (existing && existing.length > 0) return { ok: true }; // already asked; don't pile up duplicates
@@ -163,7 +164,7 @@ export async function requestCancellation(bookingId: string, reason: string) {
   const { error } = await supabase.from("service_requests").insert({
     booking_id: booking.id,
     type: "other",
-    description: `CANCELLATION REQUEST${cleanReason ? `: ${cleanReason}` : ""}`,
+    description: `${CANCELLATION_REQUEST_PREFIX}${cleanReason ? `: ${cleanReason}` : ""}`,
   });
   if (error) {
     log.error("cancellation_request.insert_failed", { booking_id: bookingId }, error);
