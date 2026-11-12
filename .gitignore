@@ -9,3 +9,6 @@ tsconfig.tsbuildinfo
 
 # visual brainstorming mockups
 .superpowers/
+
+# Git worktrees for isolated agent work
+.claude/worktrees/
