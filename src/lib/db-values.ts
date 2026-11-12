@@ -16,3 +16,9 @@ export function oneOf<T extends string>(allowed: readonly T[], value: string | n
 export function searchTerm(raw: string | undefined, maxLength = 80): string {
   return (raw ?? "").replace(/[%_*,()"\\:]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
+
+// A value for an exact, case-insensitive match with `.ilike(column, likeExact(value))`:
+// the LIKE wildcards % and _ and the escape character \ are escaped.
+export function likeExact(value: string): string {
+  return value.replace(/[\\%_]/g, (char: string) => `\\${char}`);
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { searchTerm } from "./db-values";
+import { likeExact, searchTerm } from "./db-values";
 import { jsonLd } from "./json-ld";
 
 describe("searchTerm", () => {
@@ -26,5 +26,15 @@ describe("jsonLd", () => {
     const out = jsonLd(data);
     expect(out).not.toContain("</script>");
     expect(JSON.parse(out)).toEqual(data);
+  });
+});
+
+describe("likeExact", () => {
+  it("escapes the wildcards and the escape character", () => {
+    expect(likeExact("a_b%c\\d")).toBe("a\\_b\\%c\\\\d");
+  });
+
+  it("leaves an ordinary email alone", () => {
+    expect(likeExact("ama.mensah+trip@example.com")).toBe("ama.mensah+trip@example.com");
   });
 });

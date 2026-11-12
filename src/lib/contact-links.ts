@@ -15,3 +15,10 @@ export function telHref(phone: string): string | null {
   if (phone.trim().startsWith("+")) return `tel:+${digits}`;
   return `tel:+233${digits.replace(/^0/, "")}`;
 }
+
+// A WhatsApp chat link (wa.me wants the international number, digits only), or null
+// if the text isn't a phone number. Same rules as telHref.
+export function whatsappHref(phone: string): string | null {
+  const tel = telHref(phone);
+  return tel ? `https://wa.me/${tel.replace("tel:+", "")}` : null;
+}
