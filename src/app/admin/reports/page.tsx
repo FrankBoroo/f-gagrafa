@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import { BarChart } from "@/components/admin/BarChart";
 import { isAdmin } from "@/lib/auth";
+import { occupancyPercent } from "@/lib/admin/money";
 import { toISODate as dateKey } from "@/lib/booking/dates";
 
 export default async function AdminReportsPage() {
@@ -22,17 +23,17 @@ export default async function AdminReportsPage() {
   start.setDate(start.getDate() - (days - 1));
   const startKey = dateKey(start);
 
-  const [{ data: payments }, { data: bookings }, { count: activeUnitCount }] = await Promise.all([
+  const [{ data: payments }, { data: bookings }, { count: activeRoomCount }] = await Promise.all([
     supabase.from("payments").select("amount, paid_at").in("status", ["success", "refunded"]).gte("paid_at", start.toISOString()),
-    supabase.from("bookings").select("unit_id, check_in, check_out, status").not("status", "in", "(cancelled,no_show)").gte("check_out", startKey),
-    supabase.from("units").select("id", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("bookings").select("room_id, check_in, check_out, status").not("status", "in", "(cancelled,no_show)").gte("check_out", startKey),
+    supabase.from("rooms").select("id", { count: "exact", head: true }).eq("is_active", true),
   ]);
 
-  const unitCount = activeUnitCount || 1;
+  const roomCount = activeRoomCount ?? 0;
 
   const dayLabels: string[] = [];
   const revenueByDay = new Map<string, number>();
-  const occupiedUnitsByDay = new Map<string, Set<string>>();
+  const occupiedRoomsByDay = new Map<string, Set<string>>();
 
   for (let i = 0; i < days; i++) {
     const d = new Date(start);
@@ -40,7 +41,7 @@ export default async function AdminReportsPage() {
     const key = dateKey(d);
     dayLabels.push(key);
     revenueByDay.set(key, 0);
-    occupiedUnitsByDay.set(key, new Set());
+    occupiedRoomsByDay.set(key, new Set());
   }
 
   for (const p of payments ?? []) {
@@ -48,18 +49,18 @@ export default async function AdminReportsPage() {
     if (revenueByDay.has(key)) revenueByDay.set(key, revenueByDay.get(key)! + Number(p.amount));
   }
 
-  // Occupancy: for each day in range, which distinct units have a booking covering that night.
+  // Occupancy: for each day in range, which rooms have a booking covering that night, out of the active rooms.
   for (const label of dayLabels) {
-    const occupied = occupiedUnitsByDay.get(label)!;
+    const occupied = occupiedRoomsByDay.get(label)!;
     for (const b of bookings ?? []) {
-      if (b.check_in <= label && label < b.check_out) occupied.add(b.unit_id);
+      if (b.room_id && b.check_in <= label && label < b.check_out) occupied.add(b.room_id);
     }
   }
 
   const revenueData = dayLabels.map((d) => ({ label: d.slice(5), value: revenueByDay.get(d) ?? 0 }));
   const occupancyData = dayLabels.map((d) => ({
     label: d.slice(5),
-    value: Math.round(((occupiedUnitsByDay.get(d)?.size ?? 0) / unitCount) * 100),
+    value: Math.min(occupancyPercent(occupiedRoomsByDay.get(d)?.size ?? 0, roomCount), 100),
   }));
 
   const totalRevenue = revenueData.reduce((sum, d) => sum + d.value, 0);

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
@@ -116,8 +117,7 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
         </div>
       </div>
 
-      {(canEditDates || canRecordPayment || canCancel || canRefund) && (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
           {canEditDates && (
             <button type="button" className="text-champagne-dark underline underline-offset-2" onClick={() => setDialog("dates")}>
               Change dates
@@ -138,8 +138,10 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
               Refund
             </button>
           )}
+          <Link href={`/admin/bookings/${booking.id}/receipt`} className="text-champagne-dark underline underline-offset-2">
+            Receipt
+          </Link>
         </div>
-      )}
 
       {booking.special_requests && (
         <p className="mt-4 rounded-lg bg-sand px-4 py-3 text-sm text-navy/70">
