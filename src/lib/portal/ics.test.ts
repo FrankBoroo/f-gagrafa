@@ -27,8 +27,17 @@ describe("stayIcs", () => {
   });
 
   it("escapes commas and semicolons", () => {
-    expect(ics).toContain("LOCATION:Militia Street\\, Mango Link\; Tema");
+    expect(ics).toContain("LOCATION:Militia Street\\, Mango Link\\; Tema");
     expect(ics).toContain("SUMMARY:Stay at The Gagrafa (Studio\\, Deluxe)");
+  });
+
+  it("folds long lines to 75 octets or fewer", () => {
+    const long = stayIcs({ ...base, unitName: "Penthouse é", address: "Café ".repeat(40), portalUrl: "https://x.test/" + "a".repeat(200) });
+    const physical = long.split("\r\n");
+    expect(physical.some((l: string) => l.startsWith(" "))).toBe(true);
+    for (const l of physical) expect(Buffer.byteLength(l, "utf8")).toBeLessThanOrEqual(75);
+    // Unfolding gives back the full text.
+    expect(long.replace(/\r\n /g, "")).toContain("https://x.test/" + "a".repeat(200));
   });
 
   it("holds no door code or Wi-Fi", () => {
