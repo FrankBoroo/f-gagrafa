@@ -119,7 +119,7 @@ export default async function GuestRecordPage({ params }: { params: Promise<{ bo
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <a href={`mailto:${encodeURIComponent(guest.guest_email)}`} className="btn-secondary min-h-11 gap-2 px-4 py-2 text-xs">
+        <a href={`mailto:${encodeURIComponent(guest.guest_email)}`} className="btn-secondary min-h-11 gap-2 break-all px-4 py-2 text-xs normal-case tracking-normal">
           <Mail className="h-4 w-4" aria-hidden="true" /> {guest.guest_email}
         </a>
         {tel && (
@@ -150,8 +150,8 @@ export default async function GuestRecordPage({ params }: { params: Promise<{ bo
         </div>
       </dl>
 
-      <div className="mt-8 grid gap-8 xl:grid-cols-3">
-        <section className="xl:col-span-2" aria-labelledby="guest-stays">
+      <div className="mt-8 grid gap-8 2xl:grid-cols-3">
+        <section className="min-w-0 2xl:col-span-2" aria-labelledby="guest-stays">
           <h2 id="guest-stays" className="text-xl">Bookings</h2>
           <div className="card mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -173,7 +173,7 @@ export default async function GuestRecordPage({ params }: { params: Promise<{ bo
                       <td className="px-5 py-4">
                         <Link
                           href={`/admin/bookings?q=${encodeURIComponent(s.booking_code)}`}
-                          className="text-navy underline decoration-champagne underline-offset-4 hover:decoration-navy"
+                          className="whitespace-nowrap text-navy underline decoration-champagne underline-offset-4 hover:decoration-navy"
                         >
                           {s.booking_code}
                         </Link>
@@ -219,7 +219,7 @@ export default async function GuestRecordPage({ params }: { params: Promise<{ bo
           )}
         </section>
 
-        <section className="card h-fit p-5" aria-label="Staff notes">
+        <section className="card h-fit max-w-2xl p-5 2xl:max-w-none" aria-label="Staff notes">
           <GuestNotesForm
             key={noteRow?.updated_at ?? "new"}
             bookingId={bookingId}

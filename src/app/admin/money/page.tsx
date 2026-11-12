@@ -136,7 +136,7 @@ export default async function AdminMoneyPage({ searchParams }: { searchParams: P
                   <th scope="col" className="px-5 py-3 font-normal">Apartment</th>
                   <th scope="col" className="px-5 py-3 font-normal">Check-in</th>
                   <th scope="col" className="px-5 py-3 text-right font-normal">Owed</th>
-                  <th scope="col" className="px-5 py-3 font-normal"><span className="sr-only">Booking</span></th>
+                  <th scope="col" aria-label="Booking" className="px-5 py-3 font-normal" />
                 </tr>
               </thead>
               <tbody>
@@ -168,8 +168,8 @@ export default async function AdminMoneyPage({ searchParams }: { searchParams: P
         )}
       </section>
 
-      <div className="mt-10 grid gap-8 xl:grid-cols-2">
-        <section aria-labelledby="money-types">
+      <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <section className="min-w-0" aria-labelledby="money-types">
           <h2 id="money-types" className="text-xl">Paid by apartment type</h2>
           <p className="mt-1 text-sm text-navy/50">What stays with a night in {monthName} have paid so far, net of refunds.</p>
           <div className="card mt-4 overflow-x-auto">
@@ -201,7 +201,7 @@ export default async function AdminMoneyPage({ searchParams }: { searchParams: P
           </div>
         </section>
 
-        <section aria-labelledby="money-rooms">
+        <section className="min-w-0" aria-labelledby="money-rooms">
           <h2 id="money-rooms" className="text-xl">Occupancy by room</h2>
           <p className="mt-1 text-sm text-navy/50">Nights booked in {monthName}, per room in use.</p>
           <div className="card mt-4 p-5">
@@ -210,7 +210,7 @@ export default async function AdminMoneyPage({ searchParams }: { searchParams: P
             ) : (
               <ul className="space-y-3">
                 {occupancy.map((r: RoomOccupancy) => (
-                  <li key={r.roomId} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 text-sm">
+                  <li key={r.roomId} className="grid grid-cols-[minmax(0,9rem)_minmax(2rem,1fr)_auto] items-center gap-3 text-sm">
                     <div>
                       <p className="text-navy">{r.label}</p>
                       <p className="truncate text-xs text-navy/50">{r.unitName}</p>
