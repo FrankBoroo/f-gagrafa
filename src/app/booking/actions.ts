@@ -6,7 +6,9 @@ import { generateBookingCode } from "@/lib/booking/codes";
 import { releaseStaleHolds } from "@/lib/booking/availability";
 import { freeRoomsForType, tryRoomsInOrder } from "@/lib/booking/rooms";
 import { calculateNights } from "@/lib/booking/dates";
-import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { unitRates } from "@/lib/booking/stay-price";
+import { minNightsError, requiredMinNights, stayPriceForDates } from "@/lib/booking/special-prices";
+import { specialsByUnitForStay, specialsForStay } from "@/lib/booking/special-prices-db";
 import { initializePaystackTransaction } from "@/lib/payments/paystack";
 import { sendAdminNewBookingNotification, sendAdminSystemAlert } from "@/lib/notify/email";
 import { log } from "@/lib/logger";
@@ -31,11 +33,12 @@ export async function previewPromoCode(code: string, subtotal: number) {
 }
 
 type AvailabilityResult =
-  | { ok: true; availability: Record<string, boolean> }
+  | { ok: true; availability: Record<string, boolean>; minNights: Record<string, number | null> }
   | { ok: false; error: string };
 
 // Powers the apartment picker: tells the guest, before they pick, which units
-// are free for their dates. Read-only and advisory — the real, authoritative
+// are free for their dates. A type whose dates need a longer stay (a minimum set in
+// Special prices) counts as unavailable, and `minNights` says how long. Read-only and advisory — the real, authoritative
 // check still runs again inside createBookingAndInitializePayment, so a unit
 // that gets booked between this call and payment is still caught there.
 export async function checkUnitsAvailability(
@@ -50,18 +53,27 @@ export async function checkUnitsAvailability(
   if (await isOverLimit("availability")) return { ok: false, error: RATE_LIMITED_MESSAGE };
 
   const supabase = createServiceClient();
-  const { data: units } = await supabase.from("units").select("id").eq("is_active", true);
+  const [{ data: units }, specials] = await Promise.all([
+    supabase.from("units").select("id").eq("is_active", true),
+    specialsByUnitForStay(supabase, checkIn, checkOut),
+  ]);
+  const nights = calculateNights(checkIn, checkOut);
 
+  const minNights: Record<string, number | null> = {};
   const entries = await Promise.all(
     (units ?? []).map(async (u: { id: string }) => {
-      const rooms = await freeRoomsForType(supabase, { unitId: u.id, checkIn, checkOut });
-      // Fail open: if the lookup itself errors, don't wrongly grey a unit out.
+      // Fail open, here and below: if a lookup itself errors, don't wrongly grey a unit out.
       // The payment-time check is the one that actually decides.
+      const required = requiredMinNights(checkIn, checkOut, specials?.[u.id] ?? []);
+      const tooShort = minNightsError(nights, required) !== null;
+      minNights[u.id] = tooShort ? required : null;
+      if (tooShort) return [u.id, false] as [string, boolean];
+      const rooms = await freeRoomsForType(supabase, { unitId: u.id, checkIn, checkOut });
       return [u.id, rooms === null || rooms.length > 0] as [string, boolean];
     })
   );
 
-  return { ok: true, availability: Object.fromEntries(entries) };
+  return { ok: true, availability: Object.fromEntries(entries), minNights };
 }
 
 interface ActionResult {
@@ -115,6 +127,20 @@ export async function createBookingAndInitializePayment(
     return { ok: false, error: "Too many booking attempts from this email recently — please try again shortly, or contact us for help." };
   }
 
+  const nights = calculateNights(data.check_in, data.check_out);
+
+  // Special prices and minimum stays for these dates. Without them the stay can't be priced.
+  const specials = await specialsForStay(supabase, {
+    unitId: data.unit_id,
+    checkIn: data.check_in,
+    checkOut: data.check_out,
+  });
+  if (specials === null) {
+    return { ok: false, error: "We couldn't check the price for these dates. Please try again." };
+  }
+  const tooShort = minNightsError(nights, requiredMinNights(data.check_in, data.check_out, specials));
+  if (tooShort) return { ok: false, error: tooShort };
+
   // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
   await releaseStaleHolds(supabase);
 
@@ -131,13 +157,17 @@ export async function createBookingAndInitializePayment(
     return { ok: false, unavailable: true, error: "This apartment is not available for the selected dates" };
   }
 
-  const nights = calculateNights(data.check_in, data.check_out);
   // Prices (and fixed promo amounts) are in the Settings price currency. Read fresh here,
   // so the exchange rate is the one in force at the moment of booking.
   const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
   const pricing = pricingFromSettings(settingsRow);
 
-  const subtotal = stayPrice(nights, unitRates(unit));
+  const subtotal = stayPriceForDates({
+    checkIn: data.check_in,
+    checkOut: data.check_out,
+    rates: unitRates(unit),
+    specials,
+  });
 
   let totalAmount = subtotal;
   let appliedPromoCode: string | null = null;

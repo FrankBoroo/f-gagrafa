@@ -3,7 +3,7 @@
 
 export const MONTHLY_MIN_NIGHTS = 30;
 
-interface Rates {
+export interface Rates {
   nightly: number;
   monthly: number | null;
 }

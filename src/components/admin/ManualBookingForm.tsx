@@ -8,7 +8,7 @@ import { calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { createManualBooking } from "@/app/admin/bookings/actions";
 import type { Unit } from "@/lib/types";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
-import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { unitStayPrice } from "@/lib/booking/special-prices";
 import { roomLabel } from "@/lib/booking/room-assignment";
 
 export interface RoomOption {
@@ -37,7 +37,7 @@ export function ManualBookingForm({ units, rooms, pricing }: { units: Unit[]; ro
 
   const unit = units.find((u) => u.id === form.unit_id);
   const nights = form.check_in && form.check_out ? Math.max(calculateNights(form.check_in, form.check_out), 0) : 0;
-  const total = unit ? stayPrice(nights, unitRates(unit)) : 0;
+  const total = unit && nights > 0 ? unitStayPrice(unit, form.check_in, form.check_out) : 0;
   // Stored and recorded in cedis, like online bookings.
   const chargeTotal = toChargeAmount(total, pricing);
 

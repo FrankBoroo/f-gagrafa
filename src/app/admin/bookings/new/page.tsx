@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { ManualBookingForm } from "@/components/admin/ManualBookingForm";
+import { upcomingSpecialsByUnit } from "@/lib/booking/special-prices-db";
 import type { Unit } from "@/lib/types";
 import { getPublicSettings } from "@/lib/site-settings";
 
@@ -10,6 +11,8 @@ export default async function NewBookingPage() {
     supabase.from("units").select("*").eq("is_active", true).order("sort_order"),
     supabase.from("rooms").select("id, number, unit_id").eq("is_active", true).order("number"),
   ]);
+  const specials = await upcomingSpecialsByUnit();
+  const pricedUnits = ((units as Unit[]) ?? []).map((u: Unit) => ({ ...u, special_prices: specials[u.id] ?? [] }));
 
   return (
     <div>
@@ -18,7 +21,7 @@ export default async function NewBookingPage() {
         For phone, walk-in, or cash/bank-transfer reservations. Availability is checked the
         same way as the public booking flow.
       </p>
-      <ManualBookingForm units={(units as Unit[]) ?? []} rooms={rooms ?? []} pricing={pricing} />
+      <ManualBookingForm units={pricedUnits} rooms={rooms ?? []} pricing={pricing} />
     </div>
   );
 }

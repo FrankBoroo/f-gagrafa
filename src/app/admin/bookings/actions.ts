@@ -15,7 +15,9 @@ import { releaseStaleHolds } from "@/lib/booking/availability";
 import { chooseRoomForNewDates, freeRoomsForType, tryRoomsInOrder, type FreeRoom } from "@/lib/booking/rooms";
 import { roomAssignmentError, roomLabel } from "@/lib/booking/room-assignment";
 import { calculateNights } from "@/lib/booking/dates";
-import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { unitRates } from "@/lib/booking/stay-price";
+import { stayPriceForDates } from "@/lib/booking/special-prices";
+import { specialsForStay } from "@/lib/booking/special-prices-db";
 import { formatMoney } from "@/lib/format";
 import { pricingFromSettings, toChargeAmount } from "@/lib/booking/pricing";
 import { logAudit } from "@/lib/audit";
@@ -96,11 +98,13 @@ export async function createManualBooking(input: ManualBookingInput) {
   }
   const roomOrder = data.room_id ? [data.room_id] : rooms.map((room) => room.id);
 
-  const nights = calculateNights(data.check_in, data.check_out);
   // Same rule as online bookings: price in the Settings currency, store and charge cedis.
   const { data: settingsRow } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
   const pricing = pricingFromSettings(settingsRow);
-  const priceTotal = stayPrice(nights, unitRates(unit));
+  // Special prices apply to staff bookings too; their minimum nights don't (like the stay limits).
+  const specials = await specialsForStay(supabase, { unitId: data.unit_id, checkIn: data.check_in, checkOut: data.check_out });
+  if (specials === null) return { ok: false, error: "We couldn't check the price for these dates. Please try again." };
+  const priceTotal = stayPriceForDates({ checkIn: data.check_in, checkOut: data.check_out, rates: unitRates(unit), specials });
   const totalAmount = toChargeAmount(priceTotal, pricing);
   if (totalAmount === null) {
     return { ok: false, error: "Prices are set to USD but there's no exchange rate. Add one in Settings first." };

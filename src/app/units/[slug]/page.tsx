@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Unit } from "@/lib/types";
 import { AmenityPhotos } from "@/components/site/AmenityPhotos";
 import { BookingWidget } from "@/components/site/BookingWidget";
+import { upcomingSpecialsByUnit } from "@/lib/booking/special-prices-db";
 import { OtherApartments } from "@/components/site/OtherApartments";
 import { UnitGallery } from "@/components/site/UnitGallery";
 import { coverImage, priceParts, unitFacts } from "@/lib/apartment-facts";
@@ -27,6 +28,8 @@ export default async function UnitDetailPage({
 
   if (!unit) notFound();
   const { pricing, address, deposit_percent } = await getPublicSettings();
+  // Special prices for the coming dates, so the panel's total matches what the server charges.
+  const specials = await upcomingSpecialsByUnit();
   const { data: others } = await supabase
     .from("units")
     .select("*")
@@ -121,7 +124,7 @@ export default async function UnitDetailPage({
         </div>
 
         <div id="reserve" className="scroll-mt-24">
-          <BookingWidget unit={unit} depositPercent={deposit_percent} pricing={pricing} />
+          <BookingWidget unit={{ ...unit, special_prices: specials[unit.id] ?? [] }} depositPercent={deposit_percent} pricing={pricing} />
         </div>
       </div>
 

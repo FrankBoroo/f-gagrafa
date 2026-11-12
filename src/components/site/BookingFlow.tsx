@@ -15,7 +15,7 @@ import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { MIN_NIGHTS, stayDatesError } from "@/lib/booking/stay-limits";
 import { paymentSummary, type PaymentOption } from "@/lib/booking/payment-summary";
 import type { Pricing } from "@/lib/booking/pricing";
-import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { unitStayPrice } from "@/lib/booking/special-prices";
 import { createBookingAndInitializePayment, previewPromoCode, checkUnitsAvailability } from "@/app/booking/actions";
 import { PaymentChoice } from "@/components/site/PaymentChoice";
 import { UnitPicker, getUnitBlockReason } from "@/components/site/UnitPicker";
@@ -46,6 +46,7 @@ export function BookingFlow({
   const [guests, setGuests] = useState(initial.guests);
   const [today, setToday] = useState("");
   const [availability, setAvailability] = useState<Record<string, boolean> | null>(null);
+  const [minNights, setMinNights] = useState<Record<string, number | null> | null>(null);
   const [checking, setChecking] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,9 +58,9 @@ export function BookingFlow({
 
   const unit = units.find((u) => u.id === unitId);
   const nights = checkIn && checkOut ? Math.max(calculateNights(checkIn, checkOut), 0) : 0;
-  const subtotal = unit ? stayPrice(nights, unitRates(unit)) : 0;
+  const subtotal = unit && nights > 0 ? unitStayPrice(unit, checkIn, checkOut) : 0;
   const total = promoStatus.applied ? Math.max(subtotal - promoStatus.applied.discountAmount, 0) : subtotal;
-  const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability) : null;
+  const selectedBlockReason = unit ? getUnitBlockReason(unit, guests, availability, minNights) : null;
   const datesError = checkIn && checkOut ? stayDatesError(checkIn, checkOut) : null;
   const canContinue = canContinueToDetails({
     apartmentChosen: Boolean(unit), checkIn, checkOut, guests, checking, blocked: selectedBlockReason !== null,
@@ -91,6 +92,7 @@ export function BookingFlow({
   // Whenever the dates change, ask which apartments are free for them.
   useEffect(() => {
     setAvailability(null);
+    setMinNights(null);
     setAvailabilityError(null);
     if (!checkIn || !checkOut || calculateNights(checkIn, checkOut) <= 0) {
       setChecking(false);
@@ -101,8 +103,10 @@ export function BookingFlow({
     checkUnitsAvailability(checkIn, checkOut)
       .then((res) => {
         if (cancelled) return;
-        if (res.ok) setAvailability(res.availability);
-        else setAvailabilityError(res.error);
+        if (res.ok) {
+          setAvailability(res.availability);
+          setMinNights(res.minNights);
+        } else setAvailabilityError(res.error);
         setChecking(false);
       })
       .catch(() => {
@@ -119,13 +123,13 @@ export function BookingFlow({
   // Drop a selection that stopped being valid (taken dates, or too many guests).
   useEffect(() => {
     if (!unit) return;
-    const reason = getUnitBlockReason(unit, guests, availability);
+    const reason = getUnitBlockReason(unit, guests, availability, minNights);
     if (reason) {
       setUnitId("");
       setStep(1); // later steps need an apartment, so send the guest back to choose
       toast.info(`${unit.name} was deselected: ${reason.toLowerCase()}.`);
     }
-  }, [unit, guests, availability]);
+  }, [unit, guests, availability, minNights]);
 
   // A promo discount was calculated for one subtotal — never carry it to another.
   useEffect(() => {
@@ -271,6 +275,9 @@ export function BookingFlow({
                 guests={guests}
                 nights={nights}
                 availability={availability}
+                minNights={minNights}
+                checkIn={checkIn}
+                checkOut={checkOut}
                 currency={currency}
               />
             </div>

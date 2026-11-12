@@ -6,7 +6,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { priceParts, unitFacts } from "@/lib/apartment-facts";
 import type { PriceCurrency } from "@/lib/booking/pricing";
-import { stayPrice, unitRates } from "@/lib/booking/stay-price";
+import { unitStayPrice } from "@/lib/booking/special-prices";
 import { APARTMENT_FALLBACK_IMAGE } from "@/lib/property";
 import type { Unit } from "@/lib/types";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -17,15 +17,18 @@ import { EmptyState } from "@/components/ui/EmptyState";
 export function getUnitBlockReason(
   unit: Unit,
   guests: number,
-  availability: Record<string, boolean> | null
+  availability: Record<string, boolean> | null,
+  minNights: Record<string, number | null> | null = null
 ): string | null {
+  const needed = minNights?.[unit.id];
+  if (needed) return `Minimum stay of ${needed} nights for these dates`;
   if (availability && availability[unit.id] === false) return "Unavailable for these dates";
   if (guests > unit.max_guests) return `Sleeps ${unit.max_guests} max`;
   return null;
 }
 
 export function UnitPicker({
-  units, selectedId, onSelect, guests, nights, availability, currency = "GHS",
+  units, selectedId, onSelect, guests, nights, checkIn, checkOut, availability, minNights = null, currency = "GHS",
 }: {
   units: Unit[];
   currency?: PriceCurrency;
@@ -33,7 +36,10 @@ export function UnitPicker({
   onSelect: (id: string) => void;
   guests: number;
   nights: number;
+  checkIn: string;
+  checkOut: string;
   availability: Record<string, boolean> | null;
+  minNights?: Record<string, number | null> | null;
 }) {
   if (!units.length) {
     return (
@@ -56,8 +62,9 @@ export function UnitPicker({
           unit={unit}
           selected={unit.id === selectedId}
           onSelect={onSelect}
-          blockReason={getUnitBlockReason(unit, guests, availability)}
+          blockReason={getUnitBlockReason(unit, guests, availability, minNights)}
           nights={nights}
+          stayTotal={nights > 0 ? unitStayPrice(unit, checkIn, checkOut) : 0}
           currency={currency}
         />
       ))}
@@ -66,7 +73,7 @@ export function UnitPicker({
 }
 
 function UnitOption({
-  unit, selected, onSelect, blockReason, nights, currency,
+  unit, selected, onSelect, blockReason, nights, stayTotal, currency,
 }: {
   unit: Unit;
   currency: PriceCurrency;
@@ -74,6 +81,7 @@ function UnitOption({
   onSelect: (id: string) => void;
   blockReason: string | null;
   nights: number;
+  stayTotal: number;
 }) {
   const images = unit.images?.length ? unit.images : [APARTMENT_FALLBACK_IMAGE];
   const [index, setIndex] = useState(0);
@@ -172,7 +180,7 @@ function UnitOption({
           {nights > 0 && (
             <p className="text-sm text-navy/70">
               {nights} night{nights === 1 ? "" : "s"} ·{" "}
-              <span className="text-navy">{formatMoney(stayPrice(nights, unitRates(unit)), currency)}</span>
+              <span className="text-navy">{formatMoney(stayTotal, currency)}</span>
             </p>
           )}
         </div>

@@ -1,3 +1,4 @@
+import type { SpecialPrice } from "@/lib/booking/special-prices";
 import type { Enums, Tables } from "@/types/database";
 
 // Row and enum types come from the generated src/types/database.ts (`npm run db:types`).
@@ -11,7 +12,12 @@ export type Currency = Enums<"booking_currency">;
 export type UserRole = Enums<"user_role">;
 
 // amenities and images are jsonb columns that always hold lists of strings.
-export type Unit = Omit<Tables<"units">, "amenities" | "images"> & { amenities: string[]; images: string[] };
+export type Unit = Omit<Tables<"units">, "amenities" | "images"> & {
+  amenities: string[];
+  images: string[];
+  // Current and future special prices, attached by the pages that price stays.
+  special_prices?: SpecialPrice[];
+};
 // Totals are in cedis; display_currency / display_total / exchange_rate are set only for
 // bookings made with USD prices (migration-usd-pricing.sql).
 export type Booking = Tables<"bookings">;

@@ -43,6 +43,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     tabs: [
       tab("/admin/units", "Types"),
       tab("/admin/rooms", "Rooms"),
+      tab("/admin/special-prices", "Special prices"),
       tab("/admin/tour", "Tour photos"),
     ],
   },

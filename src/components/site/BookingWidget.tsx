@@ -10,6 +10,7 @@ import { addDays, calculateNights, defaultCheckOut } from "@/lib/booking/dates";
 import { paymentSummary, type PaymentOption } from "@/lib/booking/payment-summary";
 import type { Pricing } from "@/lib/booking/pricing";
 import { MIN_NIGHTS, stayDatesError } from "@/lib/booking/stay-limits";
+import { minNightsError, unitStayPrice } from "@/lib/booking/special-prices";
 import { stayPrice, unitRates, usesMonthlyRate } from "@/lib/booking/stay-price";
 import { formatMoney } from "@/lib/format";
 import type { Unit } from "@/lib/types";
@@ -34,6 +35,8 @@ export function BookingWidget({
   const [today, setToday] = useState("");
   const [option, setOption] = useState<PaymentOption>("deposit");
   const [availability, setAvailability] = useState<Availability>("unknown");
+  // Set when these dates need a longer stay (a minimum from Special prices).
+  const [minNights, setMinNights] = useState<number | null>(null);
 
   // `min` for the date inputs. Set after mount so server and client markup match.
   useEffect(() => {
@@ -45,10 +48,14 @@ export function BookingWidget({
   const datesError = datesChosen ? stayDatesError(checkIn, checkOut) : null;
   const datesOk = datesChosen && datesError === null;
   const nights = datesOk ? calculateNights(checkIn, checkOut) : 0;
-  const total = stayPrice(nights, unitRates(unit));
+  const total = nights > 0 ? unitStayPrice(unit, checkIn, checkOut) : 0;
+  const monthly = usesMonthlyRate(nights, unit.monthly_price);
+  const specialRates = !monthly && total !== stayPrice(nights, unitRates(unit));
+  const tooShort = minNightsError(nights, minNights);
   const summary = paymentSummary({ total, depositPercent, pricing, option });
 
   useEffect(() => {
+    setMinNights(null);
     if (!datesOk) {
       setAvailability("unknown");
       return;
@@ -58,8 +65,12 @@ export function BookingWidget({
     checkUnitsAvailability(checkIn, checkOut)
       .then((res) => {
         if (cancelled) return;
-        if (!res.ok) setAvailability("failed");
-        else setAvailability(res.availability[unit.id] === false ? "taken" : "free");
+        if (!res.ok) {
+          setAvailability("failed");
+          return;
+        }
+        setMinNights(res.minNights[unit.id] ?? null);
+        setAvailability(res.availability[unit.id] === false ? "taken" : "free");
       })
       .catch(() => {
         if (!cancelled) setAvailability("failed"); // don't block the guest: payment re-checks anyway
@@ -120,9 +131,11 @@ export function BookingWidget({
         <div className="mt-5">
           <div className="flex justify-between text-sm">
             <span className="text-navy/70">
-              {usesMonthlyRate(nights, unit.monthly_price)
+              {monthly
                 ? `Monthly rate, ${nights} nights`
-                : `${money(unit.base_price_per_night)} × ${nights} nights`}
+                : specialRates
+                  ? `${nights} nights, with special rates for these dates`
+                  : `${money(unit.base_price_per_night)} × ${nights} nights`}
             </span>
             <span>{money(total)}</span>
           </div>
@@ -151,7 +164,8 @@ export function BookingWidget({
       <div aria-live="polite" className="mt-4 text-sm">
         {availability === "checking" && <p className="text-navy/70">Checking these dates…</p>}
         {availability === "failed" && <p className="text-navy/70">We&rsquo;ll confirm availability at payment.</p>}
-        {availability === "taken" && (
+        {availability === "taken" && tooShort && <p className="text-red-700">{tooShort}</p>}
+        {availability === "taken" && !tooShort && (
           <p className="text-red-700">
             Not available for these dates.{" "}
             <Link

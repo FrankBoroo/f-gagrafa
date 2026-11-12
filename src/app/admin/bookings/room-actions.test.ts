@@ -8,6 +8,7 @@ const ROOM_8 = "00000000-0000-0000-0000-000000000108";
 const mocks = vi.hoisted(() => ({
   isStaff: vi.fn(),
   freeRooms: vi.fn(),
+  specialsForStay: vi.fn(),
   booking: null as Record<string, unknown> | null,
   updates: [] as Record<string, unknown>[],
   inserts: [] as Record<string, unknown>[],
@@ -59,6 +60,7 @@ vi.mock("@/lib/booking/rooms", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/booking/rooms")>()),
   freeRoomsForType: mocks.freeRooms,
 }));
+vi.mock("@/lib/booking/special-prices-db", () => ({ specialsForStay: mocks.specialsForStay }));
 vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: () => ({
     from: (table: string) => new FakeQuery(table),
@@ -84,6 +86,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.isStaff.mockResolvedValue(true);
   mocks.freeRooms.mockResolvedValue([{ id: ROOM_2, number: 2 }, { id: ROOM_8, number: 8 }]);
+  mocks.specialsForStay.mockResolvedValue([]);
   mocks.booking = { ...liveBooking };
   mocks.updates = [];
   mocks.inserts = [];
@@ -157,5 +160,20 @@ describe("createManualBooking with a chosen room", () => {
   it("books the chosen room as confirmed", async () => {
     await createManualBooking(input);
     expect(mocks.inserts[0]).toMatchObject({ room_id: ROOM_8, room_confirmed: true });
+  });
+
+  it("prices the stay with special prices but isn't held to their minimum nights", async () => {
+    mocks.specialsForStay.mockResolvedValue([
+      { start_date: "2026-12-11", end_date: "2026-12-12", nightly_price: 300, min_nights: 7 },
+    ]);
+    await createManualBooking(input);
+    expect(mocks.inserts[0]).toMatchObject({ total_amount: 700 });
+  });
+
+  it("doesn't create the booking when the special prices can't be read", async () => {
+    mocks.specialsForStay.mockResolvedValue(null);
+    const result = await createManualBooking(input);
+    expect(result.ok).toBe(false);
+    expect(mocks.inserts).toEqual([]);
   });
 });
