@@ -15,8 +15,6 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
   const { data: unit } = await supabase.from("units").select("*").eq("id", id).maybeSingle();
   if (!unit) notFound();
 
-  // Door codes live in their own table; tolerate it not existing yet (migration not run).
-  const { data: codeRow } = await supabase.from("unit_access_codes").select("access_code").eq("unit_id", id).maybeSingle();
   const admin = await isAdmin();
   const { pricing } = await getPublicSettings();
 
@@ -32,7 +30,6 @@ export default async function EditUnitPage({ params }: { params: Promise<{ id: s
     bathrooms: Number(unit.bathrooms),
     size_sqm: unit.size_sqm === null ? null : Number(unit.size_sqm),
     amenities: stringList(unit.amenities),
-    access_code: codeRow?.access_code ?? "",
     is_active: unit.is_active,
   };
 

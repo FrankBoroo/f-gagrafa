@@ -3,7 +3,7 @@ import { unitDetailsSchema } from "@/lib/validations";
 
 const details = {
   name: "Studio", type: "studio", short_description: "", description: "", base_price_per_night: 100,
-  max_guests: 2, bedrooms: 1, bathrooms: 1, size_sqm: null, amenities: [], access_code: "", is_active: true,
+  max_guests: 2, bedrooms: 1, bathrooms: 1, size_sqm: null, amenities: [], is_active: true,
 };
 
 describe("unitDetailsSchema monthly_price", () => {

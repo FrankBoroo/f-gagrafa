@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
-import { isAdmin, UNAUTHORIZED } from "@/lib/auth";
+import { isAdmin, isStaff, UNAUTHORIZED } from "@/lib/auth";
 import { toISODate } from "@/lib/booking/dates";
 import { roomLabel } from "@/lib/booking/room-assignment";
 
@@ -95,5 +95,26 @@ export async function deleteRoom(roomId: string) {
 
   await logAudit("room.deleted", "room", roomId, { number: room.number });
   refreshRoomPages();
+  return { ok: true };
+}
+
+// Door codes live in their own service-role-only table. The code itself is never audited.
+export async function setRoomDoorCode(input: { roomId: string; code: string }) {
+  if (!(await isStaff())) return UNAUTHORIZED;
+  const parsed = z.object({ roomId: id, code: z.string().trim().max(40, "Door codes are 40 characters at most") }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid door code" };
+  const { roomId, code } = parsed.data;
+
+  const supabase = createServiceClient();
+  const room = await loadRoom(supabase, roomId);
+  if (!room) return { ok: false, error: "Room not found" };
+
+  const { error } = code
+    ? await supabase.from("room_access_codes").upsert({ room_id: roomId, access_code: code, updated_at: new Date().toISOString() })
+    : await supabase.from("room_access_codes").delete().eq("room_id", roomId);
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit(code ? "room.door_code_set" : "room.door_code_cleared", "room", roomId, { number: room.number });
+  revalidatePath("/admin/rooms");
   return { ok: true };
 }

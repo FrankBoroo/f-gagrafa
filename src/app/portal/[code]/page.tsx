@@ -8,7 +8,8 @@ import { ServiceRequestForm } from "@/components/site/ServiceRequestForm";
 import { ReviewForm } from "@/components/site/ReviewForm";
 import { CancellationRequest } from "@/components/site/CancellationRequest";
 import type { Unit } from "@/lib/types";
-import { addDays } from "@/lib/booking/dates";
+import { toISODate } from "@/lib/booking/dates";
+import { accessState, ACCESS_MESSAGES } from "@/lib/portal/access";
 import { CANCELLATION_REQUEST_PREFIX } from "@/lib/admin/inbox";
 
 export default async function PortalDetailPage({
@@ -28,30 +29,30 @@ export default async function PortalDetailPage({
   const supabase = createServiceClient();
   const { data: booking } = await supabase
     .from("bookings")
-    .select("*, units(*)")
+    .select("*, units(*), rooms(number)")
     .eq("booking_code", code)
     .single();
 
   if (!booking) notFound();
 
   const unit = booking.units as Unit;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toISODate(new Date());
   const status: string = booking.status;
   const isCancelled = status === "cancelled" || status === "no_show";
 
-  // Door code, Wi-Fi and entry details: only for a confirmed stay, from the day before
-  // check-in until check-out — so past guests and unconfirmed bookings never see them.
-  const stayIsLive = (status === "confirmed" || status === "checked_in") && today <= booking.check_out;
-  const canSeeAccess = stayIsLive && (status === "checked_in" || today >= addDays(booking.check_in, -1));
+  // Door code, Wi-Fi and entry details: only for a confirmed stay with a confirmed room,
+  // from the day before check-in until check-out.
+  const access = accessState(booking, today);
+  const canSeeAccess = access === "show";
 
   const { data: settings } = await supabase.from("property_settings").select("*").limit(1).maybeSingle();
 
   let doorCode: string | null = null;
   if (canSeeAccess) {
     const { data: codeRow } = await supabase
-      .from("unit_access_codes")
+      .from("room_access_codes")
       .select("access_code")
-      .eq("unit_id", booking.unit_id)
+      .eq("room_id", booking.room_id as string)
       .maybeSingle();
     doorCode = codeRow?.access_code ?? null;
   }
@@ -154,11 +155,7 @@ export default async function PortalDetailPage({
               </div>
             ) : (
               <p className="mt-3 rounded-xl border border-navy/10 p-5 text-sm text-navy/60">
-                {stayIsLive
-                  ? "Your door code, Wi-Fi and entry details will appear here from the day before check-in."
-                  : status === "pending"
-                    ? "Your door code, Wi-Fi and entry details appear here once your booking is confirmed."
-                    : "Access details are only shown during your stay."}
+                {ACCESS_MESSAGES[access]}
               </p>
             )}
           </section>

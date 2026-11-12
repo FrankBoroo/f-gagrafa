@@ -20,7 +20,6 @@ export interface UnitFormValues {
   bathrooms: number;
   size_sqm: number | null;
   amenities: string[];
-  access_code: string;
   is_active: boolean;
 }
 
@@ -44,7 +43,6 @@ const EMPTY: UnitFormValues = {
   bathrooms: 1,
   size_sqm: null,
   amenities: [],
-  access_code: "",
   is_active: false, // new residences start as drafts until photos are added
 };
 
@@ -163,13 +161,6 @@ export function UnitForm({
 
       <Field label="Amenities" hint="One per line, e.g. Free Wi-Fi.">
         <textarea rows={6} value={amenitiesText} onChange={(e) => setAmenitiesText(e.target.value)} className={inputClass} />
-      </Field>
-
-      <Field
-        label="Door code"
-        hint="Shown only to a verified guest with a confirmed stay, from the day before check-in until check-out. Never shown on the public site."
-      >
-        <input value={form.access_code} onChange={(e) => update("access_code", e.target.value)} autoComplete="off" className={inputClass} />
       </Field>
 
       <label className="flex items-start gap-2 text-sm text-navy/70">

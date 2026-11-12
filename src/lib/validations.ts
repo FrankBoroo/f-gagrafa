@@ -65,7 +65,6 @@ export const unitDetailsSchema = z.object({
   bathrooms: z.coerce.number().min(0).max(20),
   size_sqm: z.number().min(0).max(5000).nullable(),
   amenities: z.array(z.string().trim().min(1).max(60)).max(40),
-  access_code: z.string().trim().max(50),
   is_active: z.boolean(),
 });
 export type UnitDetailsInput = z.infer<typeof unitDetailsSchema>;

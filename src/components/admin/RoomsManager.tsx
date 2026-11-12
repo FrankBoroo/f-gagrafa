@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createRoom, deleteRoom, setRoomActive } from "@/app/admin/rooms/actions";
+import { createRoom, deleteRoom, setRoomActive, setRoomDoorCode } from "@/app/admin/rooms/actions";
 import { roomLabel } from "@/lib/booking/room-assignment";
 import { formatDateTime } from "@/lib/format";
 
@@ -14,6 +14,44 @@ interface RoomRow {
   unit_name: string;
   is_active: boolean;
   last_cleaned_at: string | null;
+  door_code: string;
+}
+
+function DoorCodeEditor({ room }: { room: RoomRow }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [value, setValue] = useState(room.door_code);
+  const dirty = value.trim() !== room.door_code;
+
+  function save(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const result = await setRoomDoorCode({ roomId: room.id, code: value });
+      if (!result.ok) {
+        toast.error(("error" in result && result.error) || "Something went wrong");
+        return;
+      }
+      toast.success(`${roomLabel(room.number)} door code saved`);
+      router.refresh();
+    });
+  }
+
+  return (
+    <form onSubmit={save} className="flex items-center gap-2">
+      <label htmlFor={`code-${room.id}`} className="sr-only">Door code for {roomLabel(room.number)}</label>
+      <input
+        id={`code-${room.id}`}
+        value={value}
+        maxLength={40}
+        autoComplete="off"
+        onChange={(e) => setValue(e.target.value)}
+        className="min-h-11 w-32 rounded-lg border border-navy/15 px-3 py-2 text-sm"
+      />
+      <button type="submit" disabled={isPending || !dirty} className="btn-secondary min-h-11 px-4 py-2 text-xs">
+        Save
+      </button>
+    </form>
+  );
 }
 
 export function RoomsManager({
@@ -52,12 +90,13 @@ export function RoomsManager({
   return (
     <div className="space-y-6">
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-left text-sm">
+        <table className="w-full min-w-[44rem] text-left text-sm">
           <thead className="border-b border-navy/10 text-xs uppercase tracking-widest text-navy/50">
             <tr>
               <th className="px-5 py-3 font-normal">Room</th>
               <th className="px-5 py-3 font-normal">Type</th>
               <th className="px-5 py-3 font-normal">Last cleaned</th>
+              <th className="px-5 py-3 font-normal">Door code</th>
               <th className="px-5 py-3 font-normal">Status</th>
               {isAdmin && <th className="px-5 py-3 font-normal"><span className="sr-only">Actions</span></th>}
             </tr>
@@ -68,6 +107,7 @@ export function RoomsManager({
                 <td className="px-5 py-3 text-navy">{roomLabel(r.number)}</td>
                 <td className="px-5 py-3 text-navy/70">{r.unit_name}</td>
                 <td className="px-5 py-3 text-navy/70">{r.last_cleaned_at ? formatDateTime(r.last_cleaned_at) : "Not yet"}</td>
+                <td className="px-5 py-3"><DoorCodeEditor key={`${r.id}:${r.door_code}`} room={r} /></td>
                 <td className="px-5 py-3">
                   <span className={`rounded-full px-2.5 py-0.5 text-xs ${r.is_active ? "bg-emerald-100 text-emerald-700" : "bg-navy/10 text-navy/60"}`}>
                     {r.is_active ? "In use" : "Switched off"}
@@ -99,7 +139,7 @@ export function RoomsManager({
             ))}
             {!rooms.length && (
               <tr>
-                <td colSpan={isAdmin ? 5 : 4} className="px-5 py-8 text-center text-navy/60">No rooms yet.</td>
+                <td colSpan={isAdmin ? 6 : 5} className="px-5 py-8 text-center text-navy/60">No rooms yet.</td>
               </tr>
             )}
           </tbody>

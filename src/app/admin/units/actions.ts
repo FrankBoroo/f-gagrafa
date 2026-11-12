@@ -47,7 +47,6 @@ export async function toggleUnitActive(id: string, isActive: boolean) {
 const BUCKET = "unit-images";
 const MAX_PHOTOS = 12;
 const ALLOWED_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-const MISSING_TABLE = new Set(["42P01", "PGRST205"]);
 
 function slugify(name: string): string {
   return (
@@ -68,20 +67,6 @@ function bucketPathFromUrl(url: string): string | null {
   return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length));
 }
 
-// Door codes live in their own locked-down table (see the migration): putting one on
-// `units` would expose it through the public API.
-async function saveAccessCode(supabase: any, unitId: string, code: string): Promise<string | null> {
-  const { error } = code
-    ? await supabase
-        .from("unit_access_codes")
-        .upsert({ unit_id: unitId, access_code: code, updated_at: new Date().toISOString() })
-    : await supabase.from("unit_access_codes").delete().eq("unit_id", unitId);
-  if (!error) return null;
-  return MISSING_TABLE.has(error.code)
-    ? "The door code couldn't be saved: run supabase/migration-portal-and-ops.sql in the Supabase SQL Editor first."
-    : error.message;
-}
-
 function refreshUnitPages(id?: string) {
   revalidatePath("/admin/units");
   if (id) revalidatePath(`/admin/units/${id}`);
@@ -95,7 +80,7 @@ export async function createUnit(input: UnitDetailsInput) {
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid unit details" };
   }
-  const { access_code, ...fields } = parsed.data;
+  const fields = parsed.data;
   const supabase = createServiceClient();
 
   const base = slugify(fields.name);
@@ -118,11 +103,9 @@ export async function createUnit(input: UnitDetailsInput) {
     .single();
   if (error || !unit) return { ok: false, error: error?.message ?? "Could not create the unit" };
 
-  const codeProblem = access_code ? await saveAccessCode(supabase, unit.id, access_code) : null;
-
   await logAudit("unit.created", "unit", unit.id, { name: fields.name, slug });
   refreshUnitPages(unit.id);
-  return { ok: true, id: unit.id as string, warning: codeProblem ?? undefined };
+  return { ok: true, id: unit.id as string };
 }
 
 export async function updateUnitDetails(id: string, input: UnitDetailsInput) {
@@ -131,18 +114,15 @@ export async function updateUnitDetails(id: string, input: UnitDetailsInput) {
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid unit details" };
   }
-  const { access_code, ...fields } = parsed.data;
+  const fields = parsed.data;
   const supabase = createServiceClient();
 
   const { error } = await supabase.from("units").update(fields).eq("id", id);
   if (error) return { ok: false, error: error.message };
 
-  const codeProblem = await saveAccessCode(supabase, id, access_code);
-
-  // The door code itself is never written to the audit log.
-  await logAudit("unit.details_updated", "unit", id, { ...fields, door_code_set: Boolean(access_code) });
+  await logAudit("unit.details_updated", "unit", id, fields);
   refreshUnitPages(id);
-  return { ok: true, warning: codeProblem ?? undefined };
+  return { ok: true };
 }
 
 // Admin-only, and refused outright if the unit has any booking history (the database
