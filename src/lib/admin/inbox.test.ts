@@ -61,6 +61,13 @@ describe("buildInbox", () => {
     expect(build([request()], [])[0].kind).toBe("service_request");
   });
 
+  it("names the breakfast and airport transfer requests in words", () => {
+    const titles = (["breakfast", "airport_transfer"] as const).map(
+      (type) => build([request({ type })], [])[0].title
+    );
+    expect(titles).toEqual(["Breakfast · Ama Mensah", "Airport transfer · Ama Mensah"]);
+  });
+
   it("copes with a request that has no description or no booking", () => {
     const [item] = build([request({ description: null, bookings: null })], []);
     expect(item.title).toBe("Housekeeping · Guest");

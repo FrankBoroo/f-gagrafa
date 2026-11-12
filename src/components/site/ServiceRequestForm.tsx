@@ -4,14 +4,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 const types = [
-  { value: "cleaning", label: "Extra cleaning" },
-  { value: "towels", label: "More towels" },
-  { value: "maintenance", label: "Maintenance issue" },
-  { value: "other", label: "Something else" },
+  { value: "breakfast", label: "Breakfast", placeholder: "Which days, and for how many?" },
+  { value: "airport_transfer", label: "Airport transfer", placeholder: "Flight number and arrival time" },
+  { value: "cleaning", label: "Housekeeping", placeholder: "When suits you?" },
+  { value: "maintenance", label: "Repair", placeholder: "What needs fixing?" },
+  { value: "other", label: "Something else", placeholder: "How can we help?" },
 ];
 
 export function ServiceRequestForm({ bookingId }: { bookingId: string }) {
-  const [type, setType] = useState("cleaning");
+  const [type, setType] = useState("breakfast");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -62,7 +63,7 @@ export function ServiceRequestForm({ bookingId }: { bookingId: string }) {
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Add any details…"
+        placeholder={types.find((t) => t.value === type)?.placeholder ?? "How can we help?"}
         rows={3}
         className="w-full rounded-lg border border-navy/15 px-4 py-3"
       />

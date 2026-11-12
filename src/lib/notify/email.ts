@@ -7,6 +7,7 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { roomLabel } from "@/lib/booking/room-assignment";
 import { log } from "@/lib/logger";
 import { takeToken } from "@/lib/rate-limit";
+import { requestTypeWord } from "@/lib/admin/inbox";
 
 // Every send here is best-effort: guarded by RESEND_API_KEY, wrapped in
 // try/catch, and never thrown back to the caller. A missing or bad key
@@ -320,13 +321,13 @@ export async function sendContactMessageNotification(name: string, email: string
 export async function sendServiceRequestNotification(serviceRequest: any, booking: any) {
   await send({
     to: await adminAddress(),
-    subject: `Service request: ${serviceRequest.type} — ${booking?.booking_code ?? ""}`,
+    subject: `Service request: ${requestTypeWord(serviceRequest.type)} — ${booking?.booking_code ?? ""}`,
     html: `
       <p>A guest submitted a service request.</p>
       <p>
         <strong>Booking:</strong> ${booking?.booking_code ?? "unknown"}<br/>
         <strong>Guest:</strong> ${esc(booking?.guest_name ?? "unknown")}<br/>
-        <strong>Type:</strong> ${esc(serviceRequest.type)}<br/>
+        <strong>Type:</strong> ${esc(requestTypeWord(serviceRequest.type))}<br/>
         <strong>Details:</strong> ${esc(serviceRequest.description ?? "—")}
       </p>
     `,

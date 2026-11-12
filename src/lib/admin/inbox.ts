@@ -43,11 +43,18 @@ interface ContactMessageRow {
 }
 
 const TYPE_WORDS: Record<string, string> = {
+  breakfast: "Breakfast",
+  airport_transfer: "Airport transfer",
   cleaning: "Housekeeping",
   towels: "Towels",
   maintenance: "Repair",
   other: "Request",
 };
+
+// The word staff and guests see for a service request type (e.g. "Housekeeping").
+export function requestTypeWord(type: string): string {
+  return TYPE_WORDS[type] ?? "Request";
+}
 
 const OPEN_REQUEST_STATUSES = ["pending", "in_progress"];
 
@@ -61,7 +68,7 @@ function fromServiceRequest(row: ServiceRequestRow): InboxItem {
     kind: isCancellation ? "cancellation_request" : "service_request",
     id: row.id,
     createdAt: row.created_at,
-    title: isCancellation ? `Cancellation request · ${guest}` : `${TYPE_WORDS[row.type] ?? "Request"} · ${guest}`,
+    title: isCancellation ? `Cancellation request · ${guest}` : `${requestTypeWord(row.type)} · ${guest}`,
     body: isCancellation ? reason || "No reason given" : description.trim(),
     open: OPEN_REQUEST_STATUSES.includes(row.status),
     bookingCode: row.bookings?.booking_code ?? null,
