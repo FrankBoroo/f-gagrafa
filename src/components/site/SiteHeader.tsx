@@ -49,7 +49,7 @@ export function SiteHeader() {
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b transition-[background-color,border-color,box-shadow,color] duration-500 ease-out ${
+      className={`sticky top-0 z-40 border-b print:hidden transition-[background-color,border-color,box-shadow,color] duration-500 ease-out ${
         transparent
           ? "border-transparent bg-transparent text-ivory"
           : // backdrop-blur would make the fixed full-screen menu size itself to the header, so drop it while open.

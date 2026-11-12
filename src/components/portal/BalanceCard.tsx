@@ -9,6 +9,8 @@ export function BalanceCard({
   bookedSuffix,
   canPay,
   bookingId,
+  awaitingPayment = false,
+  refunded = 0,
 }: {
   total: number;
   paid: number;
@@ -17,6 +19,8 @@ export function BalanceCard({
   bookedSuffix: string;
   canPay: boolean;
   bookingId: string;
+  awaitingPayment?: boolean;
+  refunded?: number;
 }) {
   const percent = total > 0 ? Math.min(100, Math.max(0, Math.round((paid / total) * 100))) : 0;
   const settled = owed <= 0.005;
@@ -57,6 +61,9 @@ export function BalanceCard({
           )}
         </div>
       )}
+
+      {awaitingPayment && <p className="mt-3 text-xs text-navy/60">Your booking is waiting for payment.</p>}
+      {refunded > 0 && <p className="mt-3 text-xs text-navy/60">Refunded {formatMoney(refunded, currency)}</p>}
     </section>
   );
 }

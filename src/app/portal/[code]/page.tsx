@@ -18,6 +18,8 @@ import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
 import { isOverLimit } from "@/lib/rate-limit";
 import { returnReferenceFor } from "@/lib/portal/return";
 import { roomText } from "@/lib/portal/access";
+import { whatsappHref } from "@/lib/contact-links";
+import { QuickActions } from "@/components/portal/QuickActions";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { BalanceCard } from "@/components/portal/BalanceCard";
 import { ArrivalCard } from "@/components/portal/ArrivalCard";
@@ -102,8 +104,9 @@ export default async function PortalDetailPage({
   const balanceDue = Math.max(Math.round((Number(booking.total_amount) - paidNet) * 100) / 100, 0);
   const canPay = balanceProblem(booking, paidNet) === null;
   const accessMessage = access === "show" ? null : ACCESS_MESSAGES[access];
-  const wifi =
-    [
+  const wifi = !canSeeAccess
+    ? null
+    : [
       settings?.wifi_network && `Network: ${settings.wifi_network}`,
       settings?.wifi_password && `Password: ${settings.wifi_password}`,
     ]
@@ -164,10 +167,17 @@ export default async function PortalDetailPage({
             bookedSuffix={bookedPriceSuffix(booking)}
             canPay={canPay}
             bookingId={booking.id}
+            awaitingPayment={status === "pending"}
+            refunded={refundedAmount}
           />
         )}
 
-        {/* Task 6: QuickActions row goes here, right under the balance card. */}
+        <QuickActions
+          directionsHref={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings?.address || "The Gagrafa, Tema, Ghana")}`}
+          whatsappHref={settings?.whatsapp_number ? whatsappHref(settings.whatsapp_number) : null}
+          calendarHref={isCancelled ? null : `/portal/${booking.booking_code}/calendar.ics`}
+          receiptHref={`/portal/${booking.booking_code}/receipt`}
+        />
 
         {!isCancelled && (
           <>
@@ -180,7 +190,7 @@ export default async function PortalDetailPage({
               accessMessage={accessMessage}
               doorCode={doorCode}
               wifi={wifi}
-              entryInstructions={settings?.entry_instructions ?? null}
+              entryInstructions={canSeeAccess ? (settings?.entry_instructions ?? null) : null}
               address={settings?.address ?? null}
             />
 
