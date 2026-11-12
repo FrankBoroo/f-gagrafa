@@ -1,3 +1,5 @@
+import { barHeight } from "@/lib/admin/chart";
+
 // Plain SVG bar chart — no charting library needed for a simple 30-point series.
 export function BarChart({
   data, valueFormatter, color = "#0F1620", height = 160,
@@ -14,14 +16,14 @@ export function BarChart({
     <div>
       <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="h-40 w-full">
         {data.map((d, i) => {
-          const barHeight = (d.value / max) * (height - 10);
+          const h = barHeight(d.value, max, height - 10);
           return (
             <rect
               key={i}
               x={i * barWidth + barWidth * 0.15}
-              y={height - barHeight}
+              y={height - h}
               width={barWidth * 0.7}
-              height={barHeight}
+              height={h}
               fill={color}
               rx={0.5}
             >
