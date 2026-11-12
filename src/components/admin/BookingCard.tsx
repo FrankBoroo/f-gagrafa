@@ -7,7 +7,7 @@ import { formatMoney } from "@/lib/format";
 import { asResult } from "@/lib/action-result";
 import { balanceProblem } from "@/lib/payments/balance";
 import { updateBookingStatus, sendPaymentLink } from "@/app/admin/bookings/actions";
-import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog } from "@/components/admin/BookingDialogs";
+import { EditDatesDialog, RecordPaymentDialog, CancelRefundDialog, RefundOverpaymentDialog } from "@/components/admin/BookingDialogs";
 import { RoomAssignment } from "@/components/admin/RoomAssignment";
 import type { Pricing } from "@/lib/booking/pricing";
 
@@ -30,7 +30,7 @@ const paymentColor: Record<string, string> = {
 export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdmin: boolean; pricing: Pricing }) {
   const [status, setStatus] = useState(booking.status);
   const [isPending, startTransition] = useTransition();
-  const [dialog, setDialog] = useState<null | "dates" | "pay" | "cancel">(null);
+  const [dialog, setDialog] = useState<null | "dates" | "pay" | "cancel" | "overpaid">(null);
 
   const netPaid = Number(booking.net_paid ?? 0);
   const outstanding = Math.max(Number(booking.total_amount) - netPaid, 0);
@@ -44,6 +44,9 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
     balanceProblem({ status, payment_status: booking.payment_status, total_amount: Number(booking.total_amount) }, netPaid) === null;
   const canCancel = active;
   const canRefund = closed && netPaid > 0.005;
+  const overpaid = Math.max(Math.round((netPaid - Number(booking.total_amount)) * 100) / 100, 0);
+  // Cancelled stays are refunded through "Refund" instead.
+  const canRefundOverpayment = isAdmin && !closed && overpaid > 0.005;
   const liveBooking = { ...booking, status };
 
   function act(next: string) {
@@ -114,6 +117,9 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
           {refunded > 0 && (
             <span className="ml-2 text-xs text-navy/50">· refunded {formatMoney(refunded, booking.currency)}</span>
           )}
+          {canRefundOverpayment && (
+            <span className="ml-2 text-xs text-amber-700">· overpaid {formatMoney(overpaid, booking.currency)}</span>
+          )}
           {canRecordPayment && !awaitingPayment && (
             <span className="ml-2 text-xs text-amber-700">· {formatMoney(outstanding, booking.currency)} due</span>
           )}
@@ -158,6 +164,11 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
               Cancel / refund
             </button>
           )}
+          {canRefundOverpayment && (
+            <button type="button" className="text-red-700 underline underline-offset-2" onClick={() => setDialog("overpaid")}>
+              Refund overpayment
+            </button>
+          )}
           {canRefund && (
             <button type="button" className="text-red-700 underline underline-offset-2" onClick={() => setDialog("cancel")}>
               Refund
@@ -177,6 +188,7 @@ export function BookingCard({ booking, isAdmin, pricing }: { booking: any; isAdm
 
       {dialog === "dates" && <EditDatesDialog booking={liveBooking} pricing={pricing} open onClose={() => setDialog(null)} />}
       {dialog === "pay" && <RecordPaymentDialog booking={liveBooking} open onClose={() => setDialog(null)} />}
+      {dialog === "overpaid" && <RefundOverpaymentDialog booking={liveBooking} open onClose={() => setDialog(null)} />}
       {dialog === "cancel" && (
         <CancelRefundDialog booking={liveBooking} isAdmin={isAdmin} open onClose={() => setDialog(null)} />
       )}

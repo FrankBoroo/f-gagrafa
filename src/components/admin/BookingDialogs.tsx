@@ -10,7 +10,7 @@ import { addDays, calculateNights } from "@/lib/booking/dates";
 import { toChargeAmount, type Pricing } from "@/lib/booking/pricing";
 import { stayPrice, unitRates, usesMonthlyRate } from "@/lib/booking/stay-price";
 import { daysUntilCheckIn, isFreeCancellation, suggestedRefund } from "@/lib/booking/cancellation-policy";
-import { cancelBookingWithRefund, updateBookingDates, recordPayment } from "@/app/admin/bookings/actions";
+import { cancelBookingWithRefund, updateBookingDates, recordPayment, refundOverpayment } from "@/app/admin/bookings/actions";
 
 interface DialogProps {
   booking: any;
@@ -97,7 +97,7 @@ export function EditDatesDialog({ booking, open, onClose, pricing }: DialogProps
         <Row label="Paid so far" value={formatMoney(paid, booking.currency)} />
         <Row label={balance > 0 ? "Balance due" : balance < 0 ? "Overpaid by" : "Balance"} value={formatMoney(Math.abs(balance), booking.currency)} />
         {balance > 0 && <p className="pt-1 text-xs text-navy/50">Use “Record payment” on the booking when the balance is received.</p>}
-        {balance < 0 && <p className="pt-1 text-xs text-navy/50">Use Cancel / Refund → refund to return the difference.</p>}
+        {balance < 0 && <p className="pt-1 text-xs text-navy/50">An admin can return the difference with “Refund overpayment” on the booking.</p>}
       </div>
 
       <div className="mt-6 flex gap-3">
@@ -283,6 +283,98 @@ export function CancelRefundDialog({ booking, open, onClose, isAdmin }: DialogPr
           disabled={isPending || (alreadyCancelled && (choice === "none" || amount <= 0))}
         >
           {confirmLabel}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------- Refund overpayment
+// Returns what was paid above the stay total without cancelling (a balance paid twice, or a
+// total lowered after payment). Admin-only; the server caps the amount at the excess.
+export function RefundOverpaymentDialog({ booking, open, onClose }: DialogProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const paid = Number(booking.net_paid ?? 0);
+  const total = Number(booking.total_amount);
+  const excess = Math.max(Math.round((paid - total) * 100) / 100, 0);
+  const payments: any[] = booking.payments ?? [];
+  const canUsePaystack = payments.some((p) => p.method === "paystack" && p.status === "success" && p.paystack_reference);
+
+  const [choice, setChoice] = useState<"paystack" | "manual">(canUsePaystack ? "paystack" : "manual");
+  const [manualMethod, setManualMethod] = useState<"cash" | "bank" | "momo">("cash");
+  const [amount, setAmount] = useState<number>(excess);
+  const [reason, setReason] = useState("");
+
+  const tooMuch = amount > excess + 0.005;
+
+  function submit() {
+    startTransition(async () => {
+      const method = choice === "paystack" ? "paystack" : manualMethod;
+      const result = asResult(await refundOverpayment({ bookingId: booking.id, method, amount, reason }));
+      if (!result.ok) {
+        toast.error(result.error ?? "Could not refund the overpayment");
+        router.refresh();
+        return;
+      }
+      toast.success(choice === "paystack" ? "Overpayment refunded through Paystack" : "Overpayment refund recorded");
+      onClose();
+      router.refresh();
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Refund overpayment">
+      <p className="text-sm text-navy/60">{booking.guest_name} · {booking.units?.name} · {booking.booking_code}</p>
+
+      <div className="mt-4 space-y-1 rounded-lg bg-sand p-4">
+        <Row label="Stay total" value={formatMoney(total, booking.currency)} />
+        <Row label="Paid so far (net)" value={formatMoney(paid, booking.currency)} />
+        <Row label="Overpaid by" value={formatMoney(excess, booking.currency)} />
+      </div>
+
+      <fieldset className="mt-5 space-y-2 text-sm">
+        <legend className="mb-1 text-sm text-navy/60">Refund</legend>
+        <label className="flex items-start gap-2">
+          <input type="radio" name="overpay-choice" checked={choice === "paystack"} disabled={!canUsePaystack} onChange={() => setChoice("paystack")} className="mt-1" />
+          <span className={canUsePaystack ? "" : "text-navy/40"}>
+            Refund to the guest through Paystack
+            {!canUsePaystack && <span className="block text-xs">No Paystack payment on this booking.</span>}
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="radio" name="overpay-choice" checked={choice === "manual"} onChange={() => setChoice("manual")} className="mt-1" />
+          <span>I&rsquo;ve refunded them myself (record it)</span>
+        </label>
+        {choice === "manual" && (
+          <select value={manualMethod} onChange={(e) => setManualMethod(e.target.value as "cash" | "bank" | "momo")} className={inputClass}>
+            <option value="cash">Cash</option>
+            <option value="bank">Bank transfer</option>
+            <option value="momo">Mobile Money</option>
+          </select>
+        )}
+      </fieldset>
+
+      <div className="mt-4">
+        <label className="text-sm text-navy/60">Refund amount ({booking.currency})</label>
+        <input type="number" min={0} max={excess} step="any" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className={inputClass} />
+        <p className={`mt-1 text-xs ${tooMuch ? "text-red-700" : "text-navy/50"}`}>
+          Up to {formatMoney(excess, booking.currency)}, the amount paid above the stay total.
+        </p>
+      </div>
+
+      <div className="mt-4">
+        <label className="text-sm text-navy/60">Reason (optional)</label>
+        <textarea rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass} />
+      </div>
+
+      <p className="mt-4 text-xs text-navy/50">The booking isn&rsquo;t cancelled and the guest isn&rsquo;t emailed. This clears the overpayment from Needs attention.</p>
+
+      <div className="mt-6 flex gap-3">
+        <button type="button" className="btn-secondary flex-1" onClick={onClose} disabled={isPending}>Close</button>
+        <button type="button" className="btn-primary flex-1" onClick={submit} disabled={isPending || amount <= 0 || tooMuch}>
+          {isPending ? "Working…" : `Refund ${formatMoney(amount, booking.currency)}`}
         </button>
       </div>
     </Modal>
