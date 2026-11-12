@@ -84,6 +84,16 @@ export const cancelRefundSchema = z.object({
 });
 export type CancelRefundInput = z.infer<typeof cancelRefundSchema>;
 
+// Refunding money paid above the stay total (two tabs, a total lowered after payment)
+// without cancelling. The cap is checked on the server against the payments.
+export const refundOverpaymentSchema = z.object({
+  bookingId: z.string().uuid(),
+  method: z.enum(["paystack", "cash", "bank", "momo"]),
+  amount: z.coerce.number().positive("Enter an amount above 0"),
+  reason: z.string().trim().max(500).optional(),
+});
+export type RefundOverpaymentInput = z.infer<typeof refundOverpaymentSchema>;
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose valid dates");
 export const bookingDatesSchema = z
   .object({

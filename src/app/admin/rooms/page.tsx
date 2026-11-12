@@ -1,8 +1,18 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/auth";
+import { isAdmin, isStaff } from "@/lib/auth";
 import { RoomsManager } from "@/components/admin/RoomsManager";
 
 export default async function AdminRoomsPage() {
+  // The page loads every door code with the service client, so check the role before any query.
+  if (!(await isStaff())) {
+    return (
+      <div>
+        <h1 className="text-3xl">Rooms</h1>
+        <p className="mt-4 text-sm text-navy/50">Only staff can view rooms.</p>
+      </div>
+    );
+  }
+
   const supabase = createServiceClient();
   const [{ data: rooms }, { data: units }, { data: codes }, admin] = await Promise.all([
     supabase.from("rooms").select("id, number, unit_id, is_active, last_cleaned_at, units(name)").order("number"),

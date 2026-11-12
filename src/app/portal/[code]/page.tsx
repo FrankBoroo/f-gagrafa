@@ -16,6 +16,7 @@ import { netPaid } from "@/lib/admin/guests";
 import { balanceProblem } from "@/lib/payments/balance";
 import { confirmPaymentByReference } from "@/lib/payments/booking-payment";
 import { isOverLimit } from "@/lib/rate-limit";
+import { log } from "@/lib/logger";
 import { returnReferenceFor } from "@/lib/portal/return";
 import { roomText } from "@/lib/portal/access";
 import { whatsappHref } from "@/lib/contact-links";
@@ -50,15 +51,24 @@ export default async function PortalDetailPage({
   let returnAmountText: string | null = null;
   const returnReference = returnReferenceFor(code, query);
   if (returnReference && !(await isOverLimit("paymentCheck"))) {
-    const confirmation = await confirmPaymentByReference(returnReference);
+    // Paystack verify throws on a network error or non-2xx reply. Never let that break the
+    // page: show a neutral notice and let the webhook finish the confirmation.
+    let confirmation: Awaited<ReturnType<typeof confirmPaymentByReference>> | null = null;
+    try {
+      confirmation = await confirmPaymentByReference(returnReference);
+    } catch (err) {
+      log.error("balance.return_check_failed", { booking_code: code }, err);
+      returnOutcome = "checking";
+    }
     if (
-      confirmation.outcome === "paid" ||
-      confirmation.outcome === "failed" ||
-      confirmation.outcome === "needs_review"
+      confirmation &&
+      (confirmation.outcome === "paid" ||
+        confirmation.outcome === "failed" ||
+        confirmation.outcome === "needs_review")
     ) {
       returnOutcome = confirmation.outcome;
     }
-    if (confirmation.outcome === "paid") {
+    if (confirmation?.outcome === "paid") {
       const { data: paymentRow } = await supabase
         .from("payments")
         .select("amount, currency")
@@ -141,7 +151,7 @@ export default async function PortalDetailPage({
         checkIn={formatDate(booking.check_in)}
         checkOut={formatDate(booking.check_out)}
         nights={booking.nights ?? calculateNights(booking.check_in, booking.check_out)}
-        guests={booking.adults}
+        guests={booking.adults + (booking.children ?? 0)}
         code={booking.booking_code}
         firstName={booking.guest_name.split(" ")[0]}
       />
@@ -169,6 +179,7 @@ export default async function PortalDetailPage({
             bookingId={booking.id}
             awaitingPayment={status === "pending"}
             refunded={refundedAmount}
+            afterArrival={status === "checked_in" || status === "checked_out"}
           />
         )}
 

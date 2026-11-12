@@ -7,9 +7,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import {
   bookingStatusSchema, guestDetailsSchema, cancelRefundSchema, bookingDatesSchema, recordPaymentSchema,
   type CancelRefundInput, type BookingDatesInput, type RecordPaymentInput,
+  refundOverpaymentSchema, type RefundOverpaymentInput,
 } from "@/lib/validations";
-import { refundPaystackTransaction } from "@/lib/payments/paystack";
-import { paystackRefundCapacity, planPaystackRefund, refundReference } from "@/lib/payments/refund-split";
+import { insertRefundRows, sendPaystackRefund, type RefundRow } from "@/lib/payments/paystack-refund";
 import { sendBookingCancelledEmail, sendBookingChangedEmail, sendBalancePaymentLinkEmail } from "@/lib/notify/email";
 import { sendBalancePaymentLinkWhatsApp } from "@/lib/notify/whatsapp";
 import { balanceProblem } from "@/lib/payments/balance";
@@ -334,87 +334,32 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
   // Automatic Paystack refund against the original card / Mobile Money payment(s). A
   // deposit and a balance paid later are separate Paystack transactions, each refundable
   // up to its own amount, so the refund is split across them, newest first.
-  const refundRowsToInsert: { amount: number; paystack_reference: string | null }[] = [];
+  let refundRowsToInsert: RefundRow[] = [];
   if (refundMethod === "paystack") {
-    const capacity = paystackRefundCapacity(payments);
-    if (capacity.length === 0) {
-      return { ok: false, error: "There's no Paystack payment on this booking to refund automatically. Record it as a cash, bank or Mobile Money refund instead." };
-    }
-    const plan = planPaystackRefund(payments, refundAmount);
-    if (!plan) {
-      const available = capacity.reduce((sum: number, c: { available: number }) => sum + c.available, 0);
-      return {
-        ok: false,
-        error: `Paystack can refund at most ${formatMoney(available, booking.currency)} on this booking. Nothing was changed. Refund that through Paystack and record the rest as a manual refund (cash, bank or Mobile Money).`,
-      };
-    }
-
-    const note = reason || `Cancellation of ${booking.booking_code}`;
-    let failure: { message: string } | null = null;
-    for (const part of plan) {
-      try {
-        await refundPaystackTransaction({ reference: part.reference, amountInMajorUnits: part.amount, note });
-        refundRowsToInsert.push({ amount: part.amount, paystack_reference: refundReference(part.reference) });
-      } catch (err: any) {
-        failure = { message: err?.message ?? "unknown error" };
-        break;
-      }
-    }
-
-    if (failure && refundRowsToInsert.length === 0) {
-      return {
-        ok: false,
-        error: `Paystack couldn't process the refund: ${failure.message}. Nothing was changed. You can record a manual refund instead.`,
-      };
-    }
-
-    if (failure) {
-      // Part of the money went back through Paystack: record exactly that part so the books
-      // match, leave the booking as it was, and say what's left for a person to refund.
-      const refundedNow = Math.round(refundRowsToInsert.reduce((sum: number, r: { amount: number }) => sum + r.amount, 0) * 100) / 100;
-      const left = Math.round((refundAmount - refundedNow) * 100) / 100;
-      const { error: partError } = await supabase.from("payments").insert(
-        refundRowsToInsert.map((r: { amount: number; paystack_reference: string | null }) => ({
-          booking_id: bookingId,
-          amount: -r.amount,
-          currency: booking.currency,
-          method: "paystack" as const,
-          status: "refunded",
-          paystack_reference: r.paystack_reference,
-          paid_at: new Date().toISOString(),
-        }))
-      );
-      if (!partError) {
-        const partUpdate: TablesUpdate<"bookings"> = { refunded_amount: Number(booking.refunded_amount ?? 0) + refundedNow };
-        await supabase.from("bookings").update(partUpdate).eq("id", bookingId);
-      }
-      await logAudit("booking.refund_partial", "booking", bookingId, {
-        booking_code: booking.booking_code, refundMethod, refundAmount, refundedNow, left, reason,
-      });
+    const sent = await sendPaystackRefund({
+      supabase,
+      booking,
+      payments,
+      amount: refundAmount,
+      note: reason || `Cancellation of ${booking.booking_code}`,
+      untouched: "The booking wasn't cancelled.",
+      audit: { refundMethod, refundAmount, reason },
+    });
+    if (!sent.ok) {
       refreshBookingPages(booking.booking_code);
-      const recorded = partError
-        ? ` It couldn't be recorded here (${partError.message}): record ${formatMoney(refundedNow, booking.currency)} as a refund so your books match.`
-        : "";
-      return {
-        ok: false,
-        error: `Only part of the refund went through: ${formatMoney(refundedNow, booking.currency)} was refunded through Paystack, then Paystack failed (${failure.message}). ${formatMoney(left, booking.currency)} is left to refund manually.${recorded} The booking wasn't cancelled. Do not refund the Paystack part again.`,
-      };
+      return sent;
     }
+    refundRowsToInsert = sent.rows;
   } else if (refundMethod !== "none") {
     refundRowsToInsert.push({ amount: refundAmount, paystack_reference: null });
   }
 
   if (refundRowsToInsert.length > 0) {
-    const { error: paymentError } = await supabase.from("payments").insert(
-      refundRowsToInsert.map((r: { amount: number; paystack_reference: string | null }) => ({
-        booking_id: bookingId,
-        amount: -r.amount,
-        currency: booking.currency,
-        method: refundMethod as Exclude<typeof refundMethod, "none">,
-        status: "refunded",
-        paystack_reference: r.paystack_reference,
-        paid_at: new Date().toISOString(),
-      }))
+    const paymentError = await insertRefundRows(
+      supabase,
+      booking,
+      refundMethod as Exclude<typeof refundMethod, "none">,
+      refundRowsToInsert
     );
     if (paymentError) {
       return {
@@ -456,6 +401,84 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
 
   await logAudit(alreadyClosed ? "booking.refunded" : "booking.cancelled", "booking", bookingId, {
     booking_code: booking.booking_code, refundMethod, refundAmount, reason,
+  });
+  refreshBookingPages(booking.booking_code);
+  return { ok: true };
+}
+
+// Refunds money paid above the stay total (a balance paid twice from two tabs, or a total
+// lowered after payment) WITHOUT cancelling. Admin-only. Capped at net paid less the total,
+// so the booking stays paid in full; clears the OVERPAID item from "Needs attention".
+export async function refundOverpayment(input: RefundOverpaymentInput) {
+  if (!(await isAdmin())) return UNAUTHORIZED;
+  const parsed = refundOverpaymentSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request" };
+  const { bookingId, method } = parsed.data;
+  const reason = parsed.data.reason || "";
+  const amount = Math.round(parsed.data.amount * 100) / 100;
+
+  const supabase = createServiceClient();
+  const { data: booking } = await supabase.from("bookings").select("*").eq("id", bookingId).maybeSingle();
+  if (!booking) return { ok: false, error: "Booking not found" };
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("amount, status, method, paystack_reference, paid_at, created_at")
+    .eq("booking_id", bookingId);
+  const paid = netPaid(payments);
+  const excess = Math.max(Math.round((paid - Number(booking.total_amount)) * 100) / 100, 0);
+  if (amount > excess + 0.005) {
+    return { ok: false, error: `You can refund at most ${formatMoney(excess, booking.currency)}, the amount paid above the stay total.` };
+  }
+
+  let rows: RefundRow[] = [{ amount, paystack_reference: null }];
+  if (method === "paystack") {
+    const sent = await sendPaystackRefund({
+      supabase,
+      booking,
+      payments,
+      amount,
+      note: reason || `Overpayment on ${booking.booking_code}`,
+      untouched: "The rest of the booking wasn't changed.",
+      audit: { kind: "overpayment", refundMethod: method, refundAmount: amount, reason },
+    });
+    if (!sent.ok) {
+      refreshBookingPages(booking.booking_code);
+      return sent;
+    }
+    rows = sent.rows;
+  }
+
+  const paymentError = await insertRefundRows(supabase, booking, method, rows);
+  if (paymentError) {
+    return {
+      ok: false,
+      error:
+        method === "paystack"
+          ? `The refund WAS sent to Paystack, but it couldn't be recorded here (${paymentError.message}). Record it manually as a refund so your books match. Do not refund again.`
+          : paymentError.message,
+    };
+  }
+
+  // Never touches `status`. Net paid stays at or above the total (the cap above), so the
+  // booking stays paid in full.
+  const note = `OVERPAYMENT REFUNDED: ${formatMoney(amount, booking.currency)}${reason ? ` (${reason})` : ""}`;
+  const update: TablesUpdate<"bookings"> = {
+    refunded_amount: Number(booking.refunded_amount ?? 0) + amount,
+    admin_notes: [booking.admin_notes, note].filter(Boolean).join("\n"),
+    attention_cleared_at: new Date().toISOString(),
+  };
+  if (paid - amount + 0.005 >= Number(booking.total_amount)) update.payment_status = "paid";
+  const { error: updateError } = await supabase.from("bookings").update(update).eq("id", bookingId);
+  if (updateError) {
+    return {
+      ok: false,
+      error: `The refund was recorded, but updating the booking failed (${updateError.message}). Refresh and check it. Do not refund again.`,
+    };
+  }
+
+  await logAudit("booking.overpayment_refunded", "booking", bookingId, {
+    booking_code: booking.booking_code, method, amount, reason,
   });
   refreshBookingPages(booking.booking_code);
   return { ok: true };

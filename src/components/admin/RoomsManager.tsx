@@ -108,14 +108,14 @@ export function RoomsManager({
                 <td className="px-5 py-3 text-navy/70">{r.unit_name}</td>
                 <td className="px-5 py-3 text-navy/70">{r.last_cleaned_at ? formatDateTime(r.last_cleaned_at) : "Not yet"}</td>
                 <td className="px-5 py-3"><DoorCodeEditor key={`${r.id}:${r.door_code}`} room={r} /></td>
-                <td className="px-5 py-3">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs ${r.is_active ? "bg-emerald-100 text-emerald-700" : "bg-navy/10 text-navy/60"}`}>
+                <td className="whitespace-nowrap px-5 py-3">
+                  <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs ${r.is_active ? "bg-emerald-100 text-emerald-700" : "bg-navy/10 text-navy/60"}`}>
                     {r.is_active ? "In use" : "Switched off"}
                   </span>
                 </td>
                 {isAdmin && (
                   <td className="px-5 py-3 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 whitespace-nowrap">
                       <button
                         type="button"
                         disabled={isPending}

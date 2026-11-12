@@ -152,8 +152,22 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
     .eq("id", row.id)
     .eq("status", "pending")
     .select("id");
-  // Another call (webhook or portal return) recorded this payment first and did the rest.
-  if (!won || won.length === 0) return settled();
+  // Another call (webhook or portal return) recorded this payment first and did the rest
+  // (email or alert). Re-read so this caller reports the truth: a booking closed or overpaid
+  // meanwhile needs review, and the guest mustn't be shown a plain "Thank you".
+  if (!won || won.length === 0) {
+    const [{ data: latest }, { data: latestPayments }] = await Promise.all([
+      supabase
+        .from("bookings")
+        .select("status, payment_status, cancelled_at, admin_notes, total_amount")
+        .eq("id", booking.id)
+        .maybeSingle(),
+      supabase.from("payments").select("amount, status").eq("booking_id", booking.id),
+    ]);
+    if (latest) Object.assign(booking, latest);
+    const overpaid = netPaid(latestPayments) > Number(booking.total_amount) + 0.005;
+    return isClosed(booking) || overpaid ? { outcome: "needs_review", booking } : { outcome: "paid", booking };
+  }
 
   // Re-read the booking and its payments now this call owns the payment: staff may have
   // cancelled, or the total changed, while Paystack was being asked.
@@ -171,7 +185,7 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
 
   // Cancelled (or refunded) while the guest had Paystack open: keep the money on record,
   // leave the booking closed and let a person refund or rebook.
-  if (isClosed(booking)) {
+  const flagPaidAfterCancellation = async (): Promise<PaymentConfirmationResult> => {
     const note = `PAID AFTER CANCELLATION (balance): ${formatMoney(charged, booking.currency)} arrived on ${reference} after the booking was closed. Refund the guest, or rebook them if they still want to stay.`;
     await supabase
       .from("bookings")
@@ -180,7 +194,8 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
     log.error("balance.paid_after_cancellation", { booking_code: code, reference, charged });
     await sendAdminPaymentConflictAlert(booking, unitName, note);
     return { outcome: "needs_review", booking };
-  }
+  };
+  if (isClosed(booking)) return flagPaidAfterCancellation();
 
   // Paid twice (two tabs) or more than the total: the booking is paid; refund the excess.
   if (net > total + 0.005) {
@@ -195,7 +210,24 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
   }
 
   const paymentStatus = net + 0.005 >= total ? "paid" : "partial";
-  await supabase.from("bookings").update({ payment_status: paymentStatus }).eq("id", booking.id);
+  // Guarded on status: staff may cancel between the re-read above and this write.
+  const { data: updated } = await supabase
+    .from("bookings")
+    .update({ payment_status: paymentStatus })
+    .eq("id", booking.id)
+    .not("status", "in", "(cancelled,no_show)")
+    .select("id");
+  if (!updated || updated.length === 0) {
+    // Cancelled in that gap: re-read for the staff's notes, then flag it like any other
+    // payment that arrived after cancellation (no guest email).
+    const { data: closed } = await supabase
+      .from("bookings")
+      .select("status, payment_status, cancelled_at, admin_notes, total_amount")
+      .eq("id", booking.id)
+      .maybeSingle();
+    if (closed) Object.assign(booking, closed);
+    return flagPaidAfterCancellation();
+  }
   log.info("balance.paid", { booking_code: code, reference, charged, payment_status: paymentStatus });
   const remaining = Math.max(round2(total - net), 0);
   await sendBalanceReceivedEmail(booking, unitName, charged, remaining);

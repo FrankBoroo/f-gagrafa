@@ -8,6 +8,7 @@ import { roomLabel } from "@/lib/booking/room-assignment";
 import { log } from "@/lib/logger";
 import { takeToken } from "@/lib/rate-limit";
 import { requestTypeWord } from "@/lib/admin/inbox";
+import { balanceProblem } from "@/lib/payments/balance";
 
 // Every send here is best-effort: guarded by RESEND_API_KEY, wrapped in
 // try/catch, and never thrown back to the caller. A missing or bad key
@@ -270,17 +271,24 @@ export async function sendStaffInviteEmail(email: string, name: string, role: st
   });
 }
 
-export async function sendPreArrivalReminder(booking: any, unitName: string, balanceDue = 0) {
+// `paidSoFar` is the net paid (success + refunded rows). The Pay balance link is offered only
+// when the portal would accept the payment (`balanceProblem`); otherwise the guest is sent to
+// the front desk.
+export async function sendPreArrivalReminder(booking: any, unitName: string, paidSoFar: number) {
   const link = portalMagicLink(booking.booking_code);
+  const balanceDue = Math.max(Math.round((Number(booking.total_amount) - paidSoFar) * 100) / 100, 0);
+  const canPayOnline = balanceProblem(booking, paidSoFar) === null;
   const roomNumber = booking.rooms?.number;
   const roomLine =
     booking.room_confirmed && typeof roomNumber === "number"
       ? `<p><strong>Your room:</strong> ${roomLabel(roomNumber)}</p>`
       : "";
   const balanceLine =
-    balanceDue > 0.005
-      ? `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. <a href="${link}">Pay balance</a> online, or pay at the front desk by cash, bank transfer or Mobile Money.</p>`
-      : "";
+    balanceDue <= 0.005
+      ? ""
+      : canPayOnline
+        ? `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. <a href="${link}">Pay balance</a> online, or pay at the front desk by cash, bank transfer or Mobile Money.</p>`
+        : `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. Please pay at the front desk by cash, bank transfer or Mobile Money.</p>`;
   await send({
     to: booking.guest_email,
     subject: `See you soon at The Gagrafa — ${booking.booking_code}`,

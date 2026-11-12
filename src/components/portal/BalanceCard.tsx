@@ -11,6 +11,7 @@ export function BalanceCard({
   bookingId,
   awaitingPayment = false,
   refunded = 0,
+  afterArrival = false,
 }: {
   total: number;
   paid: number;
@@ -21,6 +22,8 @@ export function BalanceCard({
   bookingId: string;
   awaitingPayment?: boolean;
   refunded?: number;
+  /** Checked in or out: the balance is simply due, no longer "by arrival". */
+  afterArrival?: boolean;
 }) {
   const percent = total > 0 ? Math.min(100, Math.max(0, Math.round((paid / total) * 100))) : 0;
   const settled = owed <= 0.005;
@@ -52,7 +55,7 @@ export function BalanceCard({
       ) : (
         <div className="mt-4 border-t border-navy/10 pt-4">
           <p className="text-sm text-navy/70">
-            Balance due by arrival <span className="font-medium text-navy">{formatMoney(owed, currency)}</span>
+            {afterArrival ? "Balance due" : "Balance due by arrival"} <span className="font-medium text-navy">{formatMoney(owed, currency)}</span>
           </p>
           {canPay && (
             <div className="mt-4">

@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
     insertError: DbError | null;
     // Simulates another call (webhook vs portal) winning the compare-and-set first.
     loseCompareAndSet: boolean;
+    // Simulates staff cancelling right after the post-record re-read of the booking.
+    cancelAfterReread: boolean;
     writes: Write[];
   },
   verify: vi.fn(),
@@ -43,10 +45,16 @@ class FakeQuery {
   private op: "select" | "insert" | "update" = "select";
   private payload: Record<string, unknown> = {};
   private filters: Record<string, unknown> = {};
+  private notIn: { column: string; values: string[] } | null = null;
   private returning = false;
   constructor(private table: string) {}
   select() { this.returning = true; return this; }
   eq(column: string, value: unknown) { this.filters[column] = value; return this; }
+  not(column: string, operator: string, value: string) {
+    if (operator !== "in") throw new Error(`FakeQuery.not: unsupported operator ${operator}`);
+    this.notIn = { column, values: value.replace(/[()]/g, "").split(",") };
+    return this;
+  }
   single() { return this; }
   maybeSingle() { return this; }
   insert(payload: Record<string, unknown>) { this.op = "insert"; this.payload = payload; return this; }
@@ -57,14 +65,26 @@ class FakeQuery {
   private run(): { data: unknown; error: DbError | null } {
     const { db } = mocks;
     if (this.op === "select") {
-      if (this.table === "bookings") return { data: db.booking, error: null };
+      if (this.table === "bookings") {
+        const data = db.booking ? { ...db.booking } : null;
+        if (db.cancelAfterReread && db.booking) {
+          db.cancelAfterReread = false;
+          db.booking = { ...db.booking, status: "cancelled", cancelled_at: "2026-11-12T10:01:00Z", admin_notes: "Cancelled by staff" };
+        }
+        return { data, error: null };
+      }
       if (this.filters.paystack_reference) {
         const row = db.payments.find((p: PaymentRow) => p.paystack_reference === this.filters.paystack_reference);
         return { data: row ? { ...row, bookings: db.booking } : null, error: null };
       }
       return { data: db.payments.filter((p: PaymentRow) => p.booking_id === this.filters.booking_id), error: null };
     }
-    db.writes.push({ table: this.table, op: this.op, payload: this.payload, filters: { ...this.filters } });
+    db.writes.push({
+      table: this.table,
+      op: this.op,
+      payload: this.payload,
+      filters: this.notIn ? { ...this.filters, [`not.${this.notIn.column}`]: this.notIn.values } : { ...this.filters },
+    });
     if (this.op === "insert") {
       if (db.insertError) return { data: null, error: db.insertError };
       const row = { id: "pay-new", ...this.payload } as unknown as PaymentRow;
@@ -77,8 +97,12 @@ class FakeQuery {
       if (row && matches) Object.assign(row, this.payload);
       return { data: this.returning ? (matches ? [row] : []) : null, error: null };
     }
-    if (db.booking) Object.assign(db.booking, this.payload);
-    return { data: null, error: null };
+    const guard = this.notIn;
+    const bookingMatches =
+      db.booking !== null &&
+      (!guard || !guard.values.includes(String((db.booking as Record<string, unknown>)[guard.column])));
+    if (db.booking && bookingMatches) Object.assign(db.booking, this.payload);
+    return { data: this.returning ? (bookingMatches ? [{ id: db.booking?.id }] : []) : null, error: null };
   }
 }
 
@@ -135,6 +159,7 @@ beforeEach(() => {
   mocks.db.payments = [payment()];
   mocks.db.insertError = null;
   mocks.db.loseCompareAndSet = false;
+  mocks.db.cancelAfterReread = false;
   mocks.db.writes = [];
   mocks.initPaystack.mockResolvedValue({ authorization_url: "https://checkout.paystack.com/abc", access_code: "abc", reference: "x" });
   mocks.verify.mockResolvedValue(paystackSuccess(500));
@@ -307,6 +332,48 @@ describe("confirmBalancePayment", () => {
     expect(writes("bookings", "update")).toHaveLength(0);
     expect(mocks.sendBalanceEmail).not.toHaveBeenCalled();
     expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
+  });
+
+  it("tells the loser of the compare-and-set the booking needs review when it's overpaid", async () => {
+    mocks.db.loseCompareAndSet = true;
+    // The winner already recorded a second full balance: 500 + 500 + 500 on a 1000 booking.
+    mocks.db.payments = [payment(), payment({ id: "pay-tab1", amount: 500, paystack_reference: `${CODE}-BTAB111` }), payment({ id: "pay-tab2", amount: 500, paystack_reference: `${CODE}-BTAB222` }), pendingBalance()];
+
+    expect((await confirmBalancePayment(REF)).outcome).toBe("needs_review");
+    expect(writes("bookings", "update")).toHaveLength(0);
+    expect(mocks.sendBalanceEmail).not.toHaveBeenCalled();
+    expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
+  });
+
+  it("tells the loser of the compare-and-set the booking needs review when it was cancelled", async () => {
+    mocks.db.loseCompareAndSet = true;
+    mocks.verify.mockImplementation(async () => {
+      mocks.db.booking = booking({ status: "cancelled", cancelled_at: "2026-11-12T10:00:00Z" });
+      return paystackSuccess(500);
+    });
+
+    expect((await confirmBalancePayment(REF)).outcome).toBe("needs_review");
+    expect(writes("bookings", "update")).toHaveLength(0);
+    expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
+  });
+
+  it("guards the paid update on status: a cancel just after the re-read is flagged, not confirmed", async () => {
+    mocks.db.cancelAfterReread = true;
+
+    expect((await confirmBalancePayment(REF)).outcome).toBe("needs_review");
+    const updates = writes("bookings", "update");
+    expect(updates[0].payload).toEqual({ payment_status: "paid" });
+    expect(updates[0].filters).toMatchObject({ id: "booking-1", "not.status": ["cancelled", "no_show"] });
+    expect(updates).toHaveLength(2);
+    expect(updates[1].payload).not.toHaveProperty("status");
+    expect(updates[1].payload).not.toHaveProperty("payment_status");
+    expect(updates[1].payload.admin_notes).toContain("Cancelled by staff");
+    expect(updates[1].payload.admin_notes).toContain("PAID AFTER CANCELLATION (balance)");
+    expect(updates[1].payload).toMatchObject({ attention_cleared_at: null });
+    expect(mocks.db.booking?.status).toBe("cancelled");
+    expect(mocks.db.booking?.payment_status).toBe("partial");
+    expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+    expect(mocks.sendBalanceEmail).not.toHaveBeenCalled();
   });
 
   it("records the balance, marks the booking paid and emails the guest", async () => {

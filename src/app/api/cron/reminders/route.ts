@@ -47,8 +47,7 @@ export async function GET(req: NextRequest) {
     const paidSoFar = ((booking as any).payments ?? [])
       .filter((p: any) => p.status === "success" || p.status === "refunded")
       .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-    const balanceDue = Math.max(Number(booking.total_amount) - paidSoFar, 0);
-    await sendPreArrivalReminder(booking, (booking as any).units?.name ?? "your apartment", balanceDue);
+    await sendPreArrivalReminder(booking, (booking as any).units?.name ?? "your apartment", paidSoFar);
     await supabase.from("bookings").update({ reminder_sent_at: new Date().toISOString() }).eq("id", booking.id);
   }
 
