@@ -9,6 +9,7 @@ import {
   type CancelRefundInput, type BookingDatesInput, type RecordPaymentInput,
 } from "@/lib/validations";
 import { refundPaystackTransaction } from "@/lib/payments/paystack";
+import { paystackRefundCapacity, planPaystackRefund, refundReference } from "@/lib/payments/refund-split";
 import { sendBookingCancelledEmail, sendBookingChangedEmail } from "@/lib/notify/email";
 import { generateBookingCode } from "@/lib/booking/codes";
 import { releaseStaleHolds } from "@/lib/booking/availability";
@@ -317,7 +318,7 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("amount, status, method, paystack_reference")
+    .select("amount, status, method, paystack_reference, paid_at, created_at")
     .eq("booking_id", bookingId);
   const paid = netPaid(payments);
 
@@ -328,38 +329,91 @@ export async function cancelBookingWithRefund(input: CancelRefundInput) {
     }
   }
 
-  // Automatic Paystack refund against the original card / Mobile Money payment.
+  // Automatic Paystack refund against the original card / Mobile Money payment(s). A
+  // deposit and a balance paid later are separate Paystack transactions, each refundable
+  // up to its own amount, so the refund is split across them, newest first.
+  const refundRowsToInsert: { amount: number; paystack_reference: string | null }[] = [];
   if (refundMethod === "paystack") {
-    const original = (payments ?? []).find(
-      (p: any) => p.method === "paystack" && p.status === "success" && p.paystack_reference
-    );
-    if (!original || !original.paystack_reference) {
+    const capacity = paystackRefundCapacity(payments);
+    if (capacity.length === 0) {
       return { ok: false, error: "There's no Paystack payment on this booking to refund automatically. Record it as a cash, bank or Mobile Money refund instead." };
     }
-    try {
-      await refundPaystackTransaction({
-        reference: original.paystack_reference,
-        amountInMajorUnits: refundAmount,
-        note: reason || `Cancellation of ${booking.booking_code}`,
-      });
-    } catch (err: any) {
+    const plan = planPaystackRefund(payments, refundAmount);
+    if (!plan) {
+      const available = capacity.reduce((sum: number, c: { available: number }) => sum + c.available, 0);
       return {
         ok: false,
-        error: `Paystack couldn't process the refund: ${err.message}. Nothing was changed. You can record a manual refund instead.`,
+        error: `Paystack can refund at most ${formatMoney(available, booking.currency)} on this booking. Nothing was changed. Refund that through Paystack and record the rest as a manual refund (cash, bank or Mobile Money).`,
       };
     }
+
+    const note = reason || `Cancellation of ${booking.booking_code}`;
+    let failure: { message: string } | null = null;
+    for (const part of plan) {
+      try {
+        await refundPaystackTransaction({ reference: part.reference, amountInMajorUnits: part.amount, note });
+        refundRowsToInsert.push({ amount: part.amount, paystack_reference: refundReference(part.reference) });
+      } catch (err: any) {
+        failure = { message: err?.message ?? "unknown error" };
+        break;
+      }
+    }
+
+    if (failure && refundRowsToInsert.length === 0) {
+      return {
+        ok: false,
+        error: `Paystack couldn't process the refund: ${failure.message}. Nothing was changed. You can record a manual refund instead.`,
+      };
+    }
+
+    if (failure) {
+      // Part of the money went back through Paystack: record exactly that part so the books
+      // match, leave the booking as it was, and say what's left for a person to refund.
+      const refundedNow = Math.round(refundRowsToInsert.reduce((sum: number, r: { amount: number }) => sum + r.amount, 0) * 100) / 100;
+      const left = Math.round((refundAmount - refundedNow) * 100) / 100;
+      const { error: partError } = await supabase.from("payments").insert(
+        refundRowsToInsert.map((r: { amount: number; paystack_reference: string | null }) => ({
+          booking_id: bookingId,
+          amount: -r.amount,
+          currency: booking.currency,
+          method: "paystack" as const,
+          status: "refunded",
+          paystack_reference: r.paystack_reference,
+          paid_at: new Date().toISOString(),
+        }))
+      );
+      if (!partError) {
+        const partUpdate: TablesUpdate<"bookings"> = { refunded_amount: Number(booking.refunded_amount ?? 0) + refundedNow };
+        await supabase.from("bookings").update(partUpdate).eq("id", bookingId);
+      }
+      await logAudit("booking.refund_partial", "booking", bookingId, {
+        booking_code: booking.booking_code, refundMethod, refundAmount, refundedNow, left, reason,
+      });
+      refreshBookingPages(booking.booking_code);
+      const recorded = partError
+        ? ` It couldn't be recorded here (${partError.message}): record ${formatMoney(refundedNow, booking.currency)} as a refund so your books match.`
+        : "";
+      return {
+        ok: false,
+        error: `Only part of the refund went through: ${formatMoney(refundedNow, booking.currency)} was refunded through Paystack, then Paystack failed (${failure.message}). ${formatMoney(left, booking.currency)} is left to refund manually.${recorded} The booking wasn't cancelled. Do not refund the Paystack part again.`,
+      };
+    }
+  } else if (refundMethod !== "none") {
+    refundRowsToInsert.push({ amount: refundAmount, paystack_reference: null });
   }
 
-  if (refundMethod !== "none") {
-    const { error: paymentError } = await supabase.from("payments").insert({
-      booking_id: bookingId,
-      amount: -refundAmount,
-      currency: booking.currency,
-      method: refundMethod,
-      status: "refunded",
-      paystack_reference: refundMethod === "paystack" ? `refund:${booking.booking_code}:${Date.now()}` : null,
-      paid_at: new Date().toISOString(),
-    });
+  if (refundRowsToInsert.length > 0) {
+    const { error: paymentError } = await supabase.from("payments").insert(
+      refundRowsToInsert.map((r: { amount: number; paystack_reference: string | null }) => ({
+        booking_id: bookingId,
+        amount: -r.amount,
+        currency: booking.currency,
+        method: refundMethod as Exclude<typeof refundMethod, "none">,
+        status: "refunded",
+        paystack_reference: r.paystack_reference,
+        paid_at: new Date().toISOString(),
+      }))
+    );
     if (paymentError) {
       return {
         ok: false,

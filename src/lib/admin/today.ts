@@ -56,12 +56,15 @@ export interface TodayView {
   rooms: { room: TodayRoom; status: RoomStatus }[];
 }
 
-// The exact prefixes src/lib/payments/booking-payment.ts writes into admin_notes.
+// The exact prefixes src/lib/payments/booking-payment.ts and balance-payment.ts write into
+// admin_notes ("BALANCE PAYMENT MISMATCH" and "PAID AFTER CANCELLATION (balance)" match the
+// first two). The Today page's database query filters by this same list.
 export const ATTENTION_MARKERS: { marker: string; kind: AttentionKind }[] = [
   { marker: "PAYMENT MISMATCH", kind: "payment_mismatch" },
   { marker: "PAID AFTER CANCELLATION", kind: "paid_after_cancellation" },
   { marker: "PAID AFTER HOLD EXPIRED", kind: "payment_review" },
   { marker: "PAID BUT NOT CONFIRMED", kind: "payment_review" },
+  { marker: "OVERPAID", kind: "payment_review" },
 ];
 
 const ATTENTION_TITLES: Record<AttentionKind, string> = {

@@ -135,6 +135,16 @@ describe("buildToday", () => {
     expect(buildToday({ ...base, bookings: [b] }).attention.map((i) => i.kind)).toEqual(["paid_after_cancellation"]);
   });
 
+  it("balance payment flags show: overpaid, mismatch and paid after cancellation", () => {
+    const overpaid = stay({ admin_notes: "OVERPAID: refund GH₵1,000 (balance payment GAG-2026-AB12CD-BZZ99ZZ ...)." });
+    const mismatch = stay({ admin_notes: "BALANCE PAYMENT MISMATCH (GAG-2026-AB12CD-BZZ99ZZ): expected GHS 500, Paystack reported GHS 400." });
+    const late = stay({ status: "cancelled", admin_notes: "PAID AFTER CANCELLATION (balance): GH₵500 arrived after the booking was closed." });
+    const kinds = (b: TodayBooking) => buildToday({ ...base, bookings: [b] }).attention.map((i) => i.kind);
+    expect(kinds(overpaid)).toEqual(["payment_review"]);
+    expect(kinds(mismatch)).toEqual(["payment_mismatch"]);
+    expect(kinds(late)).toEqual(["paid_after_cancellation"]);
+  });
+
   it("a cancellation request shows", () => {
     const view = buildToday({
       ...base,

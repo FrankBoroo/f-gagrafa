@@ -239,6 +239,34 @@ describe("confirmBalancePayment", () => {
     expect(mocks.db.writes).toHaveLength(0);
   });
 
+  it("fails without asking Paystack for a row whose checkout never started", async () => {
+    mocks.db.payments[1].status = "failed";
+
+    expect(await confirmBalancePayment(REF)).toMatchObject({ outcome: "failed", reason: "failed" });
+    expect(mocks.verify).not.toHaveBeenCalled();
+    expect(mocks.db.writes).toHaveLength(0);
+  });
+
+  it("re-checks the booking after recording: a cancel during the Paystack check is flagged, not confirmed", async () => {
+    mocks.verify.mockImplementation(async () => {
+      // Staff cancel the booking while Paystack is being asked (a new object, so the
+      // booking read before verification is now stale).
+      mocks.db.booking = booking({ status: "cancelled", cancelled_at: "2026-11-12T10:00:00Z", admin_notes: "Cancelled by staff" });
+      return paystackSuccess(500);
+    });
+
+    expect((await confirmBalancePayment(REF)).outcome).toBe("needs_review");
+    const updates = writes("bookings", "update");
+    expect(updates).toHaveLength(1);
+    expect(updates[0].payload).not.toHaveProperty("status");
+    expect(updates[0].payload).not.toHaveProperty("payment_status");
+    expect(updates[0].payload.admin_notes).toContain("Cancelled by staff");
+    expect(updates[0].payload.admin_notes).toContain("PAID AFTER CANCELLATION (balance)");
+    expect(mocks.db.booking?.status).toBe("cancelled");
+    expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+    expect(mocks.sendBalanceEmail).not.toHaveBeenCalled();
+  });
+
   it("fails without writes when Paystack says the checkout was abandoned", async () => {
     mocks.verify.mockResolvedValue({ status: "abandoned", amount: 0, currency: "GHS" });
 
@@ -256,6 +284,7 @@ describe("confirmBalancePayment", () => {
     const notes = writes("bookings", "update");
     expect(notes).toHaveLength(1);
     expect(notes[0].payload.admin_notes).toContain(`BALANCE PAYMENT MISMATCH (${REF})`);
+    expect(notes[0].payload).toMatchObject({ attention_cleared_at: null });
     expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
     expect(writes("payments", "update")).toHaveLength(0);
     expect(mocks.db.payments[1].status).toBe("pending");
@@ -308,6 +337,7 @@ describe("confirmBalancePayment", () => {
     expect(updates).toHaveLength(1);
     expect(updates[0].payload).not.toHaveProperty("status");
     expect(updates[0].payload.admin_notes).toContain("PAID AFTER CANCELLATION (balance)");
+    expect(updates[0].payload).toMatchObject({ attention_cleared_at: null });
     expect(mocks.db.booking?.status).toBe("cancelled");
     expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
     expect(mocks.sendBalanceEmail).not.toHaveBeenCalled();
@@ -331,6 +361,7 @@ describe("confirmBalancePayment", () => {
     expect(updates).toHaveLength(1);
     expect(updates[0].payload.payment_status).toBe("paid");
     expect(updates[0].payload.admin_notes).toContain(`OVERPAID: refund ${formatMoney(1000, "GHS")}`);
+    expect(updates[0].payload).toMatchObject({ attention_cleared_at: null });
     expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
     expect(mocks.sendBalanceEmail).not.toHaveBeenCalled();
   });

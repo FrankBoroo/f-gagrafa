@@ -14,8 +14,13 @@ const START_FAILED = "We couldn't start the payment. Please try again in a momen
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // A booking a person has closed: money arriving on it is never allowed to reopen it.
-function isClosed(booking: { status: string; payment_status: string }): boolean {
-  return booking.status === "cancelled" || booking.status === "no_show" || booking.payment_status === "refunded";
+function isClosed(booking: { status: string; payment_status: string; cancelled_at?: string | null }): boolean {
+  return (
+    booking.status === "cancelled" ||
+    booking.status === "no_show" ||
+    booking.payment_status === "refunded" ||
+    Boolean(booking.cancelled_at)
+  );
 }
 
 function appendNote(existing: string | null | undefined, note: string): string {
@@ -132,7 +137,10 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
     const note = `${marker}: expected ${booking.currency} ${expected}, Paystack reported ${verification.currency} ${charged}.`;
     log.error("balance.mismatch", { booking_code: code, reference, mismatch, expected, charged, charged_currency: verification.currency });
     if (!String(booking.admin_notes ?? "").includes(marker)) {
-      await supabase.from("bookings").update({ admin_notes: appendNote(booking.admin_notes, note) }).eq("id", booking.id);
+      await supabase
+        .from("bookings")
+        .update({ admin_notes: appendNote(booking.admin_notes, note), attention_cleared_at: null })
+        .eq("id", booking.id);
       await sendAdminPaymentConflictAlert(booking, unitName, `${note} The balance was not recorded; check the payment in Paystack and refund or contact the guest.`);
     }
     return { outcome: "failed", booking, reason: mismatch };
@@ -147,7 +155,17 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
   // Another call (webhook or portal return) recorded this payment first and did the rest.
   if (!won || won.length === 0) return settled();
 
-  const { data: payments } = await supabase.from("payments").select("amount, status").eq("booking_id", booking.id);
+  // Re-read the booking and its payments now this call owns the payment: staff may have
+  // cancelled, or the total changed, while Paystack was being asked.
+  const [{ data: fresh }, { data: payments }] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("status, payment_status, cancelled_at, admin_notes, total_amount")
+      .eq("id", booking.id)
+      .maybeSingle(),
+    supabase.from("payments").select("amount, status").eq("booking_id", booking.id),
+  ]);
+  if (fresh) Object.assign(booking, fresh);
   const net = netPaid(payments);
   const total = Number(booking.total_amount);
 
@@ -155,7 +173,10 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
   // leave the booking closed and let a person refund or rebook.
   if (isClosed(booking)) {
     const note = `PAID AFTER CANCELLATION (balance): ${formatMoney(charged, booking.currency)} arrived on ${reference} after the booking was closed. Refund the guest, or rebook them if they still want to stay.`;
-    await supabase.from("bookings").update({ admin_notes: appendNote(booking.admin_notes, note) }).eq("id", booking.id);
+    await supabase
+      .from("bookings")
+      .update({ admin_notes: appendNote(booking.admin_notes, note), attention_cleared_at: null })
+      .eq("id", booking.id);
     log.error("balance.paid_after_cancellation", { booking_code: code, reference, charged });
     await sendAdminPaymentConflictAlert(booking, unitName, note);
     return { outcome: "needs_review", booking };
@@ -166,7 +187,7 @@ export async function confirmBalancePayment(reference: string): Promise<PaymentC
     const note = `OVERPAID: refund ${formatMoney(round2(net - total), booking.currency)} (balance payment ${reference} took the total paid to ${formatMoney(net, booking.currency)} on a ${formatMoney(total, booking.currency)} booking).`;
     await supabase
       .from("bookings")
-      .update({ payment_status: "paid", admin_notes: appendNote(booking.admin_notes, note) })
+      .update({ payment_status: "paid", admin_notes: appendNote(booking.admin_notes, note), attention_cleared_at: null })
       .eq("id", booking.id);
     log.error("balance.overpaid", { booking_code: code, reference, charged, net, total });
     await sendAdminPaymentConflictAlert(booking, unitName, note);
