@@ -20,6 +20,8 @@ export const RATE_LIMITS = {
   paymentCheck: { max: 30, windowSeconds: 10 * 60 },
   // Each "Pay balance" click saves a payment row and starts a Paystack checkout.
   balancePayment: { max: 10, windowSeconds: 60 * 60 },
+  // Airbnb polls each room link every few minutes; this stops anyone else hammering it.
+  icalExport: { max: 120, windowSeconds: 15 * 60 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
