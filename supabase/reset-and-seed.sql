@@ -3,7 +3,7 @@
 -- Settings keep their values, except the address, contact details, reception hours, price currency and down payment set at the end.
 -- Check the USD exchange rate in Admin → Settings afterwards: this script doesn't set it.
 
-truncate payments, service_requests, reviews, bookings, blocked_dates, unit_access_codes, room_access_codes,
+truncate payments, service_requests, reviews, bookings, blocked_dates, unit_access_codes, room_access_codes, external_reservations,
   contact_messages, audit_log, portal_access_attempts, rate_limit_hits, promo_codes, special_prices, guest_notes, rooms, units
   restart identity cascade;
 

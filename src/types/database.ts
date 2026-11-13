@@ -259,6 +259,59 @@ export type Database = {
         }
         Relationships: []
       }
+      external_reservations: {
+        Row: {
+          check_in: string
+          check_out: string
+          created_at: string | null
+          guest_name: string | null
+          id: string
+          last_seen_at: string
+          notes: string | null
+          removed_at: string | null
+          room_id: string
+          source: string
+          summary: string | null
+          uid: string
+        }
+        Insert: {
+          check_in: string
+          check_out: string
+          created_at?: string | null
+          guest_name?: string | null
+          id?: string
+          last_seen_at?: string
+          notes?: string | null
+          removed_at?: string | null
+          room_id: string
+          source?: string
+          summary?: string | null
+          uid: string
+        }
+        Update: {
+          check_in?: string
+          check_out?: string
+          created_at?: string | null
+          guest_name?: string | null
+          id?: string
+          last_seen_at?: string
+          notes?: string | null
+          removed_at?: string | null
+          room_id?: string
+          source?: string
+          summary?: string | null
+          uid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_reservations_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gallery_items: {
         Row: {
           caption: string | null
@@ -593,7 +646,11 @@ export type Database = {
       }
       rooms: {
         Row: {
+          airbnb_ical_url: string | null
+          airbnb_sync_error: string | null
+          airbnb_synced_at: string | null
           created_at: string
+          ical_export_token: string
           id: string
           is_active: boolean
           last_cleaned_at: string | null
@@ -601,7 +658,11 @@ export type Database = {
           unit_id: string
         }
         Insert: {
+          airbnb_ical_url?: string | null
+          airbnb_sync_error?: string | null
+          airbnb_synced_at?: string | null
           created_at?: string
+          ical_export_token?: string
           id?: string
           is_active?: boolean
           last_cleaned_at?: string | null
@@ -609,7 +670,11 @@ export type Database = {
           unit_id: string
         }
         Update: {
+          airbnb_ical_url?: string | null
+          airbnb_sync_error?: string | null
+          airbnb_synced_at?: string | null
           created_at?: string
+          ical_export_token?: string
           id?: string
           is_active?: boolean
           last_cleaned_at?: string | null
