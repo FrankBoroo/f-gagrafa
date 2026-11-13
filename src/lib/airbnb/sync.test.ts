@@ -107,6 +107,8 @@ describe("airbnbCalendarUrlProblem", () => {
   it("accepts Airbnb calendar links", () => {
     expect(airbnbCalendarUrlProblem(URL_OK)).toBeNull();
     expect(airbnbCalendarUrlProblem("https://airbnb.co.uk/calendar/ical/1.ics")).toBeNull();
+    expect(airbnbCalendarUrlProblem("https://WWW.AIRBNB.COM/calendar/ical/1.ics")).toBeNull();
+    expect(airbnbCalendarUrlProblem("https://www.airbnb.com.au/calendar/ical/1.ics")).toBeNull();
   });
   it.each([
     "http://www.airbnb.com/calendar/ical/1.ics",
@@ -115,6 +117,12 @@ describe("airbnbCalendarUrlProblem", () => {
     "http://169.254.169.254/",
     "https://www.airbnb.com/calendar/ical/" + "1".repeat(500),
     "not a url",
+    "https://airbnb.evl.io/calendar/ical/1.ics",
+    "https://airbnb.com.de/calendar/ical/1.ics",
+    "https://airbnb.xyz/calendar/ical/1.ics",
+    "https://www.airbnb.com@evil.io/calendar/ical/1.ics",
+    "https://airbnb.com./calendar/ical/1.ics",
+    "https://airbnb.com:8443/calendar/ical/1.ics",
   ])("refuses %s", (u: string) => {
     expect(airbnbCalendarUrlProblem(u)).toEqual(expect.any(String));
   });
