@@ -18,6 +18,12 @@ describe("admin menu", () => {
     expect(sectionFor("/admin/reports")?.key).toBe("money");
   });
 
+  it("has an Airbnb tab under Bookings", () => {
+    const bookings = ADMIN_SECTIONS.find((s) => s.key === "bookings");
+    expect(bookings?.tabs.find((t) => t.label === "Airbnb")?.href).toBe("/admin/bookings/airbnb");
+    expect(sectionFor("/admin/bookings/airbnb")?.key).toBe("bookings");
+  });
+
   it("does not match a page that only starts with the same letters", () => {
     expect(sectionFor("/admin/teamwork")).toBeNull();
   });

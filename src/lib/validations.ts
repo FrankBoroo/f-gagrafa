@@ -128,3 +128,11 @@ export const promoCodeSchema = z.object({
   { message: "Percent discount can't exceed 100", path: ["discount_value"] }
 );
 export type PromoCodeInput = z.infer<typeof promoCodeSchema>;
+
+// Staff-added details on an imported Airbnb booking.
+export const airbnbBookingSchema = z.object({
+  id: z.string().uuid("Booking not found"),
+  guest_name: z.string().trim().max(120, "Names are 120 characters at most"),
+  notes: z.string().trim().max(1000, "Notes are 1000 characters at most"),
+});
+export type AirbnbBookingInput = z.infer<typeof airbnbBookingSchema>;

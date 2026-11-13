@@ -31,6 +31,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
       tab("/admin/calendar", "Calendar"),
       tab("/admin/availability", "Blocked dates"),
       tab("/admin/bookings/new", "New booking"),
+      tab("/admin/bookings/airbnb", "Airbnb"),
     ],
   },
   {
