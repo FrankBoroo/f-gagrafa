@@ -88,4 +88,19 @@ describe("parseAirbnbIcs", () => {
   it("returns an empty list for a calendar with no events", () => {
     expect(parseAirbnbIcs(cal())).toEqual({ ok: true, reservations: [] });
   });
+
+  it("refuses a truncated download with no END:VCALENDAR", () => {
+    const text = ["BEGIN:VCALENDAR", "VERSION:2.0", ev("UID:x@airbnb.com", "DTSTART;VALUE=DATE:20261210", "DTEND;VALUE=DATE:20261212", "SUMMARY:Reserved")].join("\r\n");
+    expect(parseAirbnbIcs(text).ok).toBe(false);
+  });
+
+  it("skips an event whose date is not a real calendar date", () => {
+    const r = parseAirbnbIcs(
+      cal(
+        ev("UID:a@airbnb.com", "DTSTART;VALUE=DATE:20261340", "DTEND;VALUE=DATE:20261345", "SUMMARY:Reserved"),
+        ev("UID:b@airbnb.com", "DTSTART;VALUE=DATE:20260230", "DTEND;VALUE=DATE:20260305", "SUMMARY:Reserved"),
+      ),
+    );
+    expect(r).toEqual({ ok: true, reservations: [] });
+  });
 });

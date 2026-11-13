@@ -12,7 +12,13 @@ export type ParseResult =
 /** "20261210" or "20261210T000000Z" -> "2026-12-10" (string work only, no Date, no time zones). */
 function toDateKey(value: string | undefined): string | null {
   const m = /^(\d{4})(\d{2})(\d{2})(?:T\d{6}Z?)?$/.exec((value ?? "").trim());
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+  if (!m) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (mo < 1 || mo > 12 || d < 1) return null;
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mo - 1];
+  if (d > days) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
 }
 
 function unfold(text: string): string[] {
@@ -28,6 +34,10 @@ export function parseAirbnbIcs(text: string): ParseResult {
   const lines = unfold(text);
   if (!lines.some((l: string) => l.trim().toUpperCase() === "BEGIN:VCALENDAR")) {
     return { ok: false, error: "That link did not return an iCal calendar." };
+  }
+  // A download cut short must never count as a complete feed (the sync removes rows missing from it).
+  if (!lines.some((l: string) => l.trim().toUpperCase() === "END:VCALENDAR")) {
+    return { ok: false, error: "The calendar download was incomplete." };
   }
 
   const reservations: ImportedReservation[] = [];
