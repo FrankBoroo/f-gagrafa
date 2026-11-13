@@ -3,6 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { createBookingSchema, type CreateBookingInput } from "@/lib/validations";
 import { generateBookingCode } from "@/lib/booking/codes";
+import { syncRooms } from "@/lib/airbnb/sync";
 import { releaseStaleHolds } from "@/lib/booking/availability";
 import { freeRoomsForType, tryRoomsInOrder } from "@/lib/booking/rooms";
 import { calculateNights } from "@/lib/booking/dates";
@@ -22,6 +23,25 @@ import { isOverLimit, RATE_LIMITED_MESSAGE } from "@/lib/rate-limit";
 import { guestCountError, stayDatesError } from "@/lib/booking/stay-limits";
 import { rememberCheckout } from "@/lib/checkout-session";
 import type { Tables } from "@/types/database";
+
+const AIRBNB_REFRESH_MS = 3000;
+
+// Best effort: errors and a sync that never settles are both swallowed after 3 s.
+async function refreshAirbnbCalendars(supabase: ReturnType<typeof createServiceClient>, unitId: string): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      syncRooms(supabase, { unitId, olderThanMinutes: 15, timeoutMs: AIRBNB_REFRESH_MS, now: new Date() }),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, AIRBNB_REFRESH_MS);
+      }),
+    ]);
+  } catch (err) {
+    log.warn("airbnb.sync.refresh_failed", { errorName: err instanceof Error ? err.name : "unknown" });
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 // Preview only: the booking itself recomputes the discount from server-side prices.
 export async function previewPromoCode(code: string, subtotal: number) {
@@ -143,6 +163,9 @@ export async function createBookingAndInitializePayment(
 
   // Release unpaid checkouts that were abandoned, so a ghost hold can't block these dates.
   await releaseStaleHolds(supabase);
+
+  // Quick best-effort look at this type's Airbnb calendars. It never changes the outcome.
+  await refreshAirbnbCalendars(supabase, data.unit_id);
 
   const rooms = await freeRoomsForType(supabase, {
     unitId: data.unit_id,

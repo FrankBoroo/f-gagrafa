@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   specialsForStay: vi.fn(),
   specialsByUnitForStay: vi.fn(),
   initPaystack: vi.fn(),
+  syncRooms: vi.fn(),
   inserts: [] as Record<string, unknown>[],
 }));
 
@@ -53,6 +54,7 @@ vi.mock("@/lib/booking/special-prices-db", () => ({
   specialsForStay: mocks.specialsForStay,
   specialsByUnitForStay: mocks.specialsByUnitForStay,
 }));
+vi.mock("@/lib/airbnb/sync", () => ({ syncRooms: mocks.syncRooms }));
 vi.mock("@/lib/booking/availability", () => ({ releaseStaleHolds: vi.fn() }));
 vi.mock("@/lib/payments/paystack", () => ({ initializePaystackTransaction: mocks.initPaystack }));
 vi.mock("@/lib/notify/email", () => ({ sendAdminNewBookingNotification: vi.fn(), sendAdminSystemAlert: vi.fn() }));
@@ -96,6 +98,7 @@ beforeEach(() => {
   mocks.specialsForStay.mockResolvedValue([]);
   mocks.specialsByUnitForStay.mockResolvedValue({});
   mocks.initPaystack.mockResolvedValue({ authorization_url: "https://paystack.test/pay" });
+  mocks.syncRooms.mockResolvedValue({ synced: 1, failed: 0 });
 });
 
 describe("createBookingAndInitializePayment with special prices", () => {
@@ -160,5 +163,34 @@ describe("checkUnitsAvailability with minimum nights", () => {
       availability: { [UNIT_ID]: true },
       minNights: { [UNIT_ID]: null },
     });
+  });
+});
+
+describe("createBookingAndInitializePayment Airbnb refresh", () => {
+  it("refreshes this type's calendars shortly before picking a room", async () => {
+    await createBookingAndInitializePayment(input);
+    expect(mocks.syncRooms).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ unitId: UNIT_ID, olderThanMinutes: 15, timeoutMs: 3000 }),
+    );
+  });
+
+  it("still books when the refresh throws", async () => {
+    mocks.syncRooms.mockRejectedValue(new Error("boom"));
+    expect((await createBookingAndInitializePayment(input)).ok).toBe(true);
+    expect(mocks.inserts[0]).toMatchObject({ total_amount: 510 });
+  });
+
+  it("still books when the refresh never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.syncRooms.mockReturnValue(new Promise(() => {}));
+      const pending = createBookingAndInitializePayment(input);
+      await vi.advanceTimersByTimeAsync(3100);
+      expect((await pending).ok).toBe(true);
+      expect(mocks.inserts[0]).toMatchObject({ total_amount: 510 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

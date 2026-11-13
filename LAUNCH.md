@@ -26,6 +26,7 @@ Every name in `.env.example` that applies: Supabase URL / anon / service-role ke
 
 ## 6. Cron
 - [ ] Vercel → Project → Cron Jobs shows `/api/cron/reminders` daily at 08:00 UTC, and the first run returns 200 (needs `CRON_SECRET`).
+- [ ] Airbnb sync scheduler: set up a free scheduler (for example cron-job.org) to call `https://<domain>/api/cron/airbnb-sync` every 15 minutes with header `Authorization: Bearer <CRON_SECRET>`; the daily Vercel cron is only the fallback (Vercel Hobby allows daily crons only). A call without the header returns 401.
 
 ## 7. Backups (Supabase)
 - [ ] Supabase → Database → Backups: confirm daily backups are listed. They come with paid plans; on the free plan, take a manual `pg_dump` before each migration. (Needs confirmation against the project's plan.)

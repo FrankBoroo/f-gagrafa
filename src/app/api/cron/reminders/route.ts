@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPreArrivalReminder, sendPostStayReviewRequest } from "@/lib/notify/email";
 import { serverEnv } from "@/lib/env.server";
+import { syncRooms } from "@/lib/airbnb/sync";
+import { log } from "@/lib/logger";
 import { toISODate as dateKey } from "@/lib/booking/dates";
 
 // Scheduled daily (see vercel.json). Protected by CRON_SECRET so this can't
@@ -22,6 +24,14 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createServiceClient();
+
+  // Fallback for the 15-minute Airbnb sync (external scheduler): refresh every room.
+  let airbnb = { synced: 0, failed: 0 };
+  try {
+    airbnb = await syncRooms(supabase, { olderThanMinutes: 0, now: new Date() });
+  } catch (err) {
+    log.error("airbnb.sync.cron_failed", { errorName: err instanceof Error ? err.name : "unknown" });
+  }
 
   // Sweep unpaid checkouts that were abandoned. Booking attempts also release these
   // on demand; this just keeps the table tidy.
@@ -70,5 +80,7 @@ export async function GET(req: NextRequest) {
     postStaySent: departed?.length ?? 0,
     expiredPending: expiredCount ?? 0,
     purgedRateLimitHits: purgedHits ?? 0,
+    airbnbSynced: airbnb.synced,
+    airbnbFailed: airbnb.failed,
   });
 }
