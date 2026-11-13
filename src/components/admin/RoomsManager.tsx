@@ -89,7 +89,9 @@ export function RoomsManager({
 
   return (
     <div className="space-y-6">
-      <div className="card overflow-x-auto">
+      {/* `relative` makes this scroll box clip the table's absolutely positioned sr-only labels;
+          without it they escape and widen the whole page on phones. */}
+      <div className="card relative overflow-x-auto">
         <table className="w-full min-w-[44rem] text-left text-sm">
           <thead className="border-b border-navy/10 text-xs uppercase tracking-widest text-navy/50">
             <tr>
