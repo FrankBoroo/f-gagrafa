@@ -10,11 +10,13 @@ const SEGMENT_STYLE: Record<string, string> = {
   confirmed: "bg-navy text-ivory",
   pencilled: "border border-navy bg-white text-navy",
   hold: "bg-sand text-navy/80",
+  airbnb: "border border-dashed border-champagne bg-champagne/20 text-navy",
   block: "bg-navy/10 text-navy/60 [background-image:repeating-linear-gradient(45deg,transparent,transparent_4px,rgba(20,33,61,.08)_4px,rgba(20,33,61,.08)_8px)]",
 };
 
 function styleFor(s: CalendarSegment): string {
   if (s.kind === "block") return SEGMENT_STYLE.block;
+  if (s.kind === "airbnb") return SEGMENT_STYLE.airbnb;
   if (s.kind === "hold") return SEGMENT_STYLE.hold;
   return s.confirmed ? SEGMENT_STYLE.confirmed : SEGMENT_STYLE.pencilled;
 }
@@ -88,6 +90,7 @@ export function BookingCalendar({ year, month, rows }: { year: number; month: nu
         <Legend className={SEGMENT_STYLE.confirmed} label="Room confirmed" />
         <Legend className={SEGMENT_STYLE.pencilled} label="Room pencilled in" />
         <Legend className={SEGMENT_STYLE.hold} label="Unpaid checkout" />
+        <Legend className={SEGMENT_STYLE.airbnb} label="Airbnb" />
         <Legend className={SEGMENT_STYLE.block} label="Blocked" />
       </div>
     </div>

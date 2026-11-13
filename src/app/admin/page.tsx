@@ -53,7 +53,7 @@ export default async function AdminTodayPage() {
   // Quoted, because the markers contain spaces (PostgREST logic-tree syntax).
   const markerFilter = ATTENTION_MARKERS.map((m) => `admin_notes.ilike."%${m.marker}%"`).join(",");
 
-  const [profile, { data: recent }, { data: flagged }, { data: rooms }, { data: requests }] = await Promise.all([
+  const [profile, { data: recent }, { data: flagged }, { data: rooms }, { data: requests }, { data: externalRows }] = await Promise.all([
     getCurrentProfile(),
     supabase
       .from("bookings")
@@ -67,6 +67,11 @@ export default async function AdminTodayPage() {
       .select("id, booking_id, created_at, bookings(booking_code)")
       .in("status", ["pending", "in_progress"])
       .ilike("description", `${CANCELLATION_REQUEST_PREFIX}%`),
+    supabase
+      .from("external_reservations")
+      .select("id, room_id, check_in, check_out, guest_name")
+      .is("removed_at", null)
+      .gte("check_out", addDays(today, -1)),
   ]);
 
   const byId = new Map<string, TodayBooking>();
@@ -82,12 +87,15 @@ export default async function AdminTodayPage() {
       unit_name: r.units?.name ?? "",
       last_cleaned_at: r.last_cleaned_at,
     })),
+    external: externalRows ?? [],
     cancellationRequests: (requests ?? []).map((r: any) => ({
       bookingId: r.booking_id,
       bookingCode: r.bookings?.booking_code ?? "",
       createdAt: r.created_at,
     })),
   });
+
+  const roomNumbers: Record<string, number> = Object.fromEntries((rooms ?? []).map((r: any) => [r.id, r.number]));
 
   const firstName = profile?.full_name?.trim().split(/\s+/)[0];
 
@@ -124,8 +132,8 @@ export default async function AdminTodayPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <MovementList title="Arriving today" bookings={view.arriving} empty="No arrivals today." />
-        <MovementList title="Leaving today" bookings={view.leaving} empty="No departures today." />
+        <MovementList title="Arriving today" bookings={view.arriving} external={view.externalArriving} roomNumbers={roomNumbers} empty="No arrivals today." />
+        <MovementList title="Leaving today" bookings={view.leaving} external={view.externalLeaving} roomNumbers={roomNumbers} empty="No departures today." />
       </div>
 
       <section className="card p-5">

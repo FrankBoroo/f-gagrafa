@@ -25,7 +25,7 @@ function booking(over: Record<string, unknown>) {
 }
 
 const december = (over: Partial<Parameters<typeof roomCalendarRows>[0]> = {}) =>
-  roomCalendarRows({ year: 2026, month: 12, rooms, bookings: [], blocks: [], ...over });
+  roomCalendarRows({ year: 2026, month: 12, rooms, bookings: [], blocks: [], external: [], ...over });
 
 describe("roomCalendarRows", () => {
   it("gives one row per room, in room-number order", () => {
@@ -74,6 +74,18 @@ describe("roomCalendarRows", () => {
   });
 
   it("returns nothing when there are no rooms", () => {
-    expect(roomCalendarRows({ year: 2026, month: 12, rooms: [], bookings: [booking({})], blocks: [] })).toEqual([]);
+    expect(roomCalendarRows({ year: 2026, month: 12, rooms: [], bookings: [booking({})], blocks: [], external: [] })).toEqual([]);
+  });
+
+  it("shows an Airbnb stay on its room with the guest name, linking to the Airbnb list", () => {
+    const rows = december({
+      external: [{ id: "x1", room_id: "r3", check_in: "2026-12-10", check_out: "2026-12-12", guest_name: null }],
+    });
+    const [seg] = rows.find((r) => r.roomId === "r3")!.segments;
+    expect(seg).toMatchObject({ kind: "airbnb", label: "Airbnb booking", startDay: 10, endDay: 11, href: "/admin/bookings/airbnb" });
+    const named = december({
+      external: [{ id: "x2", room_id: "r3", check_in: "2026-12-10", check_out: "2026-12-12", guest_name: "Ada" }],
+    });
+    expect(named.find((r) => r.roomId === "r3")!.segments[0].label).toBe("Ada");
   });
 });

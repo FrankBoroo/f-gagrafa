@@ -2,6 +2,7 @@
 // be tested without a database. Dates are "YYYY-MM-DD" in Ghana time (UTC+0).
 
 import { formatDate } from "@/lib/format";
+import { findClashes, type ExternalStay } from "@/lib/airbnb/clashes";
 
 export interface TodayBooking {
   id: string;
@@ -36,7 +37,8 @@ export type AttentionKind =
   | "payment_mismatch"
   | "paid_after_cancellation"
   | "payment_review"
-  | "cancellation_request";
+  | "cancellation_request"
+  | "airbnb_clash";
 
 export interface AttentionItem {
   kind: AttentionKind;
@@ -49,6 +51,9 @@ export interface AttentionItem {
 export interface TodayView {
   arriving: TodayBooking[];
   leaving: TodayBooking[];
+  // Airbnb arrivals and departures, kept apart because the rows above carry money.
+  externalArriving: ExternalStay[];
+  externalLeaving: ExternalStay[];
   occupiedTonight: number;
   roomCount: number;
   balancesOwed: number;
@@ -73,6 +78,7 @@ const ATTENTION_TITLES: Record<AttentionKind, string> = {
   paid_after_cancellation: "Paid after cancellation",
   payment_review: "Payment needs review",
   cancellation_request: "Cancellation request",
+  airbnb_clash: "Airbnb booking clash",
 };
 
 const STAY_STATUSES = new Set(["confirmed", "checked_in", "checked_out"]);
@@ -88,10 +94,17 @@ export function balanceOwed(b: Pick<TodayBooking, "total_amount" | "net_paid">):
   return Math.max(Math.round((Number(b.total_amount) - Number(b.net_paid)) * 100) / 100, 0);
 }
 
+// What roomStatus needs from a stay: website bookings and Airbnb stays alike.
+export interface StayDates {
+  check_in: string;
+  check_out: string;
+  status?: string;
+}
+
 // One room's state today. First match wins: a guest staying on is "occupied"; a room
 // nobody cleaned since its last guest left (11 AM) "needs cleaning"; a clean room with
 // an arrival today is "ready"; anything else is "free".
-export function roomStatus(room: TodayRoom, stays: TodayBooking[], today: string): RoomStatus {
+export function roomStatus(room: TodayRoom, stays: StayDates[], today: string): RoomStatus {
   const staying = stays.some(
     (s) => (s.check_in < today && today < s.check_out) || (s.status === "checked_in" && s.check_out > today)
   );
@@ -129,6 +142,7 @@ export function buildToday(input: {
   bookings: TodayBooking[];
   rooms: TodayRoom[];
   cancellationRequests: { bookingId: string; bookingCode: string; createdAt: string }[];
+  external: ExternalStay[];
 }): TodayView {
   const { today } = input;
   const stays = input.bookings.filter(countsAsStay);
@@ -136,9 +150,13 @@ export function buildToday(input: {
   const arriving = stays.filter((b) => b.check_in === today);
   const leaving = stays.filter((b) => b.check_out === today);
 
-  const occupiedRooms = new Set(
-    stays.filter((b) => b.room_id && b.check_in <= today && today < b.check_out).map((b) => b.room_id as string)
-  );
+  const externalArriving = input.external.filter((e) => e.check_in === today);
+  const externalLeaving = input.external.filter((e) => e.check_out === today);
+
+  const occupiedRooms = new Set([
+    ...stays.filter((b) => b.room_id && b.check_in <= today && today < b.check_out).map((b) => b.room_id as string),
+    ...input.external.filter((e) => e.check_in <= today && today < e.check_out).map((e) => e.room_id),
+  ]);
 
   const balancesOwed =
     Math.round(
@@ -167,17 +185,27 @@ export function buildToday(input: {
     detail: r.bookingCode,
   }));
 
+  const clashes: AttentionItem[] = findClashes(input.external, input.bookings, today).map((c) => ({
+    kind: "airbnb_clash" as const,
+    bookingId: c.bookingId,
+    bookingCode: c.bookingCode,
+    title: ATTENTION_TITLES.airbnb_clash,
+    detail: c.detail,
+  }));
+
   const rooms = [...input.rooms]
     .sort((a, b) => a.number - b.number)
-    .map((room) => ({ room, status: roomStatus(room, stays.filter((s) => s.room_id === room.id), today) }));
+    .map((room) => ({ room, status: roomStatus(room, [...stays.filter((s) => s.room_id === room.id), ...input.external.filter((e) => e.room_id === room.id)], today) }));
 
   return {
     arriving,
     leaving,
+    externalArriving,
+    externalLeaving,
     occupiedTonight: occupiedRooms.size,
     roomCount: input.rooms.length,
     balancesOwed,
-    attention: [...roomsToConfirm, ...payments, ...requests],
+    attention: [...roomsToConfirm, ...payments, ...clashes, ...requests],
     rooms,
   };
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ExternalStay } from "@/lib/airbnb/clashes";
 import { balanceOwed, buildToday, countsAsStay, roomStatus, type TodayBooking, type TodayRoom } from "@/lib/admin/today";
 
 const TODAY = "2026-12-10";
@@ -80,7 +81,7 @@ describe("countsAsStay and balanceOwed", () => {
 
 describe("buildToday", () => {
   const rooms = [room(1), room(2), room(3)];
-  const base = { today: TODAY, rooms, cancellationRequests: [] };
+  const base = { today: TODAY, rooms, cancellationRequests: [], external: [] as ExternalStay[] };
 
   it("an unpaid pending hold counts nowhere", () => {
     const hold = stay({ status: "pending", payment_status: "unpaid", net_paid: 0, check_in: TODAY, room_confirmed: false });
@@ -166,9 +167,11 @@ describe("buildToday", () => {
   });
 
   it("empty data renders an empty view", () => {
-    expect(buildToday({ today: TODAY, bookings: [], rooms: [], cancellationRequests: [] })).toEqual({
+    expect(buildToday({ today: TODAY, bookings: [], rooms: [], cancellationRequests: [], external: [] })).toEqual({
       arriving: [],
       leaving: [],
+      externalArriving: [],
+      externalLeaving: [],
       occupiedTonight: 0,
       roomCount: 0,
       balancesOwed: 0,
@@ -180,5 +183,47 @@ describe("buildToday", () => {
   it("gives each room its status, in room-number order", () => {
     const view = buildToday({ ...base, rooms: [room(3), room(1)], bookings: [stay({ room_id: "room-3", room_number: 3 })] });
     expect(view.rooms.map((r) => [r.room.number, r.status])).toEqual([[1, "free"], [3, "occupied"]]);
+  });
+
+  describe("Airbnb stays", () => {
+    const ext = (over: Partial<ExternalStay> = {}): ExternalStay => ({
+      id: "ext-1",
+      room_id: "room-2",
+      check_in: "2026-12-09",
+      check_out: "2026-12-12",
+      guest_name: null,
+      ...over,
+    });
+
+    it("an Airbnb stay in progress makes the room occupied and is in neither list", () => {
+      const view = buildToday({ ...base, bookings: [], external: [ext()] });
+      expect(view.rooms.find((r) => r.room.id === "room-2")!.status).toBe("occupied");
+      expect(view.occupiedTonight).toBe(1);
+      expect(view.externalArriving).toEqual([]);
+      expect(view.externalLeaving).toEqual([]);
+    });
+
+    it("lists Airbnb arrivals and departures apart from website ones", () => {
+      const arriving = ext({ id: "a", check_in: TODAY, check_out: "2026-12-13" });
+      const leaving = ext({ id: "l", room_id: "room-1", check_in: "2026-12-07", check_out: TODAY });
+      const view = buildToday({ ...base, bookings: [], external: [arriving, leaving] });
+      expect(view.externalArriving.map((e) => e.id)).toEqual(["a"]);
+      expect(view.externalLeaving.map((e) => e.id)).toEqual(["l"]);
+      expect(view.arriving).toEqual([]);
+      expect(view.leaving).toEqual([]);
+    });
+
+    it("needs cleaning on the Airbnb check-out day when not cleaned since", () => {
+      const view = buildToday({ ...base, today: "2026-12-12", bookings: [], external: [ext()] });
+      expect(view.rooms.find((r) => r.room.id === "room-2")!.status).toBe("needs_cleaning");
+      expect(view.externalLeaving.map((e) => e.id)).toEqual(["ext-1"]);
+    });
+
+    it("puts a clash with a website booking in Needs attention", () => {
+      const b = stay({ room_id: "room-2", room_number: 2, check_in: "2026-12-11", check_out: "2026-12-14" });
+      const view = buildToday({ ...base, bookings: [b], external: [ext()] });
+      const item = view.attention.find((a) => a.kind === "airbnb_clash");
+      expect(item).toMatchObject({ title: "Airbnb booking clash", bookingId: b.id, bookingCode: b.booking_code });
+    });
   });
 });

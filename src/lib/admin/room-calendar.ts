@@ -2,9 +2,10 @@
 // that fall in one month. Pure, so it can be tested without a database.
 import { roomLabel } from "@/lib/booking/room-assignment";
 import { addDays } from "@/lib/booking/dates";
+import type { ExternalStay } from "@/lib/airbnb/clashes";
 
 export interface CalendarSegment {
-  kind: "booking" | "hold" | "block";
+  kind: "booking" | "hold" | "block" | "airbnb";
   id: string;
   label: string;
   startDay: number; // 1-based day of the month
@@ -35,6 +36,7 @@ interface CalendarInput {
     status: string;
     payment_status: string;
   }[];
+  external: ExternalStay[];
   blocks: { id: string; unit_id: string; room_id: string | null; start_date: string; end_date: string; reason: string | null }[];
 }
 
@@ -71,6 +73,20 @@ export function roomCalendarRows(input: CalendarInput): RoomRow[] {
           ...days,
           confirmed: b.room_confirmed,
           href: `/admin/bookings?q=${encodeURIComponent(b.booking_code)}`,
+        });
+      }
+
+      for (const e of input.external) {
+        if (e.room_id !== room.id) continue;
+        const days = clip(e.check_in, e.check_out, monthStart, monthEnd);
+        if (!days) continue;
+        segments.push({
+          kind: "airbnb",
+          id: e.id,
+          label: e.guest_name?.trim() || "Airbnb booking",
+          ...days,
+          confirmed: true,
+          href: "/admin/bookings/airbnb",
         });
       }
 
