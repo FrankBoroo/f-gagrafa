@@ -26,12 +26,13 @@ import type { Tables } from "@/types/database";
 
 const AIRBNB_REFRESH_MS = 3000;
 
-// Best effort: errors and a sync that never settles are both swallowed after 3 s.
+// Best effort: errors and a sync that never settles are both swallowed after 3 s. Rooms whose
+// last sync failed are left to the scheduler, so a broken link never slows a booking.
 async function refreshAirbnbCalendars(supabase: ReturnType<typeof createServiceClient>, unitId: string): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
-      syncRooms(supabase, { unitId, olderThanMinutes: 15, timeoutMs: AIRBNB_REFRESH_MS, now: new Date() }),
+      syncRooms(supabase, { unitId, olderThanMinutes: 15, timeoutMs: AIRBNB_REFRESH_MS, skipFailing: true, now: new Date() }),
       new Promise<void>((resolve) => {
         timer = setTimeout(resolve, AIRBNB_REFRESH_MS);
       }),

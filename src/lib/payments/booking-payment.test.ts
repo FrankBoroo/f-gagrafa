@@ -334,4 +334,62 @@ describe("confirmPaymentByReference", () => {
       expect(mocks.db.rpc).not.toHaveBeenCalled();
     });
   });
+  describe("when Airbnb (or a block) has taken the held room", () => {
+    // The exclusion constraint only covers bookings, so an Airbnb reservation never raises
+    // 23P01: the room has to be checked with is_room_available() before confirming.
+    const held = {
+      status: "cancelled", room_id: "room-8", room_confirmed: true, unit_id: "unit-1",
+      check_in: "2026-12-01", check_out: "2026-12-05",
+    };
+    const rpcAnswers = (available: boolean, freeRooms: Array<{ id: string; number: number }>) =>
+      mocks.db.rpc.mockImplementation(async (name: string) =>
+        name === "is_room_available" ? { data: available, error: null }
+          : name === "free_rooms_for_type" ? { data: freeRooms, error: null }
+            : { data: null, error: null });
+
+    beforeEach(() => {
+      mocks.db.booking = pendingBooking(held);
+    });
+
+    it("confirms on another free room of the type, pencilled in", async () => {
+      rpcAnswers(false, [{ id: "room-9", number: 9 }]);
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("paid");
+      expect(mocks.db.rpc).toHaveBeenCalledWith("is_room_available", {
+        p_room_id: "room-8", p_check_in: "2026-12-01", p_check_out: "2026-12-05", p_exclude_booking_id: "booking-1",
+      });
+      expect(mocks.db.rpc).toHaveBeenCalledWith("free_rooms_for_type", {
+        p_unit_id: "unit-1", p_check_in: "2026-12-01", p_check_out: "2026-12-05", p_exclude_booking_id: "booking-1",
+      });
+      // Never confirmed onto the taken room first.
+      expect(bookingUpdates()).toHaveLength(1);
+      expect(bookingUpdates()[0].payload).toEqual({
+        status: "confirmed", payment_status: "paid", room_id: "room-9", room_confirmed: false,
+      });
+      expect(mocks.sendConflictAlert).not.toHaveBeenCalled();
+      expect(mocks.sendEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it("goes to review, like a re-booked room, when no room of the type is free", async () => {
+      rpcAnswers(false, []);
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("needs_review");
+      expect(bookingUpdates()).toHaveLength(1);
+      const flag = bookingUpdates()[0].payload;
+      expect(flag).not.toHaveProperty("status");
+      expect(flag.payment_status).toBe("paid");
+      expect(String(flag.admin_notes)).toContain("PAID AFTER HOLD EXPIRED");
+      expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
+      expect(mocks.sendEmail).not.toHaveBeenCalled();
+    });
+
+    it("confirms on the same room with no move when it is still free", async () => {
+      rpcAnswers(true, [{ id: "room-9", number: 9 }]);
+
+      expect((await confirmPaymentByReference(REF)).outcome).toBe("paid");
+      expect(mocks.db.rpc).not.toHaveBeenCalledWith("free_rooms_for_type", expect.anything());
+      expect(bookingUpdates()).toHaveLength(1);
+      expect(bookingUpdates()[0].payload).toEqual({ status: "confirmed", payment_status: "paid" });
+    });
+  });
 });

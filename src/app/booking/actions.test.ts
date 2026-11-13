@@ -171,7 +171,7 @@ describe("createBookingAndInitializePayment Airbnb refresh", () => {
     await createBookingAndInitializePayment(input);
     expect(mocks.syncRooms).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ unitId: UNIT_ID, olderThanMinutes: 15, timeoutMs: 3000 }),
+      expect.objectContaining({ unitId: UNIT_ID, olderThanMinutes: 15, timeoutMs: 3000, skipFailing: true }),
     );
   });
 

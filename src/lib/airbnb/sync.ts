@@ -18,6 +18,7 @@ export type SyncRoomResult =
   | { ok: false; error: string };
 
 const MAX_BODY_CHARS = 1_000_000;
+const OUT_OF_TIME = "Stopped: the sync ran out of time.";
 const FETCH_TIMEOUT_MS = 10_000;
 
 interface ExistingRow {
@@ -28,12 +29,22 @@ interface ExistingRow {
   removed_at: string | null;
 }
 
+type SyncOpts = { fetchImpl?: typeof fetch; now: Date; deadline?: number };
+
+// A caller that stopped waiting (the booking refresh gives up after 3 s) must not have this
+// run write afterwards: a newer run may already have saved fresher results. Not an Airbnb failure.
+function outOfTime(opts: SyncOpts): boolean {
+  return opts.deadline !== undefined && Date.now() > opts.deadline;
+}
+
 async function fail(
   supabase: ServiceClient,
   room: SyncRoomInput,
+  opts: SyncOpts,
   error: string,
   err?: unknown,
 ): Promise<{ ok: false; error: string }> {
+  if (outOfTime(opts)) return { ok: false, error: OUT_OF_TIME };
   // Never log the import URL: it carries Airbnb's secret.
   log.error("airbnb.sync_failed", { room: room.number }, err);
   try {
@@ -58,13 +69,13 @@ async function fail(
 export async function syncRoom(
   supabase: ServiceClient,
   room: SyncRoomInput,
-  opts: { fetchImpl?: typeof fetch; now: Date },
+  opts: SyncOpts,
 ): Promise<SyncRoomResult> {
   try {
     const url = room.airbnb_ical_url;
-    if (!url) return await fail(supabase, room, "No Airbnb calendar link is set for this room.");
+    if (!url) return await fail(supabase, room, opts, "No Airbnb calendar link is set for this room.");
     const problem = airbnbCalendarUrlProblem(url);
-    if (problem) return await fail(supabase, room, problem);
+    if (problem) return await fail(supabase, room, opts, problem);
 
     let body: string;
     try {
@@ -73,17 +84,17 @@ export async function syncRoom(
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         cache: "no-store",
       });
-      if (!res.ok) return await fail(supabase, room, `Airbnb answered with an error (${res.status}).`);
+      if (!res.ok) return await fail(supabase, room, opts, `Airbnb answered with an error (${res.status}).`);
       body = await res.text();
     } catch (err) {
-      return await fail(supabase, room, "Could not reach Airbnb. It will be tried again.", err);
+      return await fail(supabase, room, opts, "Could not reach Airbnb. It will be tried again.", err);
     }
     if (body.length > MAX_BODY_CHARS) {
-      return await fail(supabase, room, "The Airbnb calendar was too large to read.");
+      return await fail(supabase, room, opts, "The Airbnb calendar was too large to read.");
     }
 
     const parsed = parseAirbnbIcs(body);
-    if (!parsed.ok) return await fail(supabase, room, parsed.error);
+    if (!parsed.ok) return await fail(supabase, room, opts, parsed.error);
 
     const nowIso = opts.now.toISOString();
     const today = toISODate(opts.now);
@@ -92,7 +103,7 @@ export async function syncRoom(
       .from("external_reservations")
       .select("id, uid, check_in, check_out, removed_at")
       .eq("room_id", room.id);
-    if (readError) return await fail(supabase, room, "Could not read the saved reservations.", readError);
+    if (readError) return await fail(supabase, room, opts, "Could not read the saved reservations.", readError);
     const existing = new Map<string, ExistingRow>((data ?? []).map((r: ExistingRow) => [r.uid, r]));
 
     let added = 0;
@@ -115,33 +126,54 @@ export async function syncRoom(
       };
     });
 
+    if (outOfTime(opts)) return { ok: false, error: OUT_OF_TIME };
     if (upserts.length > 0) {
       const { error } = await supabase.from("external_reservations").upsert(upserts, { onConflict: "room_id,uid" });
-      if (error) return await fail(supabase, room, "Could not save the Airbnb reservations.", error);
+      if (error) return await fail(supabase, room, opts, "Could not save the Airbnb reservations.", error);
     }
 
     const missing: string[] = [];
     for (const row of existing.values()) {
       if (!seen.has(row.uid) && !row.removed_at && row.check_out >= today) missing.push(row.id);
     }
+    if (outOfTime(opts)) return { ok: false, error: OUT_OF_TIME };
     if (missing.length > 0) {
-      const { error } = await supabase.from("external_reservations").update({ removed_at: nowIso }).in("id", missing);
-      if (error) return await fail(supabase, room, "Could not mark cancelled Airbnb reservations.", error);
+      // Only rows no run has seen since this one started: a newer run that finished first wins.
+      const { error } = await supabase
+        .from("external_reservations")
+        .update({ removed_at: nowIso })
+        .in("id", missing)
+        .lt("last_seen_at", nowIso);
+      if (error) return await fail(supabase, room, opts, "Could not mark cancelled Airbnb reservations.", error);
     }
 
+    if (outOfTime(opts)) return { ok: false, error: OUT_OF_TIME };
     await supabase.from("rooms").update({ airbnb_synced_at: nowIso, airbnb_sync_error: null }).eq("id", room.id);
     return { ok: true, added, updated, removed: missing.length };
   } catch (err) {
-    return await fail(supabase, room, "The Airbnb sync hit an unexpected problem.", err);
+    return await fail(supabase, room, opts, "The Airbnb sync hit an unexpected problem.", err);
   }
 }
 
-/** Syncs every room that has an import link (optionally one type, optionally only stale ones). Never throws. */
+/**
+ * Syncs every room that has an import link (optionally one type, optionally only stale ones). Never throws.
+ * `skipFailing` leaves rooms whose last sync failed to the scheduler (the booking refresh uses it, so a
+ * broken link doesn't slow every booking). With `timeoutMs`, rooms still syncing at the deadline stop
+ * before their next write.
+ */
 export async function syncRooms(
   supabase: ServiceClient,
-  opts: { unitId?: string; olderThanMinutes?: number; timeoutMs?: number; now: Date; fetchImpl?: typeof fetch },
+  opts: {
+    unitId?: string;
+    olderThanMinutes?: number;
+    timeoutMs?: number;
+    skipFailing?: boolean;
+    now: Date;
+    fetchImpl?: typeof fetch;
+  },
 ): Promise<{ synced: number; failed: number }> {
   const counts = { synced: 0, failed: 0 };
+  const deadline = opts.timeoutMs === undefined ? undefined : Date.now() + opts.timeoutMs;
   try {
     let query = supabase
       .from("rooms")
@@ -157,9 +189,10 @@ export async function syncRooms(
       log.error("airbnb.sync_rooms_failed", {}, error);
       return counts;
     }
+    const rooms = (data ?? []).filter((r: SyncRoomInput) => !(opts.skipFailing && r.airbnb_sync_error));
     const all = Promise.all(
-      (data ?? []).map(async (r: SyncRoomInput) => {
-        const res = await syncRoom(supabase, r, { fetchImpl: opts.fetchImpl, now: opts.now });
+      rooms.map(async (r: SyncRoomInput) => {
+        const res = await syncRoom(supabase, r, { fetchImpl: opts.fetchImpl, now: opts.now, deadline });
         if (res.ok) counts.synced += 1;
         else counts.failed += 1;
       }),

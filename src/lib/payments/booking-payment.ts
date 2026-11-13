@@ -127,10 +127,31 @@ export async function confirmPaymentByReference(
       .select("*, units(name)")
       .single();
 
-  let { data: updatedBooking, error: updateError } = await confirmBooking();
+  // The exclusion constraint only guards bookings against bookings. An Airbnb reservation
+  // (or a block) added since the hold was made never raises 23P01, so ask the same
+  // availability check bookings use first, and treat a taken room exactly like a re-booked
+  // one. A failed lookup falls back to the plain confirm and the database guard.
+  let roomTaken = false;
+  if (booking.room_id) {
+    const { data: available, error: availabilityError } = await supabase.rpc("is_room_available", {
+      p_room_id: booking.room_id,
+      p_check_in: booking.check_in,
+      p_check_out: booking.check_out,
+      p_exclude_booking_id: booking.id,
+    });
+    roomTaken = !availabilityError && available === false;
+  }
+
+  let updatedBooking: any = null;
+  let updateError: { code: string; message: string } | null = null;
+  if (roomTaken) {
+    updateError = { code: "23P01", message: "the held room is taken by an Airbnb reservation or a block" };
+  } else {
+    ({ data: updatedBooking, error: updateError } = await confirmBooking());
+  }
 
   // The unpaid hold expired and someone else took that room (23P01, the database's
-  // double-booking guard). Guests book a type, so any free room of it will do.
+  // double-booking guard, or the check above). Guests book a type, so any free room of it will do.
   if (updateError?.code === "23P01") {
     const { data: freeRooms } = await supabase.rpc("free_rooms_for_type", {
       p_unit_id: booking.unit_id,

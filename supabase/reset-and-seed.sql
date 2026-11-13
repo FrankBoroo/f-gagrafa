@@ -1,5 +1,5 @@
 -- DELETES ALL BOOKINGS, PAYMENTS, UNITS AND ROOMS. Run once, by hand, when wiping the database before launch.
--- Run after supabase/migration-portal-v2.sql. Keeps staff logins (profiles) and Tour photos.
+-- Run after supabase/migration-airbnb.sql. Keeps staff logins (profiles) and Tour photos.
 -- Settings keep their values, except the address, contact details, reception hours, price currency and down payment set at the end.
 -- Check the USD exchange rate in Admin → Settings afterwards: this script doesn't set it.
 

@@ -55,7 +55,7 @@ describe("addBlockedDate", () => {
     mocks.rpc.mockResolvedValue({ data: false, error: null });
     const result = await addBlockedDate(input);
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("This room has a booking");
+    expect(result.error).toBe("This room has a booking, a block or an Airbnb booking on those dates.");
     expect(mocks.rpc).toHaveBeenCalledWith("is_room_available", {
       p_room_id: ROOM_ID, p_check_in: "2026-12-01", p_check_out: "2026-12-03",
     });

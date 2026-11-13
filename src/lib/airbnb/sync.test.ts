@@ -17,7 +17,14 @@ interface RoomWrite {
 }
 
 const mocks = vi.hoisted(() => ({
-  db: {} as { rows: Row[]; roomWrites: RoomWrite[]; rooms: Record<string, unknown>[]; roomFilters: string[] },
+  db: {} as {
+    rows: Row[];
+    roomWrites: RoomWrite[];
+    rooms: Record<string, unknown>[];
+    roomFilters: string[];
+    reservationWrites: number;
+    removalFilters: Array<Record<string, unknown>>;
+  },
   alert: vi.fn(),
 }));
 
@@ -35,6 +42,7 @@ class FakeQuery {
     return this;
   }
   not() { return this; }
+  lt(column: string, value: unknown) { this.filters[`lt.${column}`] = value; return this; }
   or(expr: string) { mocks.db.roomFilters.push(`or.${expr.split(".lt.")[0]}`); return this; }
   in(_column: string, ids: string[]) { this.inIds = ids; return this; }
   upsert(rows: unknown) { this.op = "upsert"; this.payload = rows; return this; }
@@ -52,6 +60,7 @@ class FakeQuery {
     if (this.op === "select") {
       return { data: db.rows.filter((r: Row) => r.room_id === this.filters.room_id).map((r: Row) => ({ ...r })), error: null };
     }
+    db.reservationWrites += 1;
     if (this.op === "upsert") {
       for (const p of this.payload as Record<string, unknown>[]) {
         const existing = db.rows.find((r: Row) => r.room_id === p.room_id && r.uid === p.uid);
@@ -60,7 +69,13 @@ class FakeQuery {
       }
       return { data: null, error: null };
     }
-    for (const r of db.rows) if (this.inIds?.includes(r.id)) Object.assign(r, this.payload);
+    db.removalFilters.push({ ...this.filters, in: this.inIds });
+    const seenBefore = this.filters["lt.last_seen_at"] as string | undefined;
+    for (const r of db.rows) {
+      if (!this.inIds?.includes(r.id)) continue;
+      if (seenBefore !== undefined && !(r.last_seen_at !== null && r.last_seen_at < seenBefore)) continue;
+      Object.assign(r, this.payload);
+    }
     return { data: null, error: null };
   }
 }
@@ -73,6 +88,8 @@ const { airbnbCalendarUrlProblem } = await import("@/lib/airbnb/url");
 
 const URL_OK = "https://www.airbnb.com/calendar/ical/123.ics?s=abc";
 const NOW = new Date("2026-11-13T10:00:00Z");
+// last_seen_at is not null in the table; a row saved by an earlier run.
+const SEEN_BEFORE = "2026-11-12T10:00:00.000Z";
 const supabase = { from: (t: string) => new FakeQuery(t) } as never;
 
 function room(overrides: Record<string, unknown> = {}) {
@@ -88,7 +105,7 @@ function fetchOf(body: string, status = 200) {
   return vi.fn(async () => new Response(body, { status }));
 }
 function row(overrides: Partial<Row>): Row {
-  return { id: "r1", room_id: "room-1", uid: "a", check_in: "2026-12-01", check_out: "2026-12-05", summary: "Reserved", guest_name: "Ama", last_seen_at: null, removed_at: null, ...overrides };
+  return { id: "r1", room_id: "room-1", uid: "a", check_in: "2026-12-01", check_out: "2026-12-05", summary: "Reserved", guest_name: "Ama", last_seen_at: SEEN_BEFORE, removed_at: null, ...overrides };
 }
 function lastRoomWrite() {
   return mocks.db.roomWrites[mocks.db.roomWrites.length - 1];
@@ -99,6 +116,8 @@ beforeEach(() => {
   mocks.db.roomWrites = [];
   mocks.db.rooms = [];
   mocks.db.roomFilters = [];
+  mocks.db.reservationWrites = 0;
+  mocks.db.removalFilters = [];
   mocks.alert.mockReset();
   mocks.alert.mockResolvedValue(undefined);
 });
@@ -152,6 +171,44 @@ describe("syncRoom", () => {
     expect(mocks.db.rows[0].removed_at).toBeNull();
   });
 
+  it("only removes rows not seen since this run started (a newer run wins)", async () => {
+    // r2 was seen by a newer run that finished first; r3 was last seen before this run.
+    mocks.db.rows = [
+      row({ id: "r2", uid: "b", last_seen_at: "2026-11-13T10:00:05.000Z" }),
+      row({ id: "r3", uid: "c", last_seen_at: "2026-11-13T09:00:00.000Z" }),
+    ];
+    await syncRoom(supabase, room(), { fetchImpl: fetchOf(ics()) as never, now: NOW });
+    expect(mocks.db.removalFilters).toEqual([
+      expect.objectContaining({ "lt.last_seen_at": NOW.toISOString(), in: ["r2", "r3"] }),
+    ]);
+    expect(mocks.db.rows[0].removed_at).toBeNull();
+    expect(mocks.db.rows[1].removed_at).toBe(NOW.toISOString());
+  });
+
+  it("fetches without following redirects and with a timeout signal", async () => {
+    const fetchImpl = fetchOf(ics());
+    await syncRoom(supabase, room(), { fetchImpl: fetchImpl as never, now: NOW });
+    expect(fetchImpl).toHaveBeenCalledWith(URL_OK, expect.objectContaining({ redirect: "error", signal: expect.anything() }));
+  });
+
+  it("writes nothing and does not alert once its deadline has passed", async () => {
+    mocks.db.rows = [row({ id: "r2", uid: "b" })];
+    const res = await syncRoom(supabase, room(), {
+      fetchImpl: fetchOf(ics(["a", "20261210", "20261215"])) as never, now: NOW, deadline: Date.now() - 1,
+    });
+    expect(res).toEqual({ ok: false, error: "Stopped: the sync ran out of time." });
+    expect(mocks.db.reservationWrites).toBe(0);
+    expect(mocks.db.roomWrites).toHaveLength(0);
+    expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it("does not record a failure once its deadline has passed", async () => {
+    const res = await syncRoom(supabase, room(), { fetchImpl: fetchOf("x", 500) as never, now: NOW, deadline: Date.now() - 1 });
+    expect(res).toEqual({ ok: false, error: "Stopped: the sync ran out of time." });
+    expect(mocks.db.roomWrites).toHaveLength(0);
+    expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
   it("leaves a past row missing from the feed alone", async () => {
     mocks.db.rows = [row({ id: "r2", uid: "old", check_in: "2026-10-01", check_out: "2026-10-05" })];
     const res = await syncRoom(supabase, room(), { fetchImpl: fetchOf(ics()) as never, now: NOW });
@@ -171,7 +228,7 @@ describe("syncRoom", () => {
     const res = await syncRoom(supabase, room(), { fetchImpl: fetchOf("<html>nope</html>") as never, now: NOW });
     expect(res.ok).toBe(false);
     expect(mocks.db.rows[0].removed_at).toBeNull();
-    expect(mocks.db.rows[0].last_seen_at).toBeNull();
+    expect(mocks.db.rows[0].last_seen_at).toBe(SEEN_BEFORE);
     expect(lastRoomWrite().payload).toEqual({ airbnb_sync_error: expect.any(String) });
   });
 
@@ -239,6 +296,36 @@ describe("syncRooms", () => {
   it("filters by unit and age", async () => {
     await syncRooms(supabase, { unitId: "u1", olderThanMinutes: 10, now: NOW });
     expect(mocks.db.roomFilters).toEqual(expect.arrayContaining(["eq.unit_id", "or.airbnb_synced_at.is.null,airbnb_synced_at"]));
+  });
+
+  it("a room still syncing when the timeout hits writes nothing afterwards", async () => {
+    mocks.db.rooms = [room()];
+    mocks.db.rows = [row({ id: "r2", uid: "b" })];
+    const fetchImpl = vi.fn(
+      () => new Promise<Response>((resolve: (r: Response) => void) => setTimeout(() => resolve(new Response(ics(["a", "20261210", "20261215"]))), 60)),
+    );
+    const res = await syncRooms(supabase, { now: NOW, timeoutMs: 10, fetchImpl: fetchImpl as never });
+    expect(res).toEqual({ synced: 0, failed: 0 });
+    await new Promise((resolve: (v: unknown) => void) => setTimeout(resolve, 120));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(mocks.db.reservationWrites).toBe(0);
+    expect(mocks.db.roomWrites).toHaveLength(0);
+    expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it("skips rooms with a sync error when asked (booking refresh), leaving them to the scheduler", async () => {
+    mocks.db.rooms = [room(), room({ id: "room-2", number: 5, airbnb_ical_url: "https://www.airbnb.com/calendar/ical/9.ics?s=1", airbnb_sync_error: "Airbnb answered with an error (404)." })];
+    const fetchImpl = fetchOf(ics());
+    const res = await syncRooms(supabase, { now: NOW, skipFailing: true, fetchImpl: fetchImpl as never });
+    expect(res).toEqual({ synced: 1, failed: 0 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(URL_OK, expect.anything());
+  });
+
+  it("still syncs failing rooms by default", async () => {
+    mocks.db.rooms = [room({ airbnb_sync_error: "old" })];
+    const fetchImpl = fetchOf(ics());
+    expect(await syncRooms(supabase, { now: NOW, fetchImpl: fetchImpl as never })).toEqual({ synced: 1, failed: 0 });
   });
 
   it("returns what finished when the timeout hits, without throwing", async () => {

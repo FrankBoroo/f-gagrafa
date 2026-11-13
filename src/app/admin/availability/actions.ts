@@ -36,7 +36,7 @@ export async function addBlockedDate(input: z.infer<typeof blockSchema>) {
     p_check_out: parsed.data.end_date,
   });
   if (lookupError) return { ok: false, error: "We couldn't check availability. Please try again." };
-  if (!available) return { ok: false, error: "This room has a booking or block on those dates." };
+  if (!available) return { ok: false, error: "This room has a booking, a block or an Airbnb booking on those dates." };
 
   const { data: block, error } = await supabase
     .from("blocked_dates")
