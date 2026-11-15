@@ -83,7 +83,7 @@ class FakeQuery {
 vi.mock("@/lib/notify/email", () => ({ sendAdminSystemAlert: mocks.alert }));
 vi.mock("@/lib/logger", () => ({ log: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
-const { syncRoom, syncRooms } = await import("@/lib/airbnb/sync");
+const { syncRoom, syncRooms, SYNC_DEADLINE_MS } = await import("@/lib/airbnb/sync");
 const { airbnbCalendarUrlProblem } = await import("@/lib/airbnb/url");
 
 const URL_OK = "https://www.airbnb.com/calendar/ical/123.ics?s=abc";
@@ -200,6 +200,23 @@ describe("syncRoom", () => {
     expect(mocks.db.reservationWrites).toBe(0);
     expect(mocks.db.roomWrites).toHaveLength(0);
     expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it("stops writing after the default deadline when the caller gives none", async () => {
+    mocks.db.rows = [row({ id: "r2", uid: "b" })];
+    const slowFetch = vi.fn(async () => {
+      vi.setSystemTime(Date.now() + SYNC_DEADLINE_MS + 1);
+      return new Response(ics(["a", "20261210", "20261215"]), { status: 200 });
+    });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const res = await syncRoom(supabase, room(), { fetchImpl: slowFetch as never, now: NOW });
+      expect(res).toEqual({ ok: false, error: "Stopped: the sync ran out of time." });
+      expect(mocks.db.reservationWrites).toBe(0);
+      expect(mocks.db.roomWrites).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not record a failure once its deadline has passed", async () => {

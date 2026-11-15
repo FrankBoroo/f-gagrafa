@@ -147,7 +147,8 @@ export async function setRoomAirbnbUrl(input: { roomId: string; url: string }) {
   if (!room) return { ok: false, error: "Room not found" };
 
   // Clearing the link does not sync: there is nothing to fetch, and syncing would record a bogus error.
-  // Reservations already imported stay as they are; they just stop updating.
+  // Reservations already imported stay as they are; they just stop updating (an admin can remove them
+  // on the Airbnb bookings page).
   if (!url) {
     const { error } = await supabase.from("rooms").update({ airbnb_ical_url: null, airbnb_sync_error: null }).eq("id", roomId);
     if (error) return { ok: false, error: error.message };
@@ -229,6 +230,43 @@ export async function updateAirbnbBooking(input: { id: string; guest_name: strin
   if (error) return { ok: false, error: error.message };
 
   await logAudit("airbnb_booking.updated", "external_reservation", parsed.data.id);
+  refreshAirbnbPages();
+  return { ok: true };
+}
+
+// Once a room's Airbnb link is cleared its imported reservations stop updating, so an admin
+// removes the ones that are no longer real. While a link is set, the next sync would bring it back.
+export async function removeAirbnbBooking(reservationId: string) {
+  if (!(await isAdmin())) return UNAUTHORIZED;
+  if (!id.safeParse(reservationId).success) return { ok: false, error: "Booking not found" };
+
+  const supabase = createServiceClient();
+  const { data: row } = await supabase
+    .from("external_reservations")
+    .select("id, check_in, check_out, removed_at, rooms(number, airbnb_ical_url)")
+    .eq("id", reservationId)
+    .maybeSingle();
+  if (!row || row.removed_at) return { ok: false, error: "Booking not found" };
+  const room = row.rooms as { number: number; airbnb_ical_url: string | null } | null;
+  if (room?.airbnb_ical_url) {
+    return {
+      ok: false,
+      error: "This room is still linked to Airbnb, so the next sync would bring it back. Cancel it on Airbnb instead.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("external_reservations")
+    .update({ removed_at: new Date().toISOString() })
+    .eq("id", reservationId)
+    .is("removed_at", null);
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit("airbnb_booking.removed", "external_reservation", reservationId, {
+    room: room?.number ?? null,
+    check_in: row.check_in,
+    check_out: row.check_out,
+  });
   refreshAirbnbPages();
   return { ok: true };
 }

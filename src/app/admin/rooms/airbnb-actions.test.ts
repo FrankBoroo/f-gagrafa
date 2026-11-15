@@ -11,13 +11,16 @@ const mocks = vi.hoisted(() => ({
   syncRoom: vi.fn(),
   syncRooms: vi.fn(),
   writes: [] as { table: string; op: string; payload?: unknown }[],
+  reservation: null as Record<string, unknown> | null,
 }));
 
 class FakeQuery {
   constructor(private table: string) {}
   select() { return this; }
   eq() { return this; }
+  is() { return this; }
   maybeSingle() {
+    if (this.table === "external_reservations") return Promise.resolve({ data: mocks.reservation, error: null });
     return Promise.resolve({ data: { id: ROOM_ID, number: 3, airbnb_ical_url: GOOD_URL, airbnb_sync_error: null }, error: null });
   }
   update(payload: unknown) {
@@ -37,7 +40,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("@/lib/airbnb/sync", () => ({ syncRoom: mocks.syncRoom, syncRooms: mocks.syncRooms }));
 
-const { setRoomAirbnbUrl, newRoomExportLink, syncAirbnbNow, updateAirbnbBooking } = await import("@/app/admin/rooms/actions");
+const { setRoomAirbnbUrl, newRoomExportLink, syncAirbnbNow, updateAirbnbBooking, removeAirbnbBooking } = await import("@/app/admin/rooms/actions");
 
 function auditKeys(): string[] {
   return mocks.logAudit.mock.calls.flatMap((c: unknown[]) => Object.keys((c[3] as Record<string, unknown>) ?? {}));
@@ -50,6 +53,13 @@ beforeEach(() => {
   mocks.syncRoom.mockResolvedValue({ ok: true, added: 1, updated: 0, removed: 0 });
   mocks.syncRooms.mockResolvedValue({ synced: 2, failed: 0 });
   mocks.writes = [];
+  mocks.reservation = {
+    id: EXT_ID,
+    check_in: "2026-12-01",
+    check_out: "2026-12-04",
+    removed_at: null,
+    rooms: { number: 3, airbnb_ical_url: null },
+  };
 });
 
 describe("Airbnb room actions", () => {
@@ -130,5 +140,42 @@ describe("Airbnb room actions", () => {
     expect(mocks.writes).toEqual([
       { table: "external_reservations", op: "update", payload: { guest_name: "Ama", notes: "Late arrival" } },
     ]);
+  });
+});
+
+describe("removeAirbnbBooking", () => {
+  it("is admin-only", async () => {
+    mocks.isAdmin.mockResolvedValue(false);
+    expect(await removeAirbnbBooking(EXT_ID)).toEqual({ ok: false, error: "Unauthorized" });
+    expect(mocks.writes).toEqual([]);
+  });
+
+  it("refuses while the room is still linked, since the next sync would bring it back", async () => {
+    mocks.reservation = { ...mocks.reservation, rooms: { number: 3, airbnb_ical_url: GOOD_URL } };
+    const result = await removeAirbnbBooking(EXT_ID);
+    expect(result.ok).toBe(false);
+    expect(mocks.writes).toEqual([]);
+  });
+
+  it("refuses one already removed or unknown", async () => {
+    mocks.reservation = { ...mocks.reservation, removed_at: "2026-11-01T00:00:00Z" };
+    expect(await removeAirbnbBooking(EXT_ID)).toEqual({ ok: false, error: "Booking not found" });
+    mocks.reservation = null;
+    expect(await removeAirbnbBooking(EXT_ID)).toEqual({ ok: false, error: "Booking not found" });
+    expect(await removeAirbnbBooking("not-a-uuid")).toEqual({ ok: false, error: "Booking not found" });
+    expect(mocks.writes).toEqual([]);
+  });
+
+  it("soft-removes an unlinked room's reservation and audits it without the link", async () => {
+    expect(await removeAirbnbBooking(EXT_ID)).toEqual({ ok: true });
+    expect(mocks.writes).toHaveLength(1);
+    expect(mocks.writes[0].table).toBe("external_reservations");
+    expect(Object.keys(mocks.writes[0].payload as object)).toEqual(["removed_at"]);
+    expect(mocks.logAudit).toHaveBeenCalledWith("airbnb_booking.removed", "external_reservation", EXT_ID, {
+      room: 3,
+      check_in: "2026-12-01",
+      check_out: "2026-12-04",
+    });
+    expect(auditKeys()).not.toContain("airbnb_ical_url");
   });
 });

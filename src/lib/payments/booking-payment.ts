@@ -173,7 +173,7 @@ export async function confirmPaymentByReference(
     // flag the booking and tell the admin so a person can offer new dates or a refund.
     const reason =
       updateError.code === "23P01"
-        ? "PAID AFTER HOLD EXPIRED — the dates were re-booked. Contact the guest: offer new dates or refund in full."
+        ? "PAID AFTER HOLD EXPIRED — no room of this type is free for these dates any more (another booking, an Airbnb reservation or a block took it). Contact the guest: offer new dates or refund in full."
         : `PAID BUT NOT CONFIRMED — automatic confirmation failed (${updateError.message}). Check this booking.`;
     await supabase
       .from("bookings")

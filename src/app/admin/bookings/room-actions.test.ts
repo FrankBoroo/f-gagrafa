@@ -8,6 +8,7 @@ const ROOM_8 = "00000000-0000-0000-0000-000000000108";
 const mocks = vi.hoisted(() => ({
   isStaff: vi.fn(),
   freeRooms: vi.fn(),
+  rpc: vi.fn(),
   specialsForStay: vi.fn(),
   booking: null as Record<string, unknown> | null,
   updates: [] as Record<string, unknown>[],
@@ -64,7 +65,7 @@ vi.mock("@/lib/booking/special-prices-db", () => ({ specialsForStay: mocks.speci
 vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: () => ({
     from: (table: string) => new FakeQuery(table),
-    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+    rpc: mocks.rpc,
   }),
 }));
 
@@ -86,6 +87,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.isStaff.mockResolvedValue(true);
   mocks.freeRooms.mockResolvedValue([{ id: ROOM_2, number: 2 }, { id: ROOM_8, number: 8 }]);
+  mocks.rpc.mockResolvedValue({ data: null, error: null });
   mocks.specialsForStay.mockResolvedValue([]);
   mocks.booking = { ...liveBooking };
   mocks.updates = [];
@@ -131,8 +133,30 @@ describe("confirmRoom", () => {
   });
 
   it("confirms the pencilled-in room", async () => {
+    mocks.rpc.mockResolvedValue({ data: true, error: null });
     expect(await confirmRoom(BOOKING_ID)).toEqual({ ok: true });
+    expect(mocks.rpc).toHaveBeenCalledWith("is_room_available", {
+      p_room_id: ROOM_2,
+      p_check_in: "2026-12-10",
+      p_check_out: "2026-12-13",
+      p_exclude_booking_id: BOOKING_ID,
+    });
     expect(mocks.updates).toEqual([{ room_confirmed: true }]);
+  });
+
+  it("refuses a room an Airbnb booking or a block now overlaps", async () => {
+    mocks.rpc.mockResolvedValue({ data: false, error: null });
+    const result = await confirmRoom(BOOKING_ID);
+    expect(result.ok).toBe(false);
+    expect(String((result as { error?: string }).error)).toContain("no longer free");
+    expect(mocks.updates).toEqual([]);
+  });
+
+  it("refuses when the availability check fails", async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    const result = await confirmRoom(BOOKING_ID);
+    expect(result).toEqual({ ok: false, error: "We couldn't check the room is still free. Please try again." });
+    expect(mocks.updates).toEqual([]);
   });
 });
 

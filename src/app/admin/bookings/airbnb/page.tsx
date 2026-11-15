@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { isStaff } from "@/lib/auth";
+import { isAdmin, isStaff } from "@/lib/auth";
 import { toISODate } from "@/lib/booking/dates";
 import { findClashes } from "@/lib/airbnb/clashes";
 import { AirbnbBookings, type AirbnbBookingRow } from "@/components/admin/AirbnbBookings";
@@ -14,12 +14,13 @@ export default async function AdminAirbnbBookingsPage() {
     );
   }
 
+  const canRemove = await isAdmin();
   const today = toISODate(new Date());
   const supabase = createServiceClient();
   const [{ data: external }, { data: bookings }] = await Promise.all([
     supabase
       .from("external_reservations")
-      .select("id, room_id, check_in, check_out, guest_name, notes, rooms(number)")
+      .select("id, room_id, check_in, check_out, guest_name, notes, rooms(number, airbnb_ical_url)")
       .is("removed_at", null)
       .gte("check_out", today)
       .order("check_in")
@@ -44,6 +45,8 @@ export default async function AdminAirbnbBookingsPage() {
   const rows: AirbnbBookingRow[] = (external ?? []).map((e: any) => ({
     id: e.id,
     room_number: e.rooms?.number ?? 0,
+    // Only whether a link is set: the link itself is a secret and never goes to the browser.
+    room_linked: Boolean(e.rooms?.airbnb_ical_url),
     check_in: e.check_in,
     check_out: e.check_out,
     guest_name: e.guest_name ?? "",
@@ -59,7 +62,7 @@ export default async function AdminAirbnbBookingsPage() {
         guest&apos;s name and any notes here; they are kept when the calendar syncs.
       </p>
       <div className="mt-8">
-        <AirbnbBookings rows={rows} />
+        <AirbnbBookings rows={rows} canRemove={canRemove} />
       </div>
     </div>
   );

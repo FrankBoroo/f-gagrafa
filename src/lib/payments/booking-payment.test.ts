@@ -275,6 +275,9 @@ describe("confirmPaymentByReference", () => {
     const flag = bookingUpdates()[1].payload;
     expect(flag.payment_status).toBe("paid");
     expect(String(flag.admin_notes)).toContain("PAID AFTER HOLD EXPIRED");
+    // The cause may be a booking, an Airbnb reservation or a block, so the note doesn't claim "re-booked".
+    expect(String(flag.admin_notes)).not.toContain("re-booked");
+    expect(String(flag.admin_notes)).toContain("an Airbnb reservation or a block");
     expect(mocks.sendConflictAlert).toHaveBeenCalledTimes(1);
     expect(mocks.sendEmail).not.toHaveBeenCalled();
   });

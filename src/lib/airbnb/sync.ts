@@ -20,6 +20,9 @@ export type SyncRoomResult =
 const MAX_BODY_CHARS = 1_000_000;
 const OUT_OF_TIME = "Stopped: the sync ran out of time.";
 const FETCH_TIMEOUT_MS = 10_000;
+// Every run stops writing after this long, so a slow run can't save an old copy of the calendar
+// over a newer run's results. Leaves room for the 10 s fetch plus the database writes.
+export const SYNC_DEADLINE_MS = 20_000;
 
 interface ExistingRow {
   id: string;
@@ -71,6 +74,7 @@ export async function syncRoom(
   room: SyncRoomInput,
   opts: SyncOpts,
 ): Promise<SyncRoomResult> {
+  opts = { ...opts, deadline: opts.deadline ?? Date.now() + SYNC_DEADLINE_MS };
   try {
     const url = room.airbnb_ical_url;
     if (!url) return await fail(supabase, room, opts, "No Airbnb calendar link is set for this room.");
@@ -159,7 +163,7 @@ export async function syncRoom(
  * Syncs every room that has an import link (optionally one type, optionally only stale ones). Never throws.
  * `skipFailing` leaves rooms whose last sync failed to the scheduler (the booking refresh uses it, so a
  * broken link doesn't slow every booking). With `timeoutMs`, rooms still syncing at the deadline stop
- * before their next write.
+ * before their next write. Without it, each room still stops writing after SYNC_DEADLINE_MS.
  */
 export async function syncRooms(
   supabase: ServiceClient,

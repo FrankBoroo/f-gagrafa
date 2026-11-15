@@ -196,6 +196,22 @@ export async function confirmRoom(bookingId: string) {
   if (problem) return { ok: false, error: problem };
   if (!booking.room_id) return { ok: false, error: "This booking has no room yet. Use Change to pick one." };
 
+  // The double-booking guard only covers bookings against bookings. An Airbnb reservation or a
+  // block added since the room was pencilled in only shows up in the availability check.
+  const { data: available, error: availabilityError } = await supabase.rpc("is_room_available", {
+    p_room_id: booking.room_id,
+    p_check_in: booking.check_in,
+    p_check_out: booking.check_out,
+    p_exclude_booking_id: booking.id,
+  });
+  if (availabilityError) return { ok: false, error: "We couldn't check the room is still free. Please try again." };
+  if (available === false) {
+    return {
+      ok: false,
+      error: "This room is no longer free for the whole stay (an Airbnb booking or a block overlaps). Use Change to pick another.",
+    };
+  }
+
   const { error } = await supabase.from("bookings").update({ room_confirmed: true }).eq("id", bookingId);
   if (error) return { ok: false, error: error.message };
 

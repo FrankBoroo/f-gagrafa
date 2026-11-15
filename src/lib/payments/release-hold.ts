@@ -22,7 +22,7 @@ export const RELEASED_NOTE = "Released: guest left the Paystack checkout without
 // instead of after the 30-minute hold. This does exactly what the hold expiry does
 // (`expire_stale_pending_bookings`): cancel without `cancelled_at`, so if a payment
 // still arrives, confirmPaymentByReference confirms it when the dates are free and
-// flags it for review when they were re-booked. Callers must first check the guest's
+// flags it for review when no room is free for them any more. Callers must first check the guest's
 // own checkout cookie (`isOwnCheckout`).
 export async function releaseUnpaidHold(reference: string): Promise<ReleaseHoldResult> {
   const supabase = createServiceClient();
