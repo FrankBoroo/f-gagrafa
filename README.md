@@ -158,13 +158,16 @@ hit them.
 src/app/                  Public site, booking flow, guest portal, admin
 src/app/booking/actions.ts    Server action: create booking + init Paystack payment
 src/app/admin/*/actions.ts    Server actions for booking status + unit edits
-src/app/api/                  Service requests, Paystack webhook
+src/app/api/                  Service requests, Paystack webhook, cron jobs, Airbnb calendar links
 src/components/admin/         Admin-only components (booking/unit cards, filters)
 src/components/site/          Public + guest-portal components
 src/lib/supabase/             Browser, server, and service-role clients
 src/lib/booking/              Availability, pricing, deposits, promo codes, cancellation tiers, booking codes, dates
 src/lib/payments/             Paystack wrapper and shared payment confirmation
 src/lib/notify/               Email (Resend) and WhatsApp (Twilio)
+src/lib/admin/                Today, Inbox, guest records, Money, room calendar
+src/lib/airbnb/               Airbnb calendar export, import, sync and clash checks
+src/lib/portal/               Guest portal access rules, calendar file, payment return
 src/lib/validations.ts        Zod schemas (booking, contact, unit edits)
 src/lib/types.ts              Domain types derived from the generated src/types/database.ts
 src/types/database.ts         Generated Supabase types (npm run db:types)
@@ -216,7 +219,17 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
 8. `supabase/migration-admin-only-writes.sql` — security fix: only admins can change promo codes,
    Settings and payment records directly in the database (staff can still view them, and staff
    "Record payment" keeps working). Safe to re-run.
-9. `supabase/migration-rooms.sql` — the 13 rooms, per-room double-booking guard and monthly prices. Run it with the `redesign` deploy, not before, then `supabase/reset-and-seed.sql` if you are wiping the database (it **deletes all bookings, payments, units and rooms**).
+9. `supabase/migration-rooms.sql` — the 13 rooms, per-room double-booking guard and monthly prices. Run it with the `redesign` deploy, not before.
+10. `supabase/migration-admin.sql` — room cleaning time, the payment "handled" mark, special prices
+    and staff notes on guests. Safe to re-run.
+11. `supabase/migration-portal-v2.sql` — door codes per room, and breakfast / airport transfer
+    requests in the guest portal. Safe to re-run.
+12. `supabase/migration-airbnb.sql` — each room's Airbnb calendar links and the imported Airbnb
+    reservations. Safe to re-run. **Run it before deploying the code that uses it** (the Rooms page
+    reads its new columns). Already run on the preview database (13 Nov 2026).
+
+Only when wiping the database: `supabase/reset-and-seed.sql` after the last migration. It
+**deletes all bookings, payments, units and rooms**, then creates the 5 types and 13 rooms.
 
 ### Guest portal, units, refunds and team
 
@@ -245,6 +258,42 @@ Run these in the Supabase SQL Editor, in this order, once each (skip any you've 
   at check-in. Staff record the balance with "Record payment" on the booking. The rules live in
   `src/lib/booking/deposit.ts`, and the server re-checks them whatever the browser sends. Refunds apply
   the usual cancellation rule to whatever has actually been paid.
+
+### Rooms and the admin (redesign)
+
+- **Types and rooms** — guests book an apartment type; the server pencils in the lowest free one
+  of its 13 physical rooms. Staff confirm or change the room; guests only see a room number once
+  it is confirmed.
+- **Admin menu** — Today · Bookings · Guests · Inbox · Apartments · Money · Settings (Money and
+  Settings are admin-only). **Today** shows arrivals, departures, room status (occupied / needs
+  cleaning / ready / free) and a "Needs attention" list.
+- **Guest portal** — balance card with **Pay balance** (Paystack), directions, WhatsApp, a calendar
+  file, a receipt, and requests for breakfast, airport transfer, housekeeping or repairs. Staff can
+  also email a payment link from a booking.
+- **Refunds** — Cancel / refund on a booking, plus **Refund overpayment** (admin) for money paid
+  above the stay total; Paystack refunds are split across the booking's payments.
+
+### Airbnb sync
+
+Each room swaps calendars with its own Airbnb listing, so the website and Airbnb can't sell the
+same room twice. Set up under **Apartments → Rooms** (admins):
+
+1. In Airbnb, open the listing → Availability → Connect calendars → **Export**, copy the link and
+   paste it into that room's "Airbnb calendar link".
+2. In the same place in Airbnb, **Import calendar**: paste the room's "Our calendar link" and name it
+   "The Gagrafa".
+3. Repeat for each room.
+
+- Airbnb reservations block the room for website and staff bookings. A clash with a website booking
+  shows in Today → Needs attention. They are listed under **Bookings → Airbnb**, where staff can add
+  the guest's name and notes (Airbnb only shares dates).
+- Our calendar link shows bookings as "Reserved" and blocked dates as "Not available", with no
+  guest details. It's secret: "New link" replaces it (then give Airbnb the new one).
+- Syncing runs every 15 minutes from an external scheduler calling `/api/cron/airbnb-sync` with
+  `Authorization: Bearer <CRON_SECRET>` (see `LAUNCH.md`), once a day from the Vercel cron as a
+  fallback, on "Sync now", and briefly before each online booking.
+- Code: `src/lib/airbnb/` (export, parse, sync, clashes), `src/app/api/ical/[token]`,
+  `src/app/api/cron/airbnb-sync`. Not yet tried against a real Airbnb listing's feed.
 
 ### Next.js 15 notes
 
