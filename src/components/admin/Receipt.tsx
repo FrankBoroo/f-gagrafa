@@ -60,7 +60,8 @@ export function Receipt({
           <p className="mt-1 text-navy/70">{settings.address}</p>
           <p className="text-navy/70">{[...phones, settings.contact_email].filter(Boolean).join(" · ")}</p>
         </div>
-        <div className="text-right">
+        {/* On a phone this block wraps under the address, so it lines up left with it. */}
+        <div className="sm:text-right print:text-right">
           <p className="text-xs uppercase tracking-widest text-navy/50">Receipt</p>
           <p className="mt-1 font-medium">{booking.booking_code}</p>
         </div>
