@@ -48,9 +48,11 @@ function esc(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
-async function send(args: { to: string; subject: string; html: string; replyTo?: string }) {
+// Logs name the kind of email, never its subject: subjects carry guest names, booking codes
+// and alert text, which must stay out of the Vercel logs.
+async function send(args: { kind: string; to: string; subject: string; html: string; replyTo?: string }) {
   if (!serverEnv.RESEND_API_KEY) {
-    log.warn("email.skipped_not_configured", { subject: args.subject });
+    log.warn("email.skipped_not_configured", { kind: args.kind });
     return;
   }
   try {
@@ -64,7 +66,7 @@ async function send(args: { to: string; subject: string; html: string; replyTo?:
       html: args.html,
     });
   } catch (err) {
-    log.error("email.send_failed", { subject: args.subject }, err);
+    log.error("email.send_failed", { kind: args.kind }, err);
   }
 }
 
@@ -84,6 +86,7 @@ export async function sendBookingConfirmationEmail(booking: any, unitName: strin
     : "";
 
   await send({
+    kind: "booking_confirmation",
     to: booking.guest_email,
     subject: `Booking confirmed — ${booking.booking_code}`,
     html: `
@@ -111,6 +114,7 @@ export async function sendBalanceReceivedEmail(booking: any, unitName: string, c
       : `Your stay is now paid in full.`;
 
   await send({
+    kind: "balance_received",
     to: booking.guest_email,
     subject: `Payment received — ${booking.booking_code}`,
     html: `
@@ -133,6 +137,7 @@ export async function sendBalanceReceivedEmail(booking: any, unitName: string, c
 // Staff-sent payment link: what is owed and a one-click way into the Guest Portal to pay it.
 export async function sendBalancePaymentLinkEmail(booking: any, unitName: string, owed: number) {
   await send({
+    kind: "balance_payment_link",
     to: booking.guest_email,
     subject: `Your balance for ${booking.booking_code}`,
     html: `
@@ -153,6 +158,7 @@ export async function sendBalancePaymentLinkEmail(booking: any, unitName: string
 
 export async function sendAdminNewBookingNotification(booking: any, unitName: string) {
   await send({
+    kind: "admin_new_booking",
     to: await adminAddress(),
     subject: `New booking: ${booking.booking_code} (${esc(unitName)})`,
     replyTo: booking.guest_email,
@@ -174,6 +180,7 @@ export async function sendAdminNewBookingNotification(booking: any, unitName: st
 
 export async function sendAdminPaymentConflictAlert(booking: any, unitName: string, reason: string) {
   await send({
+    kind: "admin_payment_conflict",
     to: await adminAddress(),
     replyTo: booking.guest_email,
     subject: `ACTION NEEDED: paid booking ${booking.booking_code} needs attention`,
@@ -210,6 +217,7 @@ export async function sendBookingCancelledEmail(
     : "<p>No refund applies to this cancellation under our cancellation policy.</p>";
 
   await send({
+    kind: "booking_cancelled",
     to: booking.guest_email,
     subject: `Your booking ${booking.booking_code} has been cancelled`,
     html: `
@@ -224,6 +232,7 @@ export async function sendBookingCancelledEmail(
 
 export async function sendBookingChangedEmail(booking: any, unitName: string) {
   await send({
+    kind: "booking_changed",
     to: booking.guest_email,
     subject: `Your booking ${booking.booking_code} has been updated`,
     html: `
@@ -242,6 +251,7 @@ export async function sendBookingChangedEmail(booking: any, unitName: string) {
 
 export async function sendCancellationRequestAlert(booking: any, reason: string) {
   await send({
+    kind: "cancellation_request",
     to: await adminAddress(),
     subject: `Cancellation request: ${booking.booking_code}`,
     html: `
@@ -259,6 +269,7 @@ export async function sendCancellationRequestAlert(booking: any, reason: string)
 
 export async function sendStaffInviteEmail(email: string, name: string, role: string, link: string) {
   await send({
+    kind: "staff_invite",
     to: email,
     subject: "You've been invited to The Gagrafa admin",
     html: `
@@ -290,6 +301,7 @@ export async function sendPreArrivalReminder(booking: any, unitName: string, pai
         ? `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. <a href="${link}">Pay balance</a> online, or pay at the front desk by cash, bank transfer or Mobile Money.</p>`
         : `<p><strong>Balance due by arrival:</strong> ${formatMoney(balanceDue, booking.currency)}. Please pay at the front desk by cash, bank transfer or Mobile Money.</p>`;
   await send({
+    kind: "pre_arrival_reminder",
     to: booking.guest_email,
     subject: `See you soon at The Gagrafa — ${booking.booking_code}`,
     html: `
@@ -306,6 +318,7 @@ export async function sendPreArrivalReminder(booking: any, unitName: string, pai
 
 export async function sendPostStayReviewRequest(booking: any) {
   await send({
+    kind: "post_stay_review",
     to: booking.guest_email,
     subject: "How was your stay at The Gagrafa?",
     html: `
@@ -319,6 +332,7 @@ export async function sendPostStayReviewRequest(booking: any) {
 
 export async function sendContactMessageNotification(name: string, email: string, message: string) {
   await send({
+    kind: "contact_message",
     to: await adminAddress(),
     replyTo: email,
     subject: `New contact message from ${name}`,
@@ -328,6 +342,7 @@ export async function sendContactMessageNotification(name: string, email: string
 
 export async function sendServiceRequestNotification(serviceRequest: any, booking: any) {
   await send({
+    kind: "service_request",
     to: await adminAddress(),
     subject: `Service request: ${requestTypeWord(serviceRequest.type)} — ${booking?.booking_code ?? ""}`,
     html: `
@@ -350,6 +365,7 @@ export async function sendAdminSystemAlert(kind: string, summary: string, detail
     .map(([k, v]: [string, string | number | null | undefined]) => `<strong>${esc(k)}:</strong> ${esc(v ?? "—")}`)
     .join("<br/>");
   await send({
+    kind: "admin_system_alert",
     to: await adminAddress(),
     subject: `ALERT: ${summary}`,
     html: `
