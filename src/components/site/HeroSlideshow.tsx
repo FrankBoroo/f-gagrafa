@@ -16,7 +16,10 @@ function shouldAdvance(): boolean {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
   const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
   if (connection?.saveData) return false;
-  if (connection?.effectiveType && ["slow-2g", "2g", "3g"].includes(connection.effectiveType)) return false;
+  // Only 2G counts as too slow. Chrome labels many ordinary connections in Ghana "3g" (about
+  // 650 ms round trip), which would leave most visitors on a still photo. The extra photos load
+  // after the page is idle, and the slideshow only moves to photos that have arrived.
+  if (connection?.effectiveType && ["slow-2g", "2g"].includes(connection.effectiveType)) return false;
   return true;
 }
 
